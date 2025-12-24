@@ -28,6 +28,7 @@ import {
   Bug,
   ExternalLink,
   Globe,
+  Edit3,
 } from "lucide-react"
 
 // --- Custom Hook: useIsMobile (Được tích hợp trực tiếp để không cần file ngoài) ---
@@ -158,6 +159,10 @@ const TRANSLATIONS = {
     life: "LIFE",
     pts: "PTS",
     max: "MAX!!",
+    custom: "CUSTOM",
+    customGame: "CUSTOM GAME",
+    selectBalls: "Select Balls",
+    startCustom: "START CUSTOM",
   },
   vi: {
     play: "CHƠI",
@@ -246,6 +251,10 @@ const TRANSLATIONS = {
     life: "SỰ SỐNG",
     pts: "ĐIỂM",
     max: "MAX!!",
+    custom: "TÙY CHỈNH",
+    customGame: "CHẾ ĐỘ TÙY CHỈNH",
+    selectBalls: "Chọn bóng",
+    startCustom: "BẮT ĐẦU",
   },
 }
 
@@ -285,6 +294,20 @@ export default function App() {
   const [snowLeft, setSnowLeft] = useState(0)
   const [snowActive, setSnowActive] = useState(false)
   const [language, setLanguage] = useState<"en" | "vi">("en")
+  const [openCustom, setOpenCustom] = useState(false)
+  const [customConfig, setCustomConfig] = useState({
+    mode: "normal" as "normal" | "hardcode",
+    balls: {
+      normal: true,
+      purple: true,
+      yellow: true,
+      boost: true,
+      grey: true,
+      snow: true,
+      orange: true,
+      heal: true,
+    }
+  })
 
   const isMobile = useIsMobile()
 
@@ -293,6 +316,8 @@ export default function App() {
     lives: 5,
     combo: 0,
     isAuto: false,
+    isCustom: false,
+    allowedBalls: [] as string[],
     isClassic: false,
     gameMode: "normal" as "normal" | "hardcode",
     playerX: 160,
@@ -515,11 +540,18 @@ export default function App() {
       b.dx = (Math.random() - 0.5) * tiltPower
     }
 
-    if (gameData.current.isClassic) {
+    if (gameData.current.isCustom) {
+      const allowed = gameData.current.allowedBalls
+      if (allowed.length > 0) {
+        b.type = allowed[Math.floor(Math.random() * allowed.length)] as any
+      } else {
+        b.type = "normal"
+      }
+    } else if (gameData.current.isClassic) {
       // Classic Mode: 93% Normal (Red), 5% Heal (Green), 2% Shield (Grey)
       const r = Math.random()
       if (r < 0.02) b.type = "grey"
-      else if (r < 0.07) b.type = "heal"
+      else if (gameData.current.gameMode !== "hardcode" && r < 0.07) b.type = "heal"
       else b.type = "normal"
     } else if (score < 10) {
       b.type = "normal"
@@ -557,7 +589,7 @@ export default function App() {
     }
 
     // Bomb Spawn Logic (Simultaneous)
-    if (!gameData.current.isClassic && score > 50 && Math.random() < 0.2) {
+    if (!gameData.current.isClassic && !gameData.current.isCustom && score > 50 && Math.random() < 0.2) {
       const delayY = Math.random() * 150
       gameData.current.bombs.push({
         x: Math.random() * (canvas.width - 40) + 20,
@@ -582,6 +614,8 @@ export default function App() {
         lives: mode === "hardcode" ? 1 : 5, // 1 life for Hardcode
         combo: 0,
         gameMode: mode,
+        isCustom: false,
+        allowedBalls: [],
         isClassic: isClassic,
         playerX: 160,
         playerWidth: 80,
@@ -621,6 +655,64 @@ export default function App() {
     })
   }
 
+  const startCustomGame = () => {
+    const allowed = Object.entries(customConfig.balls)
+      .filter(([_, enabled]) => enabled)
+      .map(([type]) => type)
+    
+    if (allowed.length === 0) return
+
+    setGameMode(customConfig.mode)
+    runCountdown(false, () => {
+      gameData.current = {
+        ...gameData.current,
+        score: 0,
+        lives: customConfig.mode === "hardcode" ? 1 : 5,
+        combo: 0,
+        gameMode: customConfig.mode,
+        isClassic: false,
+        isCustom: true,
+        allowedBalls: allowed,
+        playerX: 160,
+        playerWidth: 80,
+        targetWidth: 80,
+        isBoosted: false,
+        boostTimeLeft: 0,
+        snowTimeLeft: 0,
+        isSnowSlowed: false,
+        timeScale: 1,
+        targetTimeScale: 1,
+        hasPlayedNewBest: false,
+        hasShield: false,
+        ball: { x: 200, y: -50, radius: 10, speed: 3.5, dx: 2, type: "normal", sinTime: 0 },
+        bombs: [],
+        isDying: false,
+        deathX: 0,
+        deathY: 0,
+        isAuto: false,
+      }
+      if (snowIntervalRef.current) {
+        clearInterval(snowIntervalRef.current)
+        snowIntervalRef.current = null
+      }
+      setSnowLeft(0)
+      setSnowActive(false)
+      setIsAuto(false)
+      setIsClassic(false)
+      setScore(0)
+      setLives(customConfig.mode === "hardcode" ? 1 : 5)
+      setComboCount(0)
+      setGameState("running")
+      setOpenCustom(false)
+      setOpenSettings(false)
+      setOpenStats(false)
+      setShowNewBest(false)
+      particles.current = []
+      trails.current = []
+      resetBall()
+    })
+  }
+
   const startAutoGame = () => {
     gameData.current = {
       ...gameData.current,
@@ -628,6 +720,8 @@ export default function App() {
       lives: gameMode === "hardcode" ? 1 : 5, // 1 life for Hardcode
       combo: 0,
       gameMode: gameMode,
+      isCustom: false,
+      allowedBalls: [],
       isClassic: isClassic,
       playerX: 160,
       playerWidth: 80,
@@ -730,8 +824,12 @@ export default function App() {
     setAnimationsEnabled(savedAnimations)
     setTrailsEnabled(savedTrails)
 
-    const savedLang = localStorage.getItem("game_language") as "en" | "vi"
-    if (savedLang) setLanguage(savedLang)
+    const savedLang = localStorage.getItem("game_language")
+    if (savedLang === "en" || savedLang === "vi") {
+      setLanguage(savedLang)
+    } else if (typeof navigator !== "undefined" && navigator.language.startsWith("vi")) {
+      setLanguage("vi")
+    }
     gameData.current.trailsEnabled = savedTrails
   }, [])
 
@@ -1102,11 +1200,11 @@ export default function App() {
           
           gameData.current.score += scoreAdd
           
-          const currentBest = gameData.current.isClassic
+          const currentBest = (gameData.current.isClassic || gameData.current.isCustom)
             ? (gameData.current.gameMode === "hardcode" ? gameData.current.bestClassicHardcore : gameData.current.bestClassicNormal)
             : (gameData.current.gameMode === "hardcode" ? gameData.current.bestHardcore : gameData.current.bestNormal)
 
-          if (gameData.current.score > currentBest && !gameData.current.isAuto) {
+          if (gameData.current.score > currentBest && !gameData.current.isAuto && !gameData.current.isCustom) {
             if (!gameData.current.hasPlayedNewBest) {
               playSound("newbest")
               setShowNewBest(true)
@@ -1569,7 +1667,7 @@ export default function App() {
           </motion.div>
         )}
 
-        {gameState !== "running" && gameState !== "countdown" && gameState !== "paused" && !openGuide && (
+        {gameState !== "running" && gameState !== "countdown" && gameState !== "paused" && !openGuide && !openCustom && (
           <motion.div
             variants={menuContainerVariants}
             initial="hidden"
@@ -1596,6 +1694,15 @@ export default function App() {
                 >
                   <Play size={32} fill="currentColor" />
                   {t.play}
+                </motion.button>
+
+                {/* CUSTOM BUTTON */}
+                <motion.button
+                  variants={menuItemVariants}
+                  onClick={() => setOpenCustom(true)}
+                  className="w-full py-3 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-all mb-6 bg-slate-800 text-slate-300 border border-white/5 hover:bg-slate-700 hover:text-white"
+                >
+                  <Edit3 size={20} /> {t.custom}
                 </motion.button>
 
                 {/* OPTIONS ROW */}
@@ -1714,6 +1821,79 @@ export default function App() {
               className="absolute inset-0 backdrop-blur-sm mix-blend-screen"
               style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
             />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {openCustom && (
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={animationsEnabled ? { type: "spring", damping: 25 } : { duration: 0 }}
+            className="absolute inset-0 z-[80] bg-slate-900 p-8 flex flex-col border-t-4 border-purple-600 rounded-t-[3rem]"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.customGame}</h3>
+              <button onClick={() => setOpenCustom(false)} className="text-slate-400 hover:text-white">
+                <X size={32} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-6">
+              {/* Mode Selection */}
+              <div className="bg-white/5 p-4 rounded-2xl border border-white/5 flex gap-2">
+                <button
+                  onClick={() => setCustomConfig(prev => ({ ...prev, mode: "normal" }))}
+                  className={`flex-1 py-3 rounded-xl font-black text-sm uppercase transition-all ${customConfig.mode === "normal" ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "bg-slate-800 text-slate-500"}`}
+                >
+                  Normal
+                </button>
+                <button
+                  onClick={() => setCustomConfig(prev => ({ ...prev, mode: "hardcode" }))}
+                  className={`flex-1 py-3 rounded-xl font-black text-sm uppercase transition-all ${customConfig.mode === "hardcode" ? "bg-red-600 text-white shadow-lg shadow-red-500/20" : "bg-slate-800 text-slate-500"}`}
+                >
+                  Hardcore
+                </button>
+              </div>
+
+              {/* Ball Selection */}
+              <div>
+                <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">{t.selectBalls}</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { id: "normal", color: "bg-red-500", label: t.ballNormal },
+                    { id: "purple", color: "bg-purple-500", label: t.ballFast },
+                    { id: "yellow", color: "bg-yellow-500", label: t.ballZicZac },
+                    { id: "boost", color: "bg-blue-500", label: t.ballBooster },
+                    { id: "grey", color: "bg-slate-400", label: t.ballShield },
+                    { id: "snow", color: "bg-white", label: t.ballSnow },
+                    { id: "orange", color: "bg-orange-500", label: t.ballBomb },
+                    { id: "heal", color: "bg-green-500", label: t.ballHeal },
+                  ].map((ball) => (
+                    <button
+                      key={ball.id}
+                      onClick={() => setCustomConfig(prev => ({
+                        ...prev,
+                        balls: { ...prev.balls, [ball.id]: !prev.balls[ball.id as keyof typeof prev.balls] }
+                      }))}
+                      className={`p-3 rounded-xl border transition-all flex items-center gap-3 ${customConfig.balls[ball.id as keyof typeof customConfig.balls] ? "bg-slate-800 border-white/20" : "bg-slate-900/50 border-transparent opacity-50"}`}
+                    >
+                      <div className={`w-4 h-4 rounded-full ${ball.color} shadow-sm`} />
+                      <span className={`text-xs font-bold uppercase ${customConfig.balls[ball.id as keyof typeof customConfig.balls] ? "text-white" : "text-slate-500"}`}>{ball.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={startCustomGame}
+              className="w-full py-4 mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-purple-500/30 active:scale-95 transition-transform"
+            >
+              <Play size={20} fill="currentColor" /> {t.startCustom}
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
