@@ -90,6 +90,7 @@ export const TRANSLATIONS = {
     customGame: "CUSTOM GAME",
     selectBalls: "Select Balls",
     startCustom: "START CUSTOM",
+    skins: "SKINS",
   },
   vi: {
     play: "CHƠI",
@@ -182,6 +183,7 @@ export const TRANSLATIONS = {
     customGame: "CHẾ ĐỘ TÙY CHỈNH",
     selectBalls: "Chọn bóng",
     startCustom: "BẮT ĐẦU",
+    skins: "TRANG PHỤC",
   },
   es: {
     play: "JUGAR",
@@ -274,6 +276,7 @@ export const TRANSLATIONS = {
     customGame: "JUEGO PERSONALIZADO",
     selectBalls: "Seleccionar Bolas",
     startCustom: "INICIAR",
+    skins: "ASPECTOS",
   },
   ru: {
     play: "ИГРАТЬ",
@@ -366,5 +369,6 @@ export const TRANSLATIONS = {
     customGame: "НАСТРОЙКА ИГРЫ",
     selectBalls: "Выбор Мячей",
     startCustom: "НАЧАТЬ",
+    skins: "СКИНЫ",
   },
 }
