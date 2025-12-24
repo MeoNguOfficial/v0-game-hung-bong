@@ -174,8 +174,9 @@ Language preference is saved automatically.
 
 ## 🛠 Update
 
-- Fixed an issue where **Game Over was triggered incorrectly when bombs fell**
-- Fixed **bomb falling sound not stopping properly**
+- Update release v1.0.0
+- Fixed an issue where **Game Over was triggered incorrectly when bombs fell (From beta 1.0.0)**
+- Fixed **bomb falling sound not stopping properly (From beta 1.0.0)**
 
 ---
 
