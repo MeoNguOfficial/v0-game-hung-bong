@@ -178,6 +178,15 @@ export default function SettingsModal({
           </div>
           <ExternalLink size={20} className="text-slate-500" />
         </a>
+
+        <div className="text-center mt-4 mb-2">
+          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+            Created by MeoNguOfficial
+          </p>
+          <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest mt-1">
+            deploy and build by V0
+          </p>
+        </div>
       </div>
     </motion.div>
   )
