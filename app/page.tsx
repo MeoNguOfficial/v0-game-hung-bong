@@ -28,9 +28,11 @@ import {
   Bug,
   ExternalLink,
   Edit3,
+  Palette,
 } from "lucide-react"
 import { TRANSLATIONS } from "./translations"
 import SettingsModal from "./SettingsModal"
+import SkinPlayerModal from "./SkinPlayerModal"
 
 // --- Custom Hook: useIsMobile (Được tích hợp trực tiếp để không cần file ngoài) ---
 function useIsMobile() {
@@ -107,6 +109,8 @@ export default function App() {
   const [snowLeft, setSnowLeft] = useState(0)
   const [snowActive, setSnowActive] = useState(false)
   const [language, setLanguage] = useState<"en" | "vi" | "es" | "ru">("en")
+  const [openSkins, setOpenSkins] = useState(false)
+  const [skin, setSkin] = useState("default")
   const [openCustom, setOpenCustom] = useState(false)
   const [customConfig, setCustomConfig] = useState({
     mode: "normal" as "normal" | "hardcode",
@@ -157,6 +161,7 @@ export default function App() {
     isDying: false,
     deathX: 0,
     deathY: 0,
+    skin: "default",
   })
 
   const particles = useRef<Particle[]>([])
@@ -169,6 +174,12 @@ export default function App() {
   const changeLanguage = (lang: "en" | "vi" | "es" | "ru") => {
     setLanguage(lang)
     localStorage.setItem("game_language", lang)
+  }
+
+  const changeSkin = (newSkin: string) => {
+    setSkin(newSkin)
+    gameData.current.skin = newSkin
+    localStorage.setItem("game_skin", newSkin)
   }
 
   // --- Anti-Right Click (PC) ---
@@ -646,6 +657,12 @@ export default function App() {
       setLanguage("vi")
     }
     gameData.current.trailsEnabled = savedTrails
+
+    const savedSkin = localStorage.getItem("game_skin") || "default"
+    setSkin(savedSkin)
+    gameData.current.skin = savedSkin
+
+    document.title = "Catch Master - Power by V0"
   }, [])
 
   useEffect(() => {
@@ -1146,16 +1163,53 @@ export default function App() {
       })
 
       ctx.globalAlpha = 1
-      const pc =
-        gameData.current.isBoosted && gameData.current.boostTimeLeft <= 2 && Math.floor(Date.now() / 100) % 2 === 0
-          ? "#60a5fa"
-          : gameData.current.isBoosted
-            ? "#60a5fa"
-            : "#3b82f6"
-      ctx.fillStyle = pc
+      
+      // --- PADDLE RENDERING WITH SKINS ---
+      const currentSkin = gameData.current.skin || "default"
+      let paddleColor = "#3b82f6"
+      let shadowColor = "transparent"
+      let shadowBlur = 0
+
+      switch (currentSkin) {
+        case "emerald": paddleColor = "#10b981"; break
+        case "neon": paddleColor = "#d946ef"; shadowColor = "#d946ef"; shadowBlur = 15; break
+        case "ice": paddleColor = "#06b6d4"; shadowColor = "#cffafe"; shadowBlur = 10; break
+        case "cyber": paddleColor = "#84cc16"; break
+        case "inferno": paddleColor = "#ea580c"; shadowColor = "#f97316"; shadowBlur = 15; break
+        case "void": paddleColor = "#4c1d95"; shadowColor = "#8b5cf6"; shadowBlur = 10; break
+        case "galaxy": paddleColor = "#4338ca"; break
+        default: paddleColor = "#3b82f6"; break
+      }
+
+      // Boost Effect Override (Flashing white when ending)
+      if (gameData.current.isBoosted) {
+        if (gameData.current.boostTimeLeft <= 2 && Math.floor(Date.now() / 100) % 2 === 0) {
+          paddleColor = "#ffffff"
+        }
+      }
+
+      ctx.save()
+      if (shadowBlur > 0) {
+        ctx.shadowColor = shadowColor
+        ctx.shadowBlur = shadowBlur
+      }
+
+      // Gradient for specific skins
+      if (currentSkin === "inferno" && !gameData.current.isBoosted) {
+        const grad = ctx.createLinearGradient(gameData.current.playerX, 460, gameData.current.playerX, 475)
+        grad.addColorStop(0, "#f97316"); grad.addColorStop(1, "#9a3412")
+        paddleColor = grad as any
+      } else if (currentSkin === "galaxy" && !gameData.current.isBoosted) {
+        const grad = ctx.createLinearGradient(gameData.current.playerX, 460, gameData.current.playerX, 475)
+        grad.addColorStop(0, "#4338ca"); grad.addColorStop(1, "#1e1b4b")
+        paddleColor = grad as any
+      }
+
+      ctx.fillStyle = paddleColor
       ctx.beginPath()
       ctx.roundRect(gameData.current.playerX, 460, gameData.current.playerWidth, 15, 8)
       ctx.fill()
+      ctx.restore()
 
       ctx.beginPath()
       ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2)
@@ -1480,7 +1534,7 @@ export default function App() {
           </motion.div>
         )}
 
-        {gameState !== "running" && gameState !== "countdown" && gameState !== "paused" && !openGuide && !openCustom && (
+        {gameState !== "running" && gameState !== "countdown" && gameState !== "paused" && !openGuide && !openCustom && !openSkins && (
           <motion.div
             variants={menuContainerVariants}
             initial="hidden"
@@ -1570,6 +1624,13 @@ export default function App() {
                     className="flex-1 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/40 backdrop-blur-sm text-xs uppercase tracking-wider"
                   >
                     <BarChart3 size={18} /> {t.stats}
+                  </motion.button>
+                  <motion.button
+                    variants={menuItemVariants}
+                    onClick={() => setOpenSkins(true)}
+                    className="flex-1 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-pink-500/20 bg-pink-500/10 text-pink-300 hover:bg-pink-500/20 hover:border-pink-500/40 backdrop-blur-sm text-xs uppercase tracking-wider"
+                  >
+                    <Palette size={18} /> {t.skins}
                   </motion.button>
                   <motion.button
                     variants={menuItemVariants}
@@ -1715,6 +1776,18 @@ export default function App() {
               <Play size={20} fill="currentColor" /> {t.startCustom}
             </button>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {openSkins && (
+          <SkinPlayerModal
+            t={t}
+            currentSkin={skin}
+            setSkin={changeSkin}
+            onClose={() => setOpenSkins(false)}
+            animationsEnabled={animationsEnabled}
+          />
         )}
       </AnimatePresence>
 
