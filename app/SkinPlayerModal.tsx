@@ -6,6 +6,7 @@ interface SkinPlayerModalProps {
   t: any
   currentSkin: string
   setSkin: (skin: string) => void
+  playClick: () => void
   onClose: () => void
   animationsEnabled: boolean
 }
@@ -25,6 +26,7 @@ export default function SkinPlayerModal({
   t,
   currentSkin,
   setSkin,
+  playClick,
   onClose,
   animationsEnabled,
 }: SkinPlayerModalProps) {
@@ -38,7 +40,10 @@ export default function SkinPlayerModal({
     >
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.skins || "SKINS"}</h3>
-        <button onClick={onClose} className="text-slate-400 hover:text-white">
+        <button onClick={() => {
+          playClick()
+          onClose()
+        }} className="text-slate-400 hover:text-white">
           <X size={32} />
         </button>
       </div>

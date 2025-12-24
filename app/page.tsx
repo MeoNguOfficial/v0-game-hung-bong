@@ -29,10 +29,10 @@ import {
   ExternalLink,
   Edit3,
   Palette,
+  Music,
 } from "lucide-react"
 import { TRANSLATIONS } from "./translations"
 import SettingsModal from "./SettingsModal"
-import SkinPlayerModal from "./SkinPlayerModal"
 
 // --- Custom Hook: useIsMobile (Được tích hợp trực tiếp để không cần file ngoài) ---
 function useIsMobile() {
@@ -105,13 +105,12 @@ export default function App() {
   const [isFlashRed, setIsFlashRed] = useState(false)
   const [isFlashWhite, setIsFlashWhite] = useState(false)
   const [gameMode, setGameMode] = useState<"normal" | "hardcode">("normal")
-  const [openGuide, setOpenGuide] = useState(false)
   const [snowLeft, setSnowLeft] = useState(0)
   const [snowActive, setSnowActive] = useState(false)
   const [language, setLanguage] = useState<"en" | "vi" | "es" | "ru">("en")
-  const [openSkins, setOpenSkins] = useState(false)
   const [skin, setSkin] = useState("default")
   const [openCustom, setOpenCustom] = useState(false)
+  const [customError, setCustomError] = useState<string | null>(null)
   const [customConfig, setCustomConfig] = useState({
     mode: "normal" as "normal" | "hardcode",
     isAuto: false,
@@ -126,6 +125,11 @@ export default function App() {
       heal: true,
     }
   })
+
+  const [activeTab, setActiveTab] = useState<"home" | "guide" | "stats" | "skins" | "settings">("home")
+
+  const [musicVolume, setMusicVolume] = useState(0.5)
+  const [sfxVolume, setSfxVolume] = useState(0.5)
 
   const isMobile = useIsMobile()
 
@@ -147,6 +151,7 @@ export default function App() {
     bestClassicNormal: 0,
     bestClassicHardcore: 0,
     isMuted: false,
+    sfxVolume: 0.5,
     boostTimeLeft: 0,
     snowTimeLeft: 0,
     isSnowSlowed: false,
@@ -167,19 +172,41 @@ export default function App() {
   const particles = useRef<Particle[]>([])
   const trails = useRef<Trail[]>([])
   const audioRefs = useRef<any>(null)
+  const currentBgmRef = useRef<HTMLAudioElement | null>(null)
   const snowIntervalRef = useRef<number | null>(null)
 
   const t = TRANSLATIONS[language]
 
   const changeLanguage = (lang: "en" | "vi" | "es" | "ru") => {
+    playClick()
     setLanguage(lang)
     localStorage.setItem("game_language", lang)
   }
 
   const changeSkin = (newSkin: string) => {
+    playClick()
     setSkin(newSkin)
     gameData.current.skin = newSkin
     localStorage.setItem("game_skin", newSkin)
+  }
+
+  const changeMusicVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseFloat(e.target.value)
+    setMusicVolume(v)
+    if (currentBgmRef.current) {
+      currentBgmRef.current.volume = v
+    }
+    if (audioRefs.current?.pause_bg) {
+      audioRefs.current.pause_bg.volume = v
+    }
+    localStorage.setItem("game_music_volume", String(v))
+  }
+
+  const changeSfxVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseFloat(e.target.value)
+    setSfxVolume(v)
+    gameData.current.sfxVolume = v
+    localStorage.setItem("game_sfx_volume", String(v))
   }
 
   // --- Anti-Right Click (PC) ---
@@ -216,6 +243,39 @@ export default function App() {
     }
   }, [])
 
+  // --- Audio Helper: Fade In / Fade Out ---
+  const fadeAudio = (audio: HTMLAudioElement, targetVol: number, duration = 800, onComplete?: () => void) => {
+    if (!audio) return
+    // Clear previous fade interval if stored on the audio object
+    if ((audio as any).fadeInterval) clearInterval((audio as any).fadeInterval)
+
+    const startVol = audio.volume
+    const startTime = Date.now()
+    
+    if (targetVol > 0) {
+      audio.volume = startVol // Start from current (usually 0 if fading in)
+      audio.play().catch(() => {})
+    }
+
+    (audio as any).fadeInterval = setInterval(() => {
+      const elapsed = Date.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      
+      // Linear interpolation
+      const newVol = startVol + (targetVol - startVol) * progress
+      audio.volume = Math.max(0, Math.min(newVol, 1))
+
+      if (progress >= 1) {
+        clearInterval((audio as any).fadeInterval)
+        if (targetVol === 0) {
+          audio.pause()
+          audio.currentTime = 0
+        }
+        if (onComplete) onComplete()
+      }
+    }, 50)
+  }
+
   // Countdown timer refs and helpers
   const countdownTimeouts = useRef<number[]>([])
   const clearCountdownTimeouts = () => {
@@ -228,10 +288,13 @@ export default function App() {
     const audio =
       name === "combo" && idx !== undefined ? audioRefs.current.combo[Math.min(idx, 5)] : audioRefs.current[name]
     if (audio) {
+      audio.volume = gameData.current.sfxVolume
       audio.currentTime = 0
       audio.play().catch(() => { })
     }
   }
+
+  const playClick = () => playSound("click")
 
   const runCountdown = (isAutoParam: boolean, onFinish: () => void) => {
     clearCountdownTimeouts()
@@ -274,12 +337,25 @@ export default function App() {
     if (gameState !== "running") return
     setGameState("paused")
     setConfirmExit(false)
-    if (!gameData.current.isMuted && audioRefs.current?.pause_bg) {
-      audioRefs.current.pause_bg.play().catch(() => { })
+    // Pause Game Music
+    if (currentBgmRef.current) {
+      currentBgmRef.current.pause()
+    }
+    // Play Pause Music
+    if (audioRefs.current?.pause_bg && !gameData.current.isMuted) {
+      audioRefs.current.pause_bg.volume = musicVolume
+      audioRefs.current.pause_bg.play().catch(() => {})
     }
   }
 
   const resumeGame = () => {
+    playClick()
+    // Resume Game Music
+    if (currentBgmRef.current && !gameData.current.isMuted) {
+      currentBgmRef.current.volume = musicVolume
+      currentBgmRef.current.play().catch(() => {})
+    }
+    // Stop Pause Music
     if (audioRefs.current?.pause_bg) {
       audioRefs.current.pause_bg.pause()
       audioRefs.current.pause_bg.currentTime = 0
@@ -296,21 +372,27 @@ export default function App() {
   }
 
   const handleExitRequest = () => {
+    playClick()
     if (!confirmExit) {
       setConfirmExit(true)
       setTimeout(() => setConfirmExit(false), 3000) // Reset sau 3s nếu ko nhấn lại
       return
     }
     // Thực hiện thoát
+    // Stop Game Music
+    fadeAudio(currentBgmRef.current, 0, 500)
+
+    // Stop Pause Music
     if (audioRefs.current?.pause_bg) {
-      audioRefs.current.pause_bg.pause()
-      audioRefs.current.pause_bg.currentTime = 0
+      fadeAudio(audioRefs.current.pause_bg, 0, 500)
     }
+
     setGameState("start")
     setConfirmExit(false)
   }
 
   const toggleAutoMode = () => {
+    playClick()
     gameData.current.isAuto = !gameData.current.isAuto
     setIsAuto(gameData.current.isAuto)
     if (typeof window !== "undefined" && window.navigator.vibrate) window.navigator.vibrate(50)
@@ -318,19 +400,37 @@ export default function App() {
 
   const toggleMute = () => {
     const newState = !isMuted
+    if (!newState) playClick() // Play click when unmuting
     setIsMuted(newState)
     gameData.current.isMuted = newState
     localStorage.setItem("game_muted", String(newState))
+
+    if (newState) {
+      // Mute all
+      if (currentBgmRef.current) currentBgmRef.current.pause()
+      if (audioRefs.current?.pause_bg) audioRefs.current.pause_bg.pause()
+    } else {
+      // Unmute
+      if (gameState === "running" && currentBgmRef.current) {
+        currentBgmRef.current.volume = musicVolume
+        currentBgmRef.current.play().catch(() => {})
+      } else if (gameState === "paused" && audioRefs.current?.pause_bg) {
+        audioRefs.current.pause_bg.volume = musicVolume
+        audioRefs.current.pause_bg.play().catch(() => {})
+      }
+    }
   }
 
   const toggleParticles = () => {
     const newState = !particlesEnabled
+    playClick()
     setParticlesEnabled(newState)
     gameData.current.particlesEnabled = newState
     localStorage.setItem("game_particles", String(newState))
   }
 
   const toggleTrails = () => {
+    playClick()
     const newState = !trailsEnabled
     setTrailsEnabled(newState)
     gameData.current.trailsEnabled = newState
@@ -338,6 +438,7 @@ export default function App() {
   }
 
   const toggleAnimations = () => {
+    playClick()
     const newState = !animationsEnabled
     setAnimationsEnabled(newState)
     localStorage.setItem("game_animations", String(newState))
@@ -432,6 +533,7 @@ export default function App() {
   const startCountdown = (isAuto: boolean, mode: "normal" | "hardcode" = "normal") => {
     // Update startCountdown to accept and set game mode, then run countdown
     setGameMode(mode)
+    
     runCountdown(isAuto, () => {
       gameData.current = {
         ...gameData.current,
@@ -471,12 +573,19 @@ export default function App() {
       setLives(mode === "hardcode" ? 1 : 5)
       setComboCount(0)
       setGameState("running")
-      setOpenSettings(false)
-      setOpenStats(false)
+      setActiveTab("home")
       setShowNewBest(false)
       particles.current = []
       trails.current = []
       resetBall()
+
+      // Start Game Music (Fade In)
+      let bgm = audioRefs.current?.bg_game_default
+      if (isAuto) bgm = audioRefs.current?.bg_game_auto
+      else if (mode === "hardcode") bgm = audioRefs.current?.bg_game_hardcode
+      currentBgmRef.current = bgm
+      if (bgm) bgm.volume = 0
+      fadeAudio(bgm, musicVolume, 2000)
     })
   }
 
@@ -486,9 +595,13 @@ export default function App() {
       .filter(([_, enabled]) => enabled)
       .map(([type]) => type)
     
-    if (allowed.length === 0) return
+    if (allowed.length === 0) {
+      setCustomError(t.selectAtLeastOneBall)
+      return
+    }
 
     setGameMode(customConfig.mode)
+    
     runCountdown(isAutoCustom, () => {
       gameData.current = {
         ...gameData.current,
@@ -530,12 +643,16 @@ export default function App() {
       setComboCount(0)
       setGameState("running")
       setOpenCustom(false)
-      setOpenSettings(false)
-      setOpenStats(false)
       setShowNewBest(false)
       particles.current = []
       trails.current = []
       resetBall()
+
+      // Start Game Music (Fade In)
+      const bgm = audioRefs.current?.bg_game_custom
+      currentBgmRef.current = bgm
+      if (bgm) bgm.volume = 0
+      fadeAudio(bgm, musicVolume, 2000)
     })
   }
 
@@ -577,8 +694,6 @@ export default function App() {
     setComboCount(0)
     setIsAuto(true)
     setGameState("running")
-    setOpenSettings(false)
-    setOpenStats(false)
   }
 
   useEffect(() => {
@@ -587,10 +702,9 @@ export default function App() {
       audio.preload = "auto"
       return audio
     }
-    const pauseBg = loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/pause_music.mp3")
-    pauseBg.loop = true
 
     audioRefs.current = {
+      // SFX Sounds
       catch: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/catch.mp3"),
       miss: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/miss.mp3"),
       gameover: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/gameover.mp3"),
@@ -605,10 +719,17 @@ export default function App() {
       bomb: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bomb.mp3"),
       critical_bomb: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/critical_bomb.mp3"),
       bomb_fall: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bomb_fall_loop.mp3"),
-      pause_bg: pauseBg,
+      // Background Musics
+      bg_game_default: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bg_game_default.mp3"),
+      bg_game_hardcode: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bg_game_hardcode.mp3"),
+      bg_game_auto: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bg_game_auto.mp3"),
+      bg_game_custom: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bg_game_custom.mp3"),
+      pause_bg: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/pause_music.mp3"),
+      // UI Sounds
       count: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/count.mp3"),
       go: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/go.mp3"),
       kjacs: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/kjacs.mp3"),
+      click: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/click.mp3"),
       combo: [
         loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/c1.mp3"),
         loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/c2.mp3"),
@@ -618,9 +739,30 @@ export default function App() {
         loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/c6.mp3"),
       ],
     }
+
+    // Loop BGMs
+    if (audioRefs.current.bg_game_default) audioRefs.current.bg_game_default.loop = true
+    if (audioRefs.current.bg_game_hardcode) audioRefs.current.bg_game_hardcode.loop = true
+    if (audioRefs.current.bg_game_auto) audioRefs.current.bg_game_auto.loop = true
+    if (audioRefs.current.bg_game_custom) audioRefs.current.bg_game_custom.loop = true
+    if (audioRefs.current.pause_bg) audioRefs.current.pause_bg.loop = true
+
     const savedMute = localStorage.getItem("game_muted") === "true"
     setIsMuted(savedMute)
     gameData.current.isMuted = savedMute
+
+    const savedMusicVol = localStorage.getItem("game_music_volume")
+    if (savedMusicVol) {
+      const v = parseFloat(savedMusicVol)
+      setMusicVolume(v)
+    }
+
+    const savedSfxVol = localStorage.getItem("game_sfx_volume")
+    if (savedSfxVol) {
+      const v = parseFloat(savedSfxVol)
+      setSfxVolume(v)
+      gameData.current.sfxVolume = v
+    }
 
     const dataNormal = localStorage.getItem("my_game_best_normal")
     const savedBestNormal = dataNormal ? Number.parseInt(dataNormal) ^ 0xaa : 0
@@ -758,6 +900,9 @@ export default function App() {
             setTimeout(() => setIsFlashWhite(false), 800)
             setGameState("over")
             playSound("gameover")
+            
+            // Stop Game Music (Fade Out)
+            fadeAudio(currentBgmRef.current, 0, 1500)
           }, 1250)
 
         } else {
@@ -775,6 +920,9 @@ export default function App() {
             setGameState("over")
             stopSound("bomb_fall")
             playSound("gameover")
+
+            // Stop Game Music (Fade Out)
+            fadeAudio(currentBgmRef.current, 0, 1500)
           }
         }
 
@@ -1103,6 +1251,9 @@ export default function App() {
                 }
                 stopSound("bomb_fall")
                 playSound("gameover")
+
+                // Stop Game Music (Fade Out)
+                fadeAudio(currentBgmRef.current, 0, 1500)
               }
               resetBall()
             }
@@ -1381,14 +1532,16 @@ export default function App() {
             </div>
 
             {/* Best */}
-            <div className="flex flex-col items-end">
-              <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t.best}</span>
-              <span className="text-xl font-black text-emerald-400 italic tabular-nums leading-none">
-                {isClassic 
-                  ? (gameMode === "hardcode" ? bestScoreClassicHardcore : bestScoreClassicNormal)
-                  : (gameMode === "hardcode" ? bestScoreHardcore : bestScoreNormal)}
-              </span>
-            </div>
+            {!isAuto && !gameData.current.isCustom && (
+              <div className="flex flex-col items-end">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t.best}</span>
+                <span className="text-xl font-black text-emerald-400 italic tabular-nums leading-none">
+                  {isClassic 
+                    ? (gameMode === "hardcode" ? bestScoreClassicHardcore : bestScoreClassicNormal)
+                    : (gameMode === "hardcode" ? bestScoreHardcore : bestScoreNormal)}
+                </span>
+              </div>
+            )}
 
             {/* Snow Freeze Badge */}
             {snowActive && (
@@ -1403,7 +1556,10 @@ export default function App() {
 
             {/* Pause Button */}
             <button
-              onClick={pauseGame}
+              onClick={() => {
+                playClick()
+                pauseGame()
+              }}
               className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl backdrop-blur-md border border-white/20 transition-all active:scale-90"
             >
               <Pause size={16} className="text-white fill-white" />
@@ -1444,60 +1600,17 @@ export default function App() {
                   {t.quickSettings}
                 </h3>
 
-                <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5">
-                  <div className="flex items-center gap-2">
-                    {isMuted ? (
-                      <VolumeX size={16} className="text-red-500" />
-                    ) : (
-                      <Volume2 size={16} className="text-green-500" />
-                    )}
-                    <span className="text-white font-bold uppercase tracking-widest text-xs">{t.audio}</span>
-                  </div>
-                  <button
-                    onClick={toggleMute}
-                    className={`w-12 h-6 rounded-full relative transition-colors ${isMuted ? "bg-slate-700" : "bg-green-600"}`}
-                  >
-                    <motion.div
-                      layout
-                      transition={animationsEnabled ? undefined : { duration: 0 }}
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full ${isMuted ? "left-1" : "left-6"}`}
-                    />
-                  </button>
-                </div>
-
-                <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5">
-                  <div className="flex items-center gap-2">
-                    <Sparkles size={16} className={particlesEnabled ? "text-yellow-400" : "text-slate-500"} />
-                    <span className="text-white font-bold uppercase tracking-widest text-xs">{t.particles}</span>
-                  </div>
-                  <button
-                    onClick={toggleParticles}
-                    className={`w-12 h-6 rounded-full relative transition-colors ${!particlesEnabled ? "bg-slate-700" : "bg-blue-600"}`}
-                  >
-                    <motion.div
-                      layout
-                      transition={animationsEnabled ? undefined : { duration: 0 }}
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!particlesEnabled ? "left-1" : "left-6"}`}
-                    />
-                  </button>
-                </div>
-
-                <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5">
-                  <div className="flex items-center gap-2">
-                    <Wind size={16} className={trailsEnabled ? "text-blue-400" : "text-slate-500"} />
-                    <span className="text-white font-bold uppercase tracking-widest text-xs">{t.trails}</span>
-                  </div>
-                  <button
-                    onClick={toggleTrails}
-                    className={`w-12 h-6 rounded-full relative transition-colors ${!trailsEnabled ? "bg-slate-700" : "bg-blue-600"}`}
-                  >
-                    <motion.div
-                      layout
-                      transition={animationsEnabled ? undefined : { duration: 0 }}
-                      className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!trailsEnabled ? "left-1" : "left-6"}`}
-                    />
-                  </button>
-                </div>
+                {/* Settings Button (Replaces Quick Sliders) */}
+                <button
+                  onClick={() => {
+                    playClick()
+                    setOpenSettings(true)
+                  }}
+                  className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 border border-white/10 transition-all"
+                >
+                  <Settings size={18} />
+                  <span className="uppercase tracking-widest text-xs">{t.settings}</span>
+                </button>
               </div>
 
               <div className="w-full space-y-3">
@@ -1534,25 +1647,37 @@ export default function App() {
           </motion.div>
         )}
 
-        {gameState !== "running" && gameState !== "countdown" && gameState !== "paused" && !openGuide && !openCustom && !openSkins && (
+        {gameState !== "running" && gameState !== "countdown" && gameState !== "paused" && !openCustom && (
           <motion.div
             variants={menuContainerVariants}
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="absolute inset-0 z-30 bg-slate-950/95 backdrop-blur-2xl flex flex-col items-center justify-center p-8 text-center"
+            className="absolute inset-0 z-30 bg-slate-950/95 backdrop-blur-2xl flex flex-col overflow-hidden"
           >
-            {gameState === "start" ? (
-              <motion.div variants={menuItemVariants} className="w-full flex flex-col items-center" key="start">
-                <motion.div variants={menuItemVariants} className="w-16 h-16 bg-blue-600 rounded-3xl flex items-center justify-center mb-6 shadow-2xl shadow-blue-500/40">
-                  <Zap size={32} className="text-white fill-white" />
+            {gameState === "start" && activeTab === "home" && (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center overflow-y-auto custom-scrollbar">
+              <motion.div 
+                variants={menuItemVariants} 
+                initial="hidden" 
+                animate="visible" 
+                className="w-full flex flex-col items-center" 
+                key="start"
+              >
+                <motion.div variants={menuItemVariants} className="flex items-center gap-5 mb-8">
+                  <div className="w-16 h-16 bg-blue-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-500/40 shrink-0">
+                    <Zap size={32} className="text-white fill-white" />
+                  </div>
+                  <h2 className="text-4xl font-black text-white italic uppercase tracking-tighter text-left leading-none">Catch<br/>Master</h2>
                 </motion.div>
-                <motion.h2 variants={menuItemVariants} className="text-4xl font-black mb-6 text-white italic uppercase tracking-tighter">Catch Master</motion.h2>
                 
                 {/* PLAY BUTTON */}
                 <motion.button
                   variants={menuItemVariants}
-                  onClick={() => startCountdown(isAuto, gameMode)}
+                  onClick={() => {
+                    playClick()
+                    startCountdown(isAuto, gameMode)
+                  }}
                   className={`w-full py-5 rounded-2xl font-black text-2xl flex items-center justify-center gap-3 shadow-xl transition-all mb-6 ${
                     gameMode === "hardcode" 
                       ? "bg-gradient-to-r from-red-600 to-orange-600 shadow-red-500/30 text-white" 
@@ -1566,7 +1691,10 @@ export default function App() {
                 {/* CUSTOM BUTTON */}
                 <motion.button
                   variants={menuItemVariants}
-                  onClick={() => setOpenCustom(true)}
+                  onClick={() => {
+                    playClick()
+                    setOpenCustom(true)
+                  }}
                   className="w-full py-3 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-all mb-6 bg-slate-800 text-slate-300 border border-white/5 hover:bg-slate-700 hover:text-white"
                 >
                   <Edit3 size={20} /> {t.custom}
@@ -1575,7 +1703,10 @@ export default function App() {
                 {/* OPTIONS ROW */}
                 <motion.div variants={menuItemVariants} className="flex gap-4 w-full mb-8">
                   <button
-                    onClick={() => setIsAuto(!isAuto)}
+                    onClick={() => {
+                      playClick()
+                      setIsAuto(!isAuto)
+                    }}
                     className={`flex-1 py-4 rounded-xl font-bold flex flex-col items-center justify-center gap-2 transition-all border ${
                       isAuto 
                         ? "bg-green-600/20 border-green-500 text-green-400" 
@@ -1586,7 +1717,10 @@ export default function App() {
                     <span className="text-[10px] uppercase tracking-widest">{t.auto}</span>
                   </button>
                   <button
-                    onClick={() => setIsClassic(!isClassic)}
+                    onClick={() => {
+                      playClick()
+                      setIsClassic(!isClassic)
+                    }}
                     className={`flex-1 py-4 rounded-xl font-bold flex flex-col items-center justify-center gap-2 transition-all border ${
                       isClassic
                         ? "bg-yellow-600/20 border-yellow-500 text-yellow-400"
@@ -1597,7 +1731,10 @@ export default function App() {
                     <span className="text-[10px] uppercase tracking-widest">{t.classic}</span>
                   </button>
                   <button
-                    onClick={() => setGameMode(gameMode === "normal" ? "hardcode" : "normal")}
+                    onClick={() => {
+                      playClick()
+                      setGameMode(gameMode === "normal" ? "hardcode" : "normal")
+                    }}
                     className={`flex-1 py-4 rounded-xl font-bold flex flex-col items-center justify-center gap-2 transition-all border ${
                       gameMode === "hardcode"
                         ? "bg-red-600/20 border-red-500 text-red-400"
@@ -1608,41 +1745,19 @@ export default function App() {
                     <span className="text-[10px] uppercase tracking-widest">{t.hardcore}</span>
                   </button>
                 </motion.div>
-
-                <motion.div variants={menuItemVariants} className="flex gap-4">
-                  <motion.button
-                    variants={menuItemVariants}
-                    onClick={() => setOpenGuide(true)}
-                    className="flex-1 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-indigo-500/20 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 hover:border-indigo-500/40 backdrop-blur-sm text-xs uppercase tracking-wider"
-                    title={t.ballGuide}
-                  >
-                    <Info size={18} /> {t.guide}
-                  </motion.button>
-                  <motion.button
-                    variants={menuItemVariants}
-                    onClick={() => setOpenStats(true)}
-                    className="flex-1 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/40 backdrop-blur-sm text-xs uppercase tracking-wider"
-                  >
-                    <BarChart3 size={18} /> {t.stats}
-                  </motion.button>
-                  <motion.button
-                    variants={menuItemVariants}
-                    onClick={() => setOpenSkins(true)}
-                    className="flex-1 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-pink-500/20 bg-pink-500/10 text-pink-300 hover:bg-pink-500/20 hover:border-pink-500/40 backdrop-blur-sm text-xs uppercase tracking-wider"
-                  >
-                    <Palette size={18} /> {t.skins}
-                  </motion.button>
-                  <motion.button
-                    variants={menuItemVariants}
-                    onClick={() => setOpenSettings(true)}
-                    className="flex-1 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-slate-600/20 bg-slate-700/20 text-slate-400 hover:bg-slate-700/40 hover:border-slate-500/40 backdrop-blur-sm text-xs uppercase tracking-wider"
-                  >
-                    <Settings size={18} /> {t.settings}
-                  </motion.button>
-                </motion.div>
               </motion.div>
-            ) : (
-              <motion.div variants={menuItemVariants} className="flex flex-col items-center" key="over">
+              </div>
+            )}
+
+            {gameState === "over" && (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+              <motion.div 
+                variants={menuItemVariants} 
+                initial="hidden" 
+                animate="visible" 
+                className="flex flex-col items-center" 
+                key="over"
+              >
                 <motion.div variants={menuItemVariants} animate={animationsEnabled ? { scale: [0.94, 1.08, 1] } : { scale: 1 }} transition={animationsEnabled ? { duration: 0.7, times: [0, 0.7, 1], type: "spring", stiffness: 400, damping: 12 } : { duration: 0 }}>
                   <Trophy size={80} className="text-yellow-500 mb-6" />
                 </motion.div>
@@ -1653,20 +1768,409 @@ export default function App() {
                 <motion.div variants={menuItemVariants} className="flex gap-4 pointer-events-auto">
                   <motion.button
                     variants={menuItemVariants}
-                    onClick={() => setGameState("start")}
+                    onClick={() => {
+                      playClick()
+                      setGameState("start")
+                      setActiveTab("home")
+                    }}
                     className="px-10 py-4 bg-slate-800 text-white font-black rounded-full flex items-center gap-3 border border-white/10 hover:bg-slate-700 transition-all"
                   >
                     <Home size={24} /> {t.home}
                   </motion.button>
                   <motion.button
                     variants={menuItemVariants}
-                    onClick={() => setOpenSettings(true)}
+                    onClick={() => {
+                      playClick()
+                      setGameState("start")
+                      setActiveTab("settings")
+                    }}
                     className="p-4 bg-slate-800 text-white rounded-full border border-white/10"
                   >
                     <Settings size={24} />
                   </motion.button>
                 </motion.div>
               </motion.div>
+              </div>
+            )}
+
+            {/* --- TAB CONTENT: GUIDE --- */}
+            {gameState === "start" && activeTab === "guide" && (
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h3 className="text-3xl font-black text-white italic tracking-tighter leading-none">{t.ballGuide}</h3>
+                    <p className="text-purple-500 text-[10px] font-bold tracking-[0.2em] uppercase mt-1">{t.manualDatabase}</p>
+                  </div>
+                </div>
+                <div className="space-y-4 pb-4">
+                  {/* NORMAL BALL */}
+                  <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-5 flex gap-5 items-center group">
+                    <div className="w-14 h-14 rounded-full bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)] flex-shrink-0 border-4 border-white/10" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="text-red-500 font-black text-xl uppercase italic">{t.ballNormal}</h4>
+                        <span className="text-[10px] bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full font-bold border border-red-500/20">{t.basic}</span>
+                      </div>
+                      <p className="text-slate-400 text-xs mb-3 italic">{t.ballNormalDesc}</p>
+                      <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">0 {t.pts}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-green-400">{t.scorePlus1}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-yellow-500">{t.incrementalSpeed}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.allModes}</span></div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* FAST BALL */}
+                  <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-5 flex gap-5 items-center group border-l-4 border-l-purple-500">
+                    <div className="w-14 h-14 rounded-full bg-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.5)] flex-shrink-0 border-4 border-white/10" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="text-purple-400 font-black text-xl uppercase italic">{t.ballFast}</h4>
+                        <span className="text-[10px] bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full font-bold border border-purple-500/20">{t.speed}</span>
+                      </div>
+                      <p className="text-slate-400 text-xs mb-3 italic">{t.ballFastDesc}</p>
+                      <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">50 {t.pts}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-green-400">{t.scorePlus3}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-red-500">{t.lowReactionTime}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.defaultOnly}</span></div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* ZICZAC BALL */}
+                  <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-5 flex gap-5 items-center group border-l-4 border-l-yellow-500">
+                    <div className="w-14 h-14 rounded-full bg-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.5)] flex-shrink-0 border-4 border-white/10" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="text-yellow-400 font-black text-xl uppercase italic">{t.ballZicZac}</h4>
+                        <span className="text-[10px] bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded-full font-bold border border-yellow-500/20">{t.tricky}</span>
+                      </div>
+                      <p className="text-slate-400 text-xs mb-3 italic">{t.ballZicZacDesc}</p>
+                      <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">100 {t.pts}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-green-400">{t.scorePlus10}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-red-500">{t.sharpAngles}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.defaultOnly}</span></div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* BOOSTER BALL */}
+                  <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-5 flex gap-5 items-center group">
+                    <div className="w-14 h-14 rounded-full bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.5)] flex-shrink-0 border-4 border-white/10 animate-pulse" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="text-blue-400 font-black text-xl uppercase italic">{t.ballBooster}</h4>
+                        <span className="text-[10px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full font-bold border border-blue-500/20">{t.buff}</span>
+                      </div>
+                      <p className="text-slate-400 text-xs mb-3 italic">{t.ballBoosterDesc}</p>
+                      <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">200 {t.pts}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-cyan-400">{t.paddleSize}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-green-500">{t.none}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.defaultOnly}</span></div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* SHIELD BALL */}
+                  <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-5 flex gap-5 items-center group">
+                    <div className="w-14 h-14 rounded-full bg-slate-400 shadow-[0_0_20px_rgba(148,163,184,0.5)] flex-shrink-0 border-4 border-white/10" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="text-slate-300 font-black text-xl uppercase italic">{t.ballShield}</h4>
+                        <span className="text-[10px] bg-slate-100/10 text-slate-300 px-2 py-0.5 rounded-full font-bold border border-slate-500/20">{t.defense}</span>
+                      </div>
+                      <p className="text-slate-400 text-xs mb-3 italic">{t.ballShieldDesc}</p>
+                      <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">300 {t.pts}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-cyan-400">{t.armor}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-green-500">{t.none}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.allModes}</span></div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* SNOW BALL */}
+                  <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-5 flex gap-5 items-center group border-l-4 border-l-cyan-300">
+                    <div className="w-14 h-14 rounded-full bg-white shadow-[0_0_20px_rgba(255,255,255,0.7)] flex-shrink-0 border-4 border-cyan-100/50" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="text-white font-black text-xl uppercase italic">{t.ballSnow}</h4>
+                        <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-bold border border-white/30">{t.time}</span>
+                      </div>
+                      <p className="text-slate-400 text-xs mb-3 italic">{t.ballSnowDesc}</p>
+                      <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">≥500 {t.pts}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-cyan-300">{t.freeze10s}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-yellow-500">{t.momentumLoss}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.defaultOnly}</span></div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* BOMB BALL */}
+                  <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-5 flex gap-5 items-center group border-l-4 border-l-orange-500">
+                    <div className="w-14 h-14 rounded-full bg-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.5)] flex-shrink-0 border-4 border-white/10" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="text-orange-500 font-black text-xl uppercase italic">{t.ballBomb}</h4>
+                        <span className="text-[10px] bg-orange-500/10 text-orange-500 px-2 py-0.5 rounded-full font-bold border border-orange-500/20">{t.danger}</span>
+                      </div>
+                      <p className="text-slate-400 text-xs mb-3 italic">{t.ballBombDesc}</p>
+                      <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">2 {t.pts}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-red-500">{t.lifeLoss}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-red-500">{t.extreme}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.defaultOnly}</span></div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* HEAL BALL */}
+                  <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-5 flex gap-5 items-center group">
+                    <div className="w-14 h-14 rounded-full bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.5)] flex-shrink-0 border-4 border-white/10" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="text-green-400 font-black text-xl uppercase italic">{t.ballHeal}</h4>
+                        <span className="text-[10px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full font-bold border border-green-500/20">{t.life}</span>
+                      </div>
+                      <p className="text-slate-400 text-xs mb-3 italic">{t.ballHealDesc}</p>
+                      <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">150 {t.pts}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-green-400">{t.hpPlus}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-green-500">{t.harmless}</span></div>
+                        <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.normalAndClassic}</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* --- TAB CONTENT: STATS --- */}
+            {gameState === "start" && activeTab === "stats" && (
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.statistics}</h3>
+                </div>
+                <div className="space-y-4">
+                  {/* DEFAULT MODES */}
+                  <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 space-y-4">
+                    <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">{t.defaultMode}</h4>
+                    <div className="flex justify-between items-center text-xs font-bold text-slate-400 px-2 uppercase tracking-widest border-b border-white/5 pb-2">
+                      <span>{t.bestNormal}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-emerald-400 text-xl font-black tabular-nums">{bestScoreNormal}</span>
+                        <button
+                          onClick={() => {
+                            playClick()
+                            if (!confirmResetNormal) {
+                              setConfirmResetNormal(true)
+                              setTimeout(() => setConfirmResetNormal(false), 3000)
+                              return
+                            }
+                            localStorage.removeItem("my_game_best_normal")
+                            setBestScoreNormal(0)
+                            gameData.current.bestNormal = 0
+                            setConfirmResetNormal(false)
+                          }}
+                          className={`p-1.5 rounded-lg transition-colors ${confirmResetNormal ? "bg-red-600 text-white animate-pulse" : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white"}`}
+                        >
+                          {confirmResetNormal ? <Trash2 size={14} /> : <RotateCcw size={14} />}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center text-xs font-bold text-slate-400 px-2 uppercase tracking-widest">
+                      <span>{t.bestHardcore}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-red-400 text-xl font-black tabular-nums">{bestScoreHardcore}</span>
+                        <button
+                          onClick={() => {
+                            playClick()
+                            if (!confirmResetHardcore) {
+                              setConfirmResetHardcore(true)
+                              setTimeout(() => setConfirmResetHardcore(false), 3000)
+                              return
+                            }
+                            localStorage.removeItem("my_game_best_hardcore")
+                            setBestScoreHardcore(0)
+                            gameData.current.bestHardcore = 0
+                            setConfirmResetHardcore(false)
+                          }}
+                          className={`p-1.5 rounded-lg transition-colors ${confirmResetHardcore ? "bg-red-600 text-white animate-pulse" : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white"}`}
+                        >
+                          {confirmResetHardcore ? <Trash2 size={14} /> : <RotateCcw size={14} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CLASSIC MODES */}
+                  <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 space-y-4">
+                    <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">{t.classicMode}</h4>
+                    <div className="flex justify-between items-center text-xs font-bold text-slate-400 px-2 uppercase tracking-widest border-b border-white/5 pb-2">
+                      <span>{t.bestNormal}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-emerald-400 text-xl font-black tabular-nums">{bestScoreClassicNormal}</span>
+                        <button
+                          onClick={() => {
+                            playClick()
+                            if (!confirmResetClassicNormal) {
+                              setConfirmResetClassicNormal(true)
+                              setTimeout(() => setConfirmResetClassicNormal(false), 3000)
+                              return
+                            }
+                            localStorage.removeItem("my_game_best_classic_normal")
+                            setBestScoreClassicNormal(0)
+                            gameData.current.bestClassicNormal = 0
+                            setConfirmResetClassicNormal(false)
+                          }}
+                          className={`p-1.5 rounded-lg transition-colors ${confirmResetClassicNormal ? "bg-red-600 text-white animate-pulse" : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white"}`}
+                        >
+                          {confirmResetClassicNormal ? <Trash2 size={14} /> : <RotateCcw size={14} />}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center text-xs font-bold text-slate-400 px-2 uppercase tracking-widest">
+                      <span>{t.bestHardcore}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-red-400 text-xl font-black tabular-nums">{bestScoreClassicHardcore}</span>
+                        <button
+                          onClick={() => {
+                            playClick()
+                            if (!confirmResetClassicHardcore) {
+                              setConfirmResetClassicHardcore(true)
+                              setTimeout(() => setConfirmResetClassicHardcore(false), 3000)
+                              return
+                            }
+                            localStorage.removeItem("my_game_best_classic_hardcore")
+                            setBestScoreClassicHardcore(0)
+                            gameData.current.bestClassicHardcore = 0
+                            setConfirmResetClassicHardcore(false)
+                          }}
+                          className={`p-1.5 rounded-lg transition-colors ${confirmResetClassicHardcore ? "bg-red-600 text-white animate-pulse" : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white"}`}
+                        >
+                          {confirmResetClassicHardcore ? <Trash2 size={14} /> : <RotateCcw size={14} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 space-y-4 mt-4">
+                    <button
+                      onClick={() => {
+                        playClick()
+                        if (!confirmReset) {
+                          setConfirmReset(true)
+                          setTimeout(() => setConfirmReset(false), 3000)
+                          return
+                        }
+                        localStorage.removeItem("my_game_best_normal")
+                        localStorage.removeItem("my_game_best_hardcore")
+                        localStorage.removeItem("my_game_best_classic_normal")
+                        localStorage.removeItem("my_game_best_classic_hardcore")
+                        setBestScoreNormal(0)
+                        setBestScoreHardcore(0)
+                        setBestScoreClassicNormal(0)
+                        setBestScoreClassicHardcore(0)
+                        gameData.current.bestNormal = 0
+                        gameData.current.bestHardcore = 0
+                        gameData.current.bestClassicNormal = 0
+                        gameData.current.bestClassicHardcore = 0
+                        setConfirmReset(false)
+                      }}
+                      className={`w-full py-5 rounded-2xl font-black flex items-center justify-center gap-3 text-xs uppercase transition-all ${confirmReset ? "bg-red-600 text-white animate-pulse" : "bg-slate-800 text-red-400 hover:bg-slate-700"}`}
+                    >
+                      {confirmReset ? t.confirmDeleteAll : t.clearAllRecords}
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* --- TAB CONTENT: SKINS --- */}
+            {gameState === "start" && activeTab === "skins" && (
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.skins}</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-4 pb-4">
+                  {[
+                    { id: "default", name: "Default", class: "bg-blue-500" },
+                    { id: "emerald", name: "Emerald", class: "bg-emerald-500" },
+                    { id: "neon", name: "Neon", class: "bg-fuchsia-500 shadow-[0_0_15px_#d946ef]" },
+                    { id: "ice", name: "Ice", class: "bg-cyan-500 shadow-[0_0_10px_#cffafe]" },
+                    { id: "cyber", name: "Cyber", class: "bg-lime-500" },
+                    { id: "inferno", name: "Inferno", class: "bg-gradient-to-b from-orange-500 to-orange-800 shadow-[0_0_15px_#f97316]" },
+                    { id: "void", name: "Void", class: "bg-violet-900 shadow-[0_0_10px_#8b5cf6]" },
+                    { id: "galaxy", name: "Galaxy", class: "bg-gradient-to-b from-indigo-700 to-indigo-950" },
+                  ].map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => changeSkin(s.id)}
+                      className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 group ${
+                        skin === s.id 
+                          ? "bg-slate-800 border-blue-500 shadow-lg shadow-blue-500/20" 
+                          : "bg-slate-900/50 border-white/5 hover:bg-slate-800 hover:border-white/10"
+                      }`}
+                    >
+                      <div className={`w-16 h-4 rounded-full ${s.class}`} />
+                      <span className={`text-xs font-black uppercase tracking-wider ${skin === s.id ? "text-white" : "text-slate-500 group-hover:text-slate-300"}`}>
+                        {s.name}
+                      </span>
+                      {skin === s.id && (
+                        <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full shadow-[0_0_8px_#3b82f6]" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* --- TAB CONTENT: SETTINGS --- */}
+            {gameState === "start" && activeTab === "settings" && (
+              <div className="flex-1 overflow-hidden">
+                <SettingsModal
+                  t={t}
+                  language={language}
+                  setLanguage={changeLanguage}
+                  isMuted={isMuted}
+                  toggleMute={toggleMute}
+                  particlesEnabled={particlesEnabled}
+                  toggleParticles={toggleParticles}
+                  trailsEnabled={trailsEnabled}
+                  toggleTrails={toggleTrails}
+                  animationsEnabled={animationsEnabled}
+                  playClick={playClick}
+                  toggleAnimations={toggleAnimations}
+                  onClose={() => setActiveTab("home")}
+                  musicVolume={musicVolume}
+                  setMusicVolume={changeMusicVolume}
+                  sfxVolume={sfxVolume}
+                  setSfxVolume={changeSfxVolume}
+                  embed={true}
+                />
+              </div>
+            )}
+
+            {/* --- BOTTOM TAB BAR --- */}
+            {gameState === "start" && (
+              <div className="h-20 bg-slate-950 border-t border-white/5 flex items-center px-2 shrink-0 z-40">
+                {[
+                  { id: "home", icon: Home, label: t.home },
+                  { id: "guide", icon: Info, label: t.guide },
+                  { id: "stats", icon: BarChart3, label: t.stats },
+                  { id: "skins", icon: Palette, label: t.skins },
+                  { id: "settings", icon: Settings, label: t.settings },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => { playClick(); setActiveTab(tab.id as any) }}
+                    className={`flex-1 py-3 flex flex-col items-center justify-center gap-1 transition-colors relative ${activeTab === tab.id ? "text-blue-400" : "text-slate-500 hover:text-slate-300"}`}
+                  >
+                    <tab.icon size={22} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${activeTab === tab.id ? "opacity-100" : "opacity-60"}`}>{tab.label}</span>
+                    {activeTab === tab.id && <motion.div layoutId="tab-indicator" transition={{ duration: animationsEnabled ? 0.3 : 0 }} className="absolute -top-[1px] w-8 h-[2px] bg-blue-400 rounded-full" />}
+                  </button>
+                ))}
+              </div>
             )}
           </motion.div>
         )}
@@ -1710,7 +2214,11 @@ export default function App() {
           >
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.customGame}</h3>
-              <button onClick={() => setOpenCustom(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => {
+                playClick()
+                setOpenCustom(false)
+                setCustomError(null)
+              }} className="text-slate-400 hover:text-white">
                 <X size={32} />
               </button>
             </div>
@@ -1719,19 +2227,28 @@ export default function App() {
               {/* Mode & Auto Selection */}
               <div className="bg-white/5 p-4 rounded-2xl border border-white/5 flex gap-2">
                 <button
-                  onClick={() => setCustomConfig(prev => ({ ...prev, mode: "normal" }))}
+                  onClick={() => {
+                    playClick()
+                    setCustomConfig(prev => ({ ...prev, mode: "normal" }))
+                  }}
                   className={`flex-1 py-3 rounded-xl font-black text-sm uppercase transition-all ${customConfig.mode === "normal" ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "bg-slate-800 text-slate-500"}`}
                 >
                   Normal
                 </button>
                 <button
-                  onClick={() => setCustomConfig(prev => ({ ...prev, mode: "hardcode" }))}
+                  onClick={() => {
+                    playClick()
+                    setCustomConfig(prev => ({ ...prev, mode: "hardcode" }))
+                  }}
                   className={`flex-1 py-3 rounded-xl font-black text-sm uppercase transition-all ${customConfig.mode === "hardcode" ? "bg-red-600 text-white shadow-lg shadow-red-500/20" : "bg-slate-800 text-slate-500"}`}
                 >
                   Hardcore
                 </button>
                 <button
-                  onClick={() => setCustomConfig(prev => ({ ...prev, isAuto: !prev.isAuto }))}
+                  onClick={() => {
+                    playClick()
+                    setCustomConfig(prev => ({ ...prev, isAuto: !prev.isAuto }))
+                  }}
                   className={`flex-1 py-3 rounded-xl font-black text-sm uppercase transition-all flex items-center justify-center gap-2 ${customConfig.isAuto ? "bg-green-600 text-white shadow-lg shadow-green-500/20" : "bg-slate-800 text-slate-500"}`}
                 >
                   <Cpu size={16} />
@@ -1755,10 +2272,14 @@ export default function App() {
                   ].map((ball) => (
                     <button
                       key={ball.id}
-                      onClick={() => setCustomConfig(prev => ({
-                        ...prev,
-                        balls: { ...prev.balls, [ball.id]: !prev.balls[ball.id as keyof typeof prev.balls] }
-                      }))}
+                      onClick={() => {
+                        playClick()
+                        setCustomConfig(prev => ({
+                          ...prev,
+                          balls: { ...prev.balls, [ball.id]: !prev.balls[ball.id as keyof typeof prev.balls] }
+                        }))
+                        setCustomError(null)
+                      }}
                       className={`p-3 rounded-xl border transition-all flex items-center gap-3 ${customConfig.balls[ball.id as keyof typeof customConfig.balls] ? "bg-slate-800 border-white/20" : "bg-slate-900/50 border-transparent opacity-50"}`}
                     >
                       <div className={`w-4 h-4 rounded-full ${ball.color} shadow-sm`} />
@@ -1769,8 +2290,18 @@ export default function App() {
               </div>
             </div>
 
+            {customError && (
+              <div className="mt-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl flex items-center gap-2 text-red-200 text-xs font-bold animate-pulse">
+                <AlertCircle size={16} className="text-red-500" />
+                {customError}
+              </div>
+            )}
+
             <button
-              onClick={startCustomGame}
+              onClick={() => {
+                playClick()
+                startCustomGame()
+              }}
               className="w-full py-4 mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-purple-500/30 active:scale-95 transition-transform"
             >
               <Play size={20} fill="currentColor" /> {t.startCustom}
@@ -1780,19 +2311,7 @@ export default function App() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {openSkins && (
-          <SkinPlayerModal
-            t={t}
-            currentSkin={skin}
-            setSkin={changeSkin}
-            onClose={() => setOpenSkins(false)}
-            animationsEnabled={animationsEnabled}
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {openSettings && (
+        {openSettings && ( // Keep this for Pause Menu access
           <SettingsModal
             t={t}
             language={language}
@@ -1804,334 +2323,17 @@ export default function App() {
             trailsEnabled={trailsEnabled}
             toggleTrails={toggleTrails}
             animationsEnabled={animationsEnabled}
+            playClick={playClick}
             toggleAnimations={toggleAnimations}
             onClose={() => setOpenSettings(false)}
+            musicVolume={musicVolume}
+            setMusicVolume={changeMusicVolume}
+            sfxVolume={sfxVolume}
+            setSfxVolume={changeSfxVolume}
           />
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {openStats && (
-          <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={animationsEnabled ? { type: "spring", damping: 25 } : { duration: 0 }}
-            className="absolute inset-0 z-[80] bg-slate-900 p-8 flex flex-col border-t-4 border-emerald-600 rounded-t-[3rem]"
-          >
-            <div className="flex justify-between items-center mb-10">
-              <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.statistics}</h3>
-              <button onClick={() => setOpenStats(false)} className="text-slate-400 hover:text-white">
-                <X size={32} />
-              </button>
-            </div>
-            <div className="space-y-4 flex-1 overflow-y-auto">
-              
-              {/* DEFAULT MODES */}
-              <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 space-y-4">
-                <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">{t.defaultMode}</h4>
-                <div className="flex justify-between items-center text-xs font-bold text-slate-400 px-2 uppercase tracking-widest border-b border-white/5 pb-2">
-                  <span>{t.bestNormal}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-emerald-400 text-xl font-black tabular-nums">{bestScoreNormal}</span>
-                    <button
-                      onClick={() => {
-                        if (!confirmResetNormal) {
-                          setConfirmResetNormal(true)
-                          setTimeout(() => setConfirmResetNormal(false), 3000)
-                          return
-                        }
-                        localStorage.removeItem("my_game_best_normal")
-                        setBestScoreNormal(0)
-                        gameData.current.bestNormal = 0
-                        setConfirmResetNormal(false)
-                      }}
-                      className={`p-1.5 rounded-lg transition-colors ${confirmResetNormal ? "bg-red-600 text-white animate-pulse" : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white"}`}
-                    >
-                      {confirmResetNormal ? <Trash2 size={14} /> : <RotateCcw size={14} />}
-                    </button>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center text-xs font-bold text-slate-400 px-2 uppercase tracking-widest">
-                  <span>{t.bestHardcore}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-red-400 text-xl font-black tabular-nums">{bestScoreHardcore}</span>
-                    <button
-                      onClick={() => {
-                        if (!confirmResetHardcore) {
-                          setConfirmResetHardcore(true)
-                          setTimeout(() => setConfirmResetHardcore(false), 3000)
-                          return
-                        }
-                        localStorage.removeItem("my_game_best_hardcore")
-                        setBestScoreHardcore(0)
-                        gameData.current.bestHardcore = 0
-                        setConfirmResetHardcore(false)
-                      }}
-                      className={`p-1.5 rounded-lg transition-colors ${confirmResetHardcore ? "bg-red-600 text-white animate-pulse" : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white"}`}
-                    >
-                      {confirmResetHardcore ? <Trash2 size={14} /> : <RotateCcw size={14} />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* CLASSIC MODES */}
-              <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 space-y-4">
-                <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">{t.classicMode}</h4>
-                <div className="flex justify-between items-center text-xs font-bold text-slate-400 px-2 uppercase tracking-widest border-b border-white/5 pb-2">
-                  <span>{t.bestNormal}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-emerald-400 text-xl font-black tabular-nums">{bestScoreClassicNormal}</span>
-                    <button
-                      onClick={() => {
-                        if (!confirmResetClassicNormal) {
-                          setConfirmResetClassicNormal(true)
-                          setTimeout(() => setConfirmResetClassicNormal(false), 3000)
-                          return
-                        }
-                        localStorage.removeItem("my_game_best_classic_normal")
-                        setBestScoreClassicNormal(0)
-                        gameData.current.bestClassicNormal = 0
-                        setConfirmResetClassicNormal(false)
-                      }}
-                      className={`p-1.5 rounded-lg transition-colors ${confirmResetClassicNormal ? "bg-red-600 text-white animate-pulse" : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white"}`}
-                    >
-                      {confirmResetClassicNormal ? <Trash2 size={14} /> : <RotateCcw size={14} />}
-                    </button>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center text-xs font-bold text-slate-400 px-2 uppercase tracking-widest">
-                  <span>{t.bestHardcore}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-red-400 text-xl font-black tabular-nums">{bestScoreClassicHardcore}</span>
-                    <button
-                      onClick={() => {
-                        if (!confirmResetClassicHardcore) {
-                          setConfirmResetClassicHardcore(true)
-                          setTimeout(() => setConfirmResetClassicHardcore(false), 3000)
-                          return
-                        }
-                        localStorage.removeItem("my_game_best_classic_hardcore")
-                        setBestScoreClassicHardcore(0)
-                        gameData.current.bestClassicHardcore = 0
-                        setConfirmResetClassicHardcore(false)
-                      }}
-                      className={`p-1.5 rounded-lg transition-colors ${confirmResetClassicHardcore ? "bg-red-600 text-white animate-pulse" : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white"}`}
-                    >
-                      {confirmResetClassicHardcore ? <Trash2 size={14} /> : <RotateCcw size={14} />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 space-y-4 mt-4">
-                <button
-                  onClick={() => {
-                    if (!confirmReset) {
-                      setConfirmReset(true)
-                      setTimeout(() => setConfirmReset(false), 3000)
-                      return
-                    }
-                    localStorage.removeItem("my_game_best_normal")
-                    localStorage.removeItem("my_game_best_hardcore")
-                    localStorage.removeItem("my_game_best_classic_normal")
-                    localStorage.removeItem("my_game_best_classic_hardcore")
-                    setBestScoreNormal(0)
-                    setBestScoreHardcore(0)
-                    setBestScoreClassicNormal(0)
-                    setBestScoreClassicHardcore(0)
-                    gameData.current.bestNormal = 0
-                    gameData.current.bestHardcore = 0
-                    gameData.current.bestClassicNormal = 0
-                    gameData.current.bestClassicHardcore = 0
-                    setConfirmReset(false)
-                  }}
-                  className={`w-full py-5 rounded-2xl font-black flex items-center justify-center gap-3 text-xs uppercase transition-all ${confirmReset ? "bg-red-600 text-white animate-pulse" : "bg-slate-800 text-red-400 hover:bg-slate-700"}`}
-                >
-                  {confirmReset ? t.confirmDeleteAll : t.clearAllRecords}
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {openGuide && (
-        <motion.div
-          variants={menuContainerVariants}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          className="absolute inset-0 z-[80] bg-slate-950/98 backdrop-blur-xl p-6 flex flex-col border-t-4 border-purple-500 rounded-t-[3rem] shadow-2xl"
-        >
-          {/* HEADER SECTION */}
-          <motion.div variants={menuItemVariants} className="flex justify-between items-center mb-8 px-2">
-            <div>
-              <h3 className="text-3xl font-black text-white italic tracking-tighter leading-none">{t.ballGuide}</h3>
-              <p className="text-purple-500 text-[10px] font-bold tracking-[0.2em] uppercase mt-1">{t.manualDatabase}</p>
-            </div>
-            <motion.button
-              whileHover={animationsEnabled ? { scale: 1.1, rotate: 90 } : {}}
-              whileTap={animationsEnabled ? { scale: 0.9 } : {}}
-              onClick={() => setOpenGuide(false)}
-              className="bg-slate-800 p-2 rounded-xl text-slate-400 hover:text-white transition-colors border border-slate-700"
-            >
-              <X size={28} />
-            </motion.button>
-          </motion.div>
-
-          {/* LIST CONTAINER */}
-          <motion.div variants={menuItemVariants} className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar pb-10">
-
-            {/* NORMAL BALL */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-5 flex gap-5 items-center group">
-              <div className="w-14 h-14 rounded-full bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)] flex-shrink-0 border-4 border-white/10" />
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-red-500 font-black text-xl uppercase italic">{t.ballNormal}</h4>
-                  <span className="text-[10px] bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full font-bold border border-red-500/20">{t.basic}</span>
-                </div>
-                <p className="text-slate-400 text-xs mb-3 italic">{t.ballNormalDesc}</p>
-                <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">0 {t.pts}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-green-400">{t.scorePlus1}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-yellow-500">{t.incrementalSpeed}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.allModes}</span></div>
-                </div>
-              </div>
-            </div>
-
-            {/* FAST BALL */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-5 flex gap-5 items-center group border-l-4 border-l-purple-500">
-              <div className="w-14 h-14 rounded-full bg-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.5)] flex-shrink-0 border-4 border-white/10" />
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-purple-400 font-black text-xl uppercase italic">{t.ballFast}</h4>
-                  <span className="text-[10px] bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full font-bold border border-purple-500/20">{t.speed}</span>
-                </div>
-                <p className="text-slate-400 text-xs mb-3 italic">{t.ballFastDesc}</p>
-                <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">50 {t.pts}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-green-400">{t.scorePlus3}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-red-500">{t.lowReactionTime}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.defaultOnly}</span></div>
-                </div>
-              </div>
-            </div>
-
-            {/* ZICZAC BALL */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-5 flex gap-5 items-center group border-l-4 border-l-yellow-500">
-              <div className="w-14 h-14 rounded-full bg-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.5)] flex-shrink-0 border-4 border-white/10" />
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-yellow-400 font-black text-xl uppercase italic">{t.ballZicZac}</h4>
-                  <span className="text-[10px] bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded-full font-bold border border-yellow-500/20">{t.tricky}</span>
-                </div>
-                <p className="text-slate-400 text-xs mb-3 italic">{t.ballZicZacDesc}</p>
-                <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">100 {t.pts}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-green-400">{t.scorePlus10}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-red-500">{t.sharpAngles}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.defaultOnly}</span></div>
-                </div>
-              </div>
-            </div>
-
-            {/* BOOSTER BALL */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-5 flex gap-5 items-center group">
-              <div className="w-14 h-14 rounded-full bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.5)] flex-shrink-0 border-4 border-white/10 animate-pulse" />
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-blue-400 font-black text-xl uppercase italic">{t.ballBooster}</h4>
-                  <span className="text-[10px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full font-bold border border-blue-500/20">{t.buff}</span>
-                </div>
-                <p className="text-slate-400 text-xs mb-3 italic">{t.ballBoosterDesc}</p>
-                <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">200 {t.pts}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-cyan-400">{t.paddleSize}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-green-500">{t.none}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.defaultOnly}</span></div>
-                </div>
-              </div>
-            </div>
-
-            {/* SHIELD BALL */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-5 flex gap-5 items-center group">
-              <div className="w-14 h-14 rounded-full bg-slate-400 shadow-[0_0_20px_rgba(148,163,184,0.5)] flex-shrink-0 border-4 border-white/10" />
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-slate-300 font-black text-xl uppercase italic">{t.ballShield}</h4>
-                  <span className="text-[10px] bg-slate-100/10 text-slate-300 px-2 py-0.5 rounded-full font-bold border border-slate-500/20">{t.defense}</span>
-                </div>
-                <p className="text-slate-400 text-xs mb-3 italic">{t.ballShieldDesc}</p>
-                <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">300 {t.pts}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-cyan-400">{t.armor}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-green-500">{t.none}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.allModes}</span></div>
-                </div>
-              </div>
-            </div>
-
-            {/* SNOW BALL */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-5 flex gap-5 items-center group border-l-4 border-l-cyan-300">
-              <div className="w-14 h-14 rounded-full bg-white shadow-[0_0_20px_rgba(255,255,255,0.7)] flex-shrink-0 border-4 border-cyan-100/50" />
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-white font-black text-xl uppercase italic">{t.ballSnow}</h4>
-                  <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-bold border border-white/30">{t.time}</span>
-                </div>
-                <p className="text-slate-400 text-xs mb-3 italic">{t.ballSnowDesc}</p>
-                <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">≥500 {t.pts}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-cyan-300">{t.freeze10s}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-yellow-500">{t.momentumLoss}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.defaultOnly}</span></div>
-                </div>
-              </div>
-            </div>
-
-            {/* BOMB BALL */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-5 flex gap-5 items-center group border-l-4 border-l-orange-500">
-              <div className="w-14 h-14 rounded-full bg-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.5)] flex-shrink-0 border-4 border-white/10" />
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-orange-500 font-black text-xl uppercase italic">{t.ballBomb}</h4>
-                  <span className="text-[10px] bg-orange-500/10 text-orange-500 px-2 py-0.5 rounded-full font-bold border border-orange-500/20">{t.danger}</span>
-                </div>
-                <p className="text-slate-400 text-xs mb-3 italic">{t.ballBombDesc}</p>
-                <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">2 {t.pts}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-red-500">{t.lifeLoss}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-red-500">{t.extreme}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.defaultOnly}</span></div>
-                </div>
-              </div>
-            </div>
-
-            {/* HEAL BALL */}
-            <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-5 flex gap-5 items-center group">
-              <div className="w-14 h-14 rounded-full bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.5)] flex-shrink-0 border-4 border-white/10" />
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-green-400 font-black text-xl uppercase italic">{t.ballHeal}</h4>
-                  <span className="text-[10px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full font-bold border border-green-500/20">{t.life}</span>
-                </div>
-                <p className="text-slate-400 text-xs mb-3 italic">{t.ballHealDesc}</p>
-                <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">150 {t.pts}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-green-400">{t.hpPlus}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-green-500">{t.harmless}</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.normalAndClassic}</span></div>
-                </div>
-              </div>
-            </div>
-
-          </motion.div>
-        </motion.div>
-      )}
     </div>
   )
 }
