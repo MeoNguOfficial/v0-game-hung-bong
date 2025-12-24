@@ -297,6 +297,7 @@ export default function App() {
   const [openCustom, setOpenCustom] = useState(false)
   const [customConfig, setCustomConfig] = useState({
     mode: "normal" as "normal" | "hardcode",
+    isAuto: false,
     balls: {
       normal: true,
       purple: true,
@@ -542,7 +543,8 @@ export default function App() {
 
     if (gameData.current.isCustom) {
       const allowed = gameData.current.allowedBalls
-      if (allowed.length > 0) {
+      // Custom Mode Priority: Always pick from allowed list
+      if (allowed && allowed.length > 0) {
         b.type = allowed[Math.floor(Math.random() * allowed.length)] as any
       } else {
         b.type = "normal"
@@ -656,6 +658,7 @@ export default function App() {
   }
 
   const startCustomGame = () => {
+    const isAutoCustom = customConfig.isAuto
     const allowed = Object.entries(customConfig.balls)
       .filter(([_, enabled]) => enabled)
       .map(([type]) => type)
@@ -663,7 +666,7 @@ export default function App() {
     if (allowed.length === 0) return
 
     setGameMode(customConfig.mode)
-    runCountdown(false, () => {
+    runCountdown(isAutoCustom, () => {
       gameData.current = {
         ...gameData.current,
         score: 0,
@@ -689,7 +692,7 @@ export default function App() {
         isDying: false,
         deathX: 0,
         deathY: 0,
-        isAuto: false,
+        isAuto: isAutoCustom,
       }
       if (snowIntervalRef.current) {
         clearInterval(snowIntervalRef.current)
@@ -697,7 +700,7 @@ export default function App() {
       }
       setSnowLeft(0)
       setSnowActive(false)
-      setIsAuto(false)
+      setIsAuto(isAutoCustom)
       setIsClassic(false)
       setScore(0)
       setLives(customConfig.mode === "hardcode" ? 1 : 5)
@@ -961,19 +964,13 @@ export default function App() {
         const paddleY = 460 // Tọa độ Y của thanh hứng
         const ts = gameData.current.timeScale || 1
 
-        // 1. Tính toán số frame (thời gian) còn lại cho đến khi bóng chạm thanh hứng
         const timeToHit = (paddleY - b.y) / (b.speed * ts)
-
         let predictedX = b.x
 
-        if (b.type === "orange") {
-          predictedX = canvas.width / 2 // Default safe spot? Or just don't track
-        } else if (timeToHit > 0) {
-          // 2. Dự đoán vị trí X dựa trên vận tốc ngang (dx)
+        if (timeToHit > 0) {
           predictedX = b.x + b.dx * timeToHit
 
-          // 3. Xử lý va chạm tường trong dự đoán (Bouncing Logic)
-          // Nếu vị trí dự đoán nằm ngoài biên, chúng ta tính toán điểm nảy ngược lại
+          // Bouncing Logic
           let tempX = predictedX
           const minX = b.radius
           const maxX = canvas.width - b.radius
@@ -987,7 +984,7 @@ export default function App() {
           }
           predictedX = tempX
 
-          // 4. Đặc biệt cho bóng Yellow (có dao động hình Sin)
+          // Yellow ball sine wave
           if (b.type === "yellow") {
             const futureSinTime = b.sinTime + 0.15 * timeToHit
             const dynamicAmplitude = b.speed * 2
@@ -995,30 +992,34 @@ export default function App() {
           }
         }
 
-        // 5. Di chuyển mượt mà tới vị trí dự đoán (Căn giữa thanh hứng)
-        const targetX = predictedX - gameData.current.playerWidth / 2
+        let targetPaddleCenterX = predictedX
 
-        // --- AI Bomb Avoidance ---
-        // 1. Avoid Main Ball if it's a bomb
-        if (b.type === "orange" && b.y > 300) {
-          if (gameData.current.playerX < b.x) gameData.current.playerX -= 15
-          else gameData.current.playerX += 15
+        // 1. Avoid Main Ball if Bomb
+        if (b.type === "orange") {
+          const currentPaddleCenterX = gameData.current.playerX + gameData.current.playerWidth / 2
+          const avoidDist = gameData.current.playerWidth / 2 + b.radius + 40
+          if (currentPaddleCenterX < predictedX) {
+            targetPaddleCenterX = predictedX - avoidDist
+          } else {
+            targetPaddleCenterX = predictedX + avoidDist
+          }
         }
 
         // 2. Avoid Secondary Bombs
         gameData.current.bombs.forEach(bomb => {
-          if (bomb.y > 350 && bomb.y < 480) {
-            const paddleCenter = gameData.current.playerX + gameData.current.playerWidth / 2
-            // If bomb is threateningly close to paddle center
-            if (Math.abs(bomb.x - paddleCenter) < (gameData.current.playerWidth / 2 + bomb.radius + 10)) {
-              // Dodge
-              if (bomb.x < paddleCenter) gameData.current.playerX += 10
-              else gameData.current.playerX -= 10
+          if (bomb.y > 200) {
+            const bombX = bomb.x
+            const minDist = gameData.current.playerWidth / 2 + bomb.radius + 15
+            const dist = targetPaddleCenterX - bombX
+            if (Math.abs(dist) < minDist) {
+              if (dist > 0) targetPaddleCenterX += 25
+              else targetPaddleCenterX -= 25
             }
           }
         })
 
-        // Tốc độ đuổi theo (0.4 - 0.6 là mượt và đủ nhanh)
+        const targetX = targetPaddleCenterX - gameData.current.playerWidth / 2
+
         gameData.current.playerX += (targetX - gameData.current.playerX) * 0.5
       }
 
@@ -1842,7 +1843,7 @@ export default function App() {
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-6">
-              {/* Mode Selection */}
+              {/* Mode & Auto Selection */}
               <div className="bg-white/5 p-4 rounded-2xl border border-white/5 flex gap-2">
                 <button
                   onClick={() => setCustomConfig(prev => ({ ...prev, mode: "normal" }))}
@@ -1855,6 +1856,13 @@ export default function App() {
                   className={`flex-1 py-3 rounded-xl font-black text-sm uppercase transition-all ${customConfig.mode === "hardcode" ? "bg-red-600 text-white shadow-lg shadow-red-500/20" : "bg-slate-800 text-slate-500"}`}
                 >
                   Hardcore
+                </button>
+                <button
+                  onClick={() => setCustomConfig(prev => ({ ...prev, isAuto: !prev.isAuto }))}
+                  className={`flex-1 py-3 rounded-xl font-black text-sm uppercase transition-all flex items-center justify-center gap-2 ${customConfig.isAuto ? "bg-green-600 text-white shadow-lg shadow-green-500/20" : "bg-slate-800 text-slate-500"}`}
+                >
+                  <Cpu size={16} />
+                  {t.auto}
                 </button>
               </div>
 
