@@ -878,6 +878,16 @@ export default function App() {
 
       // Helper for Bomb Hit
       const handleBombHit = (bx: number, by: number) => {
+        // --- FIX: Shield Interaction ---
+        if (gameData.current.hasShield) {
+          gameData.current.hasShield = false
+          playSound("shield_breaking")
+          createParticles(bx, by, "#94a3b8", "shard", true)
+          gameData.current.combo = 0
+          setComboCount(0)
+          return
+        }
+
         if (gameData.current.gameMode === "hardcode") {
 
           // 1. Stop falling sound immediately
