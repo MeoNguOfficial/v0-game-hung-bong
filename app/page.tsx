@@ -29,6 +29,7 @@ import {
   ExternalLink,
   Edit3,
   Palette,
+  Music,
 } from "lucide-react"
 import { TRANSLATIONS } from "./translations"
 import SettingsModal from "./SettingsModal"
@@ -147,6 +148,7 @@ export default function App() {
     bestClassicNormal: 0,
     bestClassicHardcore: 0,
     isMuted: false,
+    sfxVolume: 0.5,
     boostTimeLeft: 0,
     snowTimeLeft: 0,
     isSnowSlowed: false,
@@ -172,11 +174,13 @@ export default function App() {
   const t = TRANSLATIONS[language]
 
   const changeLanguage = (lang: "en" | "vi" | "es" | "ru") => {
+    playClick()
     setLanguage(lang)
     localStorage.setItem("game_language", lang)
   }
 
   const changeSkin = (newSkin: string) => {
+    playClick()
     setSkin(newSkin)
     gameData.current.skin = newSkin
     localStorage.setItem("game_skin", newSkin)
@@ -228,10 +232,13 @@ export default function App() {
     const audio =
       name === "combo" && idx !== undefined ? audioRefs.current.combo[Math.min(idx, 5)] : audioRefs.current[name]
     if (audio) {
+      audio.volume = gameData.current.sfxVolume
       audio.currentTime = 0
       audio.play().catch(() => { })
     }
   }
+
+  const playClick = () => playSound("click")
 
   const runCountdown = (isAutoParam: boolean, onFinish: () => void) => {
     clearCountdownTimeouts()
@@ -280,6 +287,7 @@ export default function App() {
   }
 
   const resumeGame = () => {
+    playClick()
     if (audioRefs.current?.pause_bg) {
       audioRefs.current.pause_bg.pause()
       audioRefs.current.pause_bg.currentTime = 0
@@ -296,6 +304,7 @@ export default function App() {
   }
 
   const handleExitRequest = () => {
+    playClick()
     if (!confirmExit) {
       setConfirmExit(true)
       setTimeout(() => setConfirmExit(false), 3000) // Reset sau 3s nếu ko nhấn lại
@@ -311,6 +320,7 @@ export default function App() {
   }
 
   const toggleAutoMode = () => {
+    playClick()
     gameData.current.isAuto = !gameData.current.isAuto
     setIsAuto(gameData.current.isAuto)
     if (typeof window !== "undefined" && window.navigator.vibrate) window.navigator.vibrate(50)
@@ -318,6 +328,7 @@ export default function App() {
 
   const toggleMute = () => {
     const newState = !isMuted
+    if (!newState) playClick() // Play click when unmuting
     setIsMuted(newState)
     gameData.current.isMuted = newState
     localStorage.setItem("game_muted", String(newState))
@@ -325,12 +336,14 @@ export default function App() {
 
   const toggleParticles = () => {
     const newState = !particlesEnabled
+    playClick()
     setParticlesEnabled(newState)
     gameData.current.particlesEnabled = newState
     localStorage.setItem("game_particles", String(newState))
   }
 
   const toggleTrails = () => {
+    playClick()
     const newState = !trailsEnabled
     setTrailsEnabled(newState)
     gameData.current.trailsEnabled = newState
@@ -338,6 +351,7 @@ export default function App() {
   }
 
   const toggleAnimations = () => {
+    playClick()
     const newState = !animationsEnabled
     setAnimationsEnabled(newState)
     localStorage.setItem("game_animations", String(newState))
@@ -609,6 +623,7 @@ export default function App() {
       count: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/count.mp3"),
       go: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/go.mp3"),
       kjacs: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/kjacs.mp3"),
+      click: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/click.mp3"),
       combo: [
         loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/c1.mp3"),
         loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/c2.mp3"),
@@ -1403,7 +1418,10 @@ export default function App() {
 
             {/* Pause Button */}
             <button
-              onClick={pauseGame}
+              onClick={() => {
+                playClick()
+                pauseGame()
+              }}
               className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl backdrop-blur-md border border-white/20 transition-all active:scale-90"
             >
               <Pause size={16} className="text-white fill-white" />
@@ -1443,6 +1461,40 @@ export default function App() {
                 <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest text-left mb-4">
                   {t.quickSettings}
                 </h3>
+
+                {/* Music Volume Slider */}
+                <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5">
+                  <div className="flex items-center gap-2">
+                    <Music size={16} className="text-purple-400" />
+                    <span className="text-white font-bold uppercase tracking-widest text-xs">MUSIC</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={musicVolume}
+                    onChange={changeMusicVolume}
+                    className="w-24 accent-purple-500"
+                  />
+                </div>
+
+                {/* SFX Volume Slider */}
+                <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5">
+                  <div className="flex items-center gap-2">
+                    <Volume2 size={16} className="text-green-400" />
+                    <span className="text-white font-bold uppercase tracking-widest text-xs">SFX</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={sfxVolume}
+                    onChange={changeSfxVolume}
+                    className="w-24 accent-green-500"
+                  />
+                </div>
 
                 <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5">
                   <div className="flex items-center gap-2">
@@ -1552,7 +1604,10 @@ export default function App() {
                 {/* PLAY BUTTON */}
                 <motion.button
                   variants={menuItemVariants}
-                  onClick={() => startCountdown(isAuto, gameMode)}
+                  onClick={() => {
+                    playClick()
+                    startCountdown(isAuto, gameMode)
+                  }}
                   className={`w-full py-5 rounded-2xl font-black text-2xl flex items-center justify-center gap-3 shadow-xl transition-all mb-6 ${
                     gameMode === "hardcode" 
                       ? "bg-gradient-to-r from-red-600 to-orange-600 shadow-red-500/30 text-white" 
@@ -1566,7 +1621,10 @@ export default function App() {
                 {/* CUSTOM BUTTON */}
                 <motion.button
                   variants={menuItemVariants}
-                  onClick={() => setOpenCustom(true)}
+                  onClick={() => {
+                    playClick()
+                    setOpenCustom(true)
+                  }}
                   className="w-full py-3 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-all mb-6 bg-slate-800 text-slate-300 border border-white/5 hover:bg-slate-700 hover:text-white"
                 >
                   <Edit3 size={20} /> {t.custom}
@@ -1575,7 +1633,10 @@ export default function App() {
                 {/* OPTIONS ROW */}
                 <motion.div variants={menuItemVariants} className="flex gap-4 w-full mb-8">
                   <button
-                    onClick={() => setIsAuto(!isAuto)}
+                    onClick={() => {
+                      playClick()
+                      setIsAuto(!isAuto)
+                    }}
                     className={`flex-1 py-4 rounded-xl font-bold flex flex-col items-center justify-center gap-2 transition-all border ${
                       isAuto 
                         ? "bg-green-600/20 border-green-500 text-green-400" 
@@ -1586,7 +1647,10 @@ export default function App() {
                     <span className="text-[10px] uppercase tracking-widest">{t.auto}</span>
                   </button>
                   <button
-                    onClick={() => setIsClassic(!isClassic)}
+                    onClick={() => {
+                      playClick()
+                      setIsClassic(!isClassic)
+                    }}
                     className={`flex-1 py-4 rounded-xl font-bold flex flex-col items-center justify-center gap-2 transition-all border ${
                       isClassic
                         ? "bg-yellow-600/20 border-yellow-500 text-yellow-400"
@@ -1597,7 +1661,10 @@ export default function App() {
                     <span className="text-[10px] uppercase tracking-widest">{t.classic}</span>
                   </button>
                   <button
-                    onClick={() => setGameMode(gameMode === "normal" ? "hardcode" : "normal")}
+                    onClick={() => {
+                      playClick()
+                      setGameMode(gameMode === "normal" ? "hardcode" : "normal")
+                    }}
                     className={`flex-1 py-4 rounded-xl font-bold flex flex-col items-center justify-center gap-2 transition-all border ${
                       gameMode === "hardcode"
                         ? "bg-red-600/20 border-red-500 text-red-400"
@@ -1612,7 +1679,10 @@ export default function App() {
                 <motion.div variants={menuItemVariants} className="flex gap-4">
                   <motion.button
                     variants={menuItemVariants}
-                    onClick={() => setOpenGuide(true)}
+                    onClick={() => {
+                      playClick()
+                      setOpenGuide(true)
+                    }}
                     className="flex-1 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-indigo-500/20 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 hover:border-indigo-500/40 backdrop-blur-sm text-xs uppercase tracking-wider"
                     title={t.ballGuide}
                   >
@@ -1620,21 +1690,30 @@ export default function App() {
                   </motion.button>
                   <motion.button
                     variants={menuItemVariants}
-                    onClick={() => setOpenStats(true)}
+                    onClick={() => {
+                      playClick()
+                      setOpenStats(true)
+                    }}
                     className="flex-1 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/40 backdrop-blur-sm text-xs uppercase tracking-wider"
                   >
                     <BarChart3 size={18} /> {t.stats}
                   </motion.button>
                   <motion.button
                     variants={menuItemVariants}
-                    onClick={() => setOpenSkins(true)}
+                    onClick={() => {
+                      playClick()
+                      setOpenSkins(true)
+                    }}
                     className="flex-1 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-pink-500/20 bg-pink-500/10 text-pink-300 hover:bg-pink-500/20 hover:border-pink-500/40 backdrop-blur-sm text-xs uppercase tracking-wider"
                   >
                     <Palette size={18} /> {t.skins}
                   </motion.button>
                   <motion.button
                     variants={menuItemVariants}
-                    onClick={() => setOpenSettings(true)}
+                    onClick={() => {
+                      playClick()
+                      setOpenSettings(true)
+                    }}
                     className="flex-1 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-slate-600/20 bg-slate-700/20 text-slate-400 hover:bg-slate-700/40 hover:border-slate-500/40 backdrop-blur-sm text-xs uppercase tracking-wider"
                   >
                     <Settings size={18} /> {t.settings}
@@ -1653,14 +1732,20 @@ export default function App() {
                 <motion.div variants={menuItemVariants} className="flex gap-4 pointer-events-auto">
                   <motion.button
                     variants={menuItemVariants}
-                    onClick={() => setGameState("start")}
+                    onClick={() => {
+                      playClick()
+                      setGameState("start")
+                    }}
                     className="px-10 py-4 bg-slate-800 text-white font-black rounded-full flex items-center gap-3 border border-white/10 hover:bg-slate-700 transition-all"
                   >
                     <Home size={24} /> {t.home}
                   </motion.button>
                   <motion.button
                     variants={menuItemVariants}
-                    onClick={() => setOpenSettings(true)}
+                    onClick={() => {
+                      playClick()
+                      setOpenSettings(true)
+                    }}
                     className="p-4 bg-slate-800 text-white rounded-full border border-white/10"
                   >
                     <Settings size={24} />
@@ -1710,7 +1795,10 @@ export default function App() {
           >
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.customGame}</h3>
-              <button onClick={() => setOpenCustom(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => {
+                playClick()
+                setOpenCustom(false)
+              }} className="text-slate-400 hover:text-white">
                 <X size={32} />
               </button>
             </div>
@@ -1719,19 +1807,28 @@ export default function App() {
               {/* Mode & Auto Selection */}
               <div className="bg-white/5 p-4 rounded-2xl border border-white/5 flex gap-2">
                 <button
-                  onClick={() => setCustomConfig(prev => ({ ...prev, mode: "normal" }))}
+                  onClick={() => {
+                    playClick()
+                    setCustomConfig(prev => ({ ...prev, mode: "normal" }))
+                  }}
                   className={`flex-1 py-3 rounded-xl font-black text-sm uppercase transition-all ${customConfig.mode === "normal" ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "bg-slate-800 text-slate-500"}`}
                 >
                   Normal
                 </button>
                 <button
-                  onClick={() => setCustomConfig(prev => ({ ...prev, mode: "hardcode" }))}
+                  onClick={() => {
+                    playClick()
+                    setCustomConfig(prev => ({ ...prev, mode: "hardcode" }))
+                  }}
                   className={`flex-1 py-3 rounded-xl font-black text-sm uppercase transition-all ${customConfig.mode === "hardcode" ? "bg-red-600 text-white shadow-lg shadow-red-500/20" : "bg-slate-800 text-slate-500"}`}
                 >
                   Hardcore
                 </button>
                 <button
-                  onClick={() => setCustomConfig(prev => ({ ...prev, isAuto: !prev.isAuto }))}
+                  onClick={() => {
+                    playClick()
+                    setCustomConfig(prev => ({ ...prev, isAuto: !prev.isAuto }))
+                  }}
                   className={`flex-1 py-3 rounded-xl font-black text-sm uppercase transition-all flex items-center justify-center gap-2 ${customConfig.isAuto ? "bg-green-600 text-white shadow-lg shadow-green-500/20" : "bg-slate-800 text-slate-500"}`}
                 >
                   <Cpu size={16} />
@@ -1755,10 +1852,13 @@ export default function App() {
                   ].map((ball) => (
                     <button
                       key={ball.id}
-                      onClick={() => setCustomConfig(prev => ({
-                        ...prev,
-                        balls: { ...prev.balls, [ball.id]: !prev.balls[ball.id as keyof typeof prev.balls] }
-                      }))}
+                      onClick={() => {
+                        playClick()
+                        setCustomConfig(prev => ({
+                          ...prev,
+                          balls: { ...prev.balls, [ball.id]: !prev.balls[ball.id as keyof typeof prev.balls] }
+                        }))
+                      }}
                       className={`p-3 rounded-xl border transition-all flex items-center gap-3 ${customConfig.balls[ball.id as keyof typeof customConfig.balls] ? "bg-slate-800 border-white/20" : "bg-slate-900/50 border-transparent opacity-50"}`}
                     >
                       <div className={`w-4 h-4 rounded-full ${ball.color} shadow-sm`} />
@@ -1770,7 +1870,10 @@ export default function App() {
             </div>
 
             <button
-              onClick={startCustomGame}
+              onClick={() => {
+                playClick()
+                startCustomGame()
+              }}
               className="w-full py-4 mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-purple-500/30 active:scale-95 transition-transform"
             >
               <Play size={20} fill="currentColor" /> {t.startCustom}
@@ -1785,6 +1888,7 @@ export default function App() {
             t={t}
             currentSkin={skin}
             setSkin={changeSkin}
+            playClick={playClick}
             onClose={() => setOpenSkins(false)}
             animationsEnabled={animationsEnabled}
           />
@@ -1804,6 +1908,7 @@ export default function App() {
             trailsEnabled={trailsEnabled}
             toggleTrails={toggleTrails}
             animationsEnabled={animationsEnabled}
+            playClick={playClick}
             toggleAnimations={toggleAnimations}
             onClose={() => setOpenSettings(false)}
           />
@@ -1821,7 +1926,10 @@ export default function App() {
           >
             <div className="flex justify-between items-center mb-10">
               <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.statistics}</h3>
-              <button onClick={() => setOpenStats(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => {
+                playClick()
+                setOpenStats(false)
+              }} className="text-slate-400 hover:text-white">
                 <X size={32} />
               </button>
             </div>
@@ -1836,6 +1944,7 @@ export default function App() {
                     <span className="text-emerald-400 text-xl font-black tabular-nums">{bestScoreNormal}</span>
                     <button
                       onClick={() => {
+                        playClick()
                         if (!confirmResetNormal) {
                           setConfirmResetNormal(true)
                           setTimeout(() => setConfirmResetNormal(false), 3000)
@@ -1858,6 +1967,7 @@ export default function App() {
                     <span className="text-red-400 text-xl font-black tabular-nums">{bestScoreHardcore}</span>
                     <button
                       onClick={() => {
+                        playClick()
                         if (!confirmResetHardcore) {
                           setConfirmResetHardcore(true)
                           setTimeout(() => setConfirmResetHardcore(false), 3000)
@@ -1885,6 +1995,7 @@ export default function App() {
                     <span className="text-emerald-400 text-xl font-black tabular-nums">{bestScoreClassicNormal}</span>
                     <button
                       onClick={() => {
+                        playClick()
                         if (!confirmResetClassicNormal) {
                           setConfirmResetClassicNormal(true)
                           setTimeout(() => setConfirmResetClassicNormal(false), 3000)
@@ -1907,6 +2018,7 @@ export default function App() {
                     <span className="text-red-400 text-xl font-black tabular-nums">{bestScoreClassicHardcore}</span>
                     <button
                       onClick={() => {
+                        playClick()
                         if (!confirmResetClassicHardcore) {
                           setConfirmResetClassicHardcore(true)
                           setTimeout(() => setConfirmResetClassicHardcore(false), 3000)
@@ -1928,6 +2040,7 @@ export default function App() {
               <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 space-y-4 mt-4">
                 <button
                   onClick={() => {
+                    playClick()
                     if (!confirmReset) {
                       setConfirmReset(true)
                       setTimeout(() => setConfirmReset(false), 3000)
@@ -1975,7 +2088,10 @@ export default function App() {
             <motion.button
               whileHover={animationsEnabled ? { scale: 1.1, rotate: 90 } : {}}
               whileTap={animationsEnabled ? { scale: 0.9 } : {}}
-              onClick={() => setOpenGuide(false)}
+              onClick={() => {
+                playClick()
+                setOpenGuide(false)
+              }}
               className="bg-slate-800 p-2 rounded-xl text-slate-400 hover:text-white transition-colors border border-slate-700"
             >
               <X size={28} />
