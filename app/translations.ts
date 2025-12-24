@@ -392,4 +392,3 @@ export const TRANSLATIONS = {
     selectAtLeastOneBall: "Нужно выбрать хотя бы один мяч!",
   },
 }
-//H

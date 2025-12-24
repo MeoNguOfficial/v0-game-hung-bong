@@ -2349,4 +2349,3 @@ function GuideItem({ color, name, info }: { color: string; name: string; info: s
     </div>
   )
 }
-//H
