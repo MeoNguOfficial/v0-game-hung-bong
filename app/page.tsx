@@ -307,6 +307,7 @@ export default function App() {
   const resetBall = () => {
     const canvas = canvasRef.current
     if (!canvas) return
+    if (gameData.current.lives <= 0 || gameData.current.isDying) return
     const b = gameData.current.ball
     const score = gameData.current.score
 
@@ -531,10 +532,10 @@ export default function App() {
     setBestScoreClassicHardcore(savedBestClassicHardcore)
     gameData.current.bestClassicHardcore = savedBestClassicHardcore
 
-    const savedParticles = localStorage.getItem("game_particles") === "true"
+    const savedParticles = localStorage.getItem("game_particles") !== "false"
     setParticlesEnabled(savedParticles)
     gameData.current.particlesEnabled = savedParticles
-    const savedTrails = localStorage.getItem("game_trails") === "true"
+    const savedTrails = localStorage.getItem("game_trails") !== "false"
     const savedAnimations = localStorage.getItem("game_animations") !== "false" // Default true
     setAnimationsEnabled(savedAnimations)
     setTrailsEnabled(savedTrails)
@@ -979,6 +980,7 @@ export default function App() {
                     snowIntervalRef.current = null
                   }
                 }
+                stopSound("bomb_fall")
                 playSound("gameover")
               }
               resetBall()
