@@ -27,6 +27,7 @@ import {
   BarChart3,
   Bug,
   ExternalLink,
+  Globe,
 } from "lucide-react"
 
 // --- Custom Hook: useIsMobile (Được tích hợp trực tiếp để không cần file ngoài) ---
@@ -68,6 +69,186 @@ interface Trail {
   alpha: number
 }
 
+// --- Translations ---
+const TRANSLATIONS = {
+  en: {
+    play: "PLAY",
+    auto: "Auto",
+    classic: "Classic",
+    hardcore: "Hardcore",
+    guide: "GUIDE",
+    stats: "STATS",
+    settings: "SETTINGS",
+    gameOver: "Game Over",
+    home: "HOME",
+    newBest: "New Best!",
+    audioEffects: "Audio Effects",
+    particles: "Particles",
+    ballTrails: "Ball Trails",
+    transitions: "Transitions",
+    reportIssue: "Report Issue",
+    statistics: "STATISTICS",
+    defaultMode: "Default Mode",
+    bestNormal: "Best Normal",
+    bestHardcore: "Best Hardcore",
+    classicMode: "Classic Mode",
+    clearAllRecords: "Clear All Records",
+    confirmDeleteAll: "Confirm Delete All?",
+    gamePaused: "Game Paused",
+    currentScore: "Current Score",
+    quickSettings: "Quick Settings",
+    audio: "Audio",
+    trails: "Trails",
+    continue: "CONTINUE",
+    mainMenu: "MAIN MENU",
+    confirmExit: "CONFIRM EXIT?",
+    score: "Score",
+    lives: "Lives",
+    best: "Best",
+    freeze: "Freeze",
+    ballGuide: "BALL GUIDE",
+    manualDatabase: "Manual & Database",
+    botActive: "Bot Active",
+    language: "Language",
+    ballNormal: "Normal",
+    ballNormalDesc: "\"Standard sphere for a balanced start.\"",
+    ballFast: "Fast",
+    ballFastDesc: "\"High velocity projectile with triple rewards.\"",
+    ballZicZac: "ZicZac",
+    ballZicZacDesc: "\"Erratic movement patterns that defy gravity.\"",
+    ballBooster: "Booster",
+    ballBoosterDesc: "\"Expands the paddle for maximum coverage.\"",
+    ballShield: "Shield",
+    ballShieldDesc: "\"Grants defensive armor to prevent defeat.\"",
+    ballSnow: "Snow",
+    ballSnowDesc: "\"Freezes the velocity of all active objects.\"",
+    ballBomb: "Bomb",
+    ballBombDesc: "\"Explosive trap. Avoid at all costs!\"",
+    ballHeal: "Heal",
+    ballHealDesc: "\"Restores one point of health immediately.\"",
+    unlockAt: "Unlock at",
+    mechanic: "Mechanic",
+    risk: "Risk",
+    gameModes: "Game Modes",
+    allModes: "All Modes",
+    defaultOnly: "Default Only",
+    normalAndClassic: "Normal & Classic",
+    incrementalSpeed: "Incremental Speed",
+    lowReactionTime: "Low Reaction Time",
+    sharpAngles: "Sharp Angles",
+    none: "None",
+    momentumLoss: "Momentum Loss",
+    extreme: "EXTREME",
+    harmless: "Harmless",
+    paddleSize: "Paddle Size x2",
+    armor: "Armor",
+    freeze10s: "Freeze (10s)",
+    lifeLoss: "-1 Life / Game Over",
+    hpPlus: "+1 HP",
+    scorePlus1: "+1 Score",
+    scorePlus3: "+3 Score",
+    scorePlus10: "+10 / Wall Bounce",
+    basic: "BASIC",
+    speed: "SPEED",
+    tricky: "TRICKY",
+    buff: "BUFF",
+    defense: "DEFENSE",
+    time: "TIME",
+    danger: "DANGER",
+    life: "LIFE",
+    pts: "PTS",
+    max: "MAX!!",
+  },
+  vi: {
+    play: "CHƠI",
+    auto: "Tự động",
+    classic: "Cổ điển",
+    hardcore: "Khó",
+    guide: "HƯỚNG DẪN",
+    stats: "THỐNG KÊ",
+    settings: "CÀI ĐẶT",
+    gameOver: "Kết thúc",
+    home: "TRANG CHỦ",
+    newBest: "Kỷ lục mới!",
+    audioEffects: "Hiệu ứng âm thanh",
+    particles: "Hạt hiệu ứng",
+    ballTrails: "Vệt bóng",
+    transitions: "Hiệu ứng chuyển cảnh",
+    reportIssue: "Báo lỗi",
+    statistics: "THỐNG KÊ",
+    defaultMode: "Chế độ mặc định",
+    bestNormal: "Kỷ lục thường",
+    bestHardcore: "Kỷ lục khó",
+    classicMode: "Chế độ cổ điển",
+    clearAllRecords: "Xóa tất cả kỷ lục",
+    confirmDeleteAll: "Xác nhận xóa hết?",
+    gamePaused: "Tạm dừng",
+    currentScore: "Điểm hiện tại",
+    quickSettings: "Cài đặt nhanh",
+    audio: "Âm thanh",
+    trails: "Vệt bóng",
+    continue: "TIẾP TỤC",
+    mainMenu: "MENU CHÍNH",
+    confirmExit: "XÁC NHẬN THOÁT?",
+    score: "Điểm",
+    lives: "Mạng",
+    best: "Kỷ lục",
+    freeze: "Đóng băng",
+    ballGuide: "HƯỚNG DẪN BÓNG",
+    manualDatabase: "Sổ tay & Dữ liệu",
+    botActive: "Bot đang chạy",
+    language: "Ngôn ngữ",
+    ballNormal: "Thường",
+    ballNormalDesc: "\"Bóng tiêu chuẩn để khởi đầu cân bằng.\"",
+    ballFast: "Nhanh",
+    ballFastDesc: "\"Bóng tốc độ cao với phần thưởng gấp ba.\"",
+    ballZicZac: "ZicZac",
+    ballZicZacDesc: "\"Di chuyển thất thường bất chấp trọng lực.\"",
+    ballBooster: "Tăng cường",
+    ballBoosterDesc: "\"Mở rộng thanh hứng để tăng phạm vi.\"",
+    ballShield: "Khiên",
+    ballShieldDesc: "\"Cung cấp giáp bảo vệ khỏi thất bại.\"",
+    ballSnow: "Tuyết",
+    ballSnowDesc: "\"Đóng băng tốc độ của mọi vật thể.\"",
+    ballBomb: "Bom",
+    ballBombDesc: "\"Bẫy nổ. Tránh xa bằng mọi giá!\"",
+    ballHeal: "Hồi máu",
+    ballHealDesc: "\"Hồi phục một điểm sức khỏe ngay lập tức.\"",
+    unlockAt: "Mở khóa",
+    mechanic: "Cơ chế",
+    risk: "Rủi ro",
+    gameModes: "Chế độ",
+    allModes: "Mọi chế độ",
+    defaultOnly: "Chỉ mặc định",
+    normalAndClassic: "Thường & Cổ điển",
+    incrementalSpeed: "Tăng tốc độ",
+    lowReactionTime: "Thời gian phản xạ thấp",
+    sharpAngles: "Góc nhọn",
+    none: "Không",
+    momentumLoss: "Mất đà",
+    extreme: "CỰC ĐỘ",
+    harmless: "Vô hại",
+    paddleSize: "Thanh hứng x2",
+    armor: "Giáp",
+    freeze10s: "Đóng băng (10s)",
+    lifeLoss: "-1 Mạng / Thua",
+    hpPlus: "+1 HP",
+    scorePlus1: "+1 Điểm",
+    scorePlus3: "+3 Điểm",
+    scorePlus10: "+10 / Nảy tường",
+    basic: "CƠ BẢN",
+    speed: "TỐC ĐỘ",
+    tricky: "MẸO",
+    buff: "BUFF",
+    defense: "PHÒNG THỦ",
+    time: "THỜI GIAN",
+    danger: "NGUY HIỂM",
+    life: "SỰ SỐNG",
+    pts: "ĐIỂM",
+    max: "MAX!!",
+  },
+}
+
 // --- Main Component ---
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -103,6 +284,7 @@ export default function App() {
   const [openGuide, setOpenGuide] = useState(false)
   const [snowLeft, setSnowLeft] = useState(0)
   const [snowActive, setSnowActive] = useState(false)
+  const [language, setLanguage] = useState<"en" | "vi">("en")
 
   const isMobile = useIsMobile()
 
@@ -142,6 +324,14 @@ export default function App() {
   const trails = useRef<Trail[]>([])
   const audioRefs = useRef<any>(null)
   const snowIntervalRef = useRef<number | null>(null)
+
+  const t = TRANSLATIONS[language]
+
+  const toggleLanguage = () => {
+    const newLang = language === "en" ? "vi" : "en"
+    setLanguage(newLang)
+    localStorage.setItem("game_language", newLang)
+  }
 
   // --- Anti-Right Click (PC) ---
   useEffect(() => {
@@ -539,6 +729,9 @@ export default function App() {
     const savedAnimations = localStorage.getItem("game_animations") !== "false" // Default true
     setAnimationsEnabled(savedAnimations)
     setTrailsEnabled(savedTrails)
+
+    const savedLang = localStorage.getItem("game_language") as "en" | "vi"
+    if (savedLang) setLanguage(savedLang)
     gameData.current.trailsEnabled = savedTrails
   }, [])
 
@@ -1155,7 +1348,7 @@ export default function App() {
             transition={animationsEnabled ? undefined : { duration: 0 }}
             className="fixed z-50 pointer-events-none text-yellow-400 font-black italic text-6xl drop-shadow-[0_0_20px_rgba(250,204,21,0.8)]"
           >
-            {comboCount >= 6 ? "MAX!!" : `X${comboCount}`}
+            {comboCount >= 6 ? t.max : `X${comboCount}`}
           </motion.div>
         )}
       </AnimatePresence>
@@ -1172,7 +1365,7 @@ export default function App() {
             <div className="bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-400 p-1 rounded-2xl shadow-[0_0_30px_rgba(251,191,36,0.5)]">
               <div className="bg-slate-900 px-8 py-3 rounded-xl flex items-center gap-3">
                 <Star className="text-yellow-400 fill-yellow-400 animate-spin" size={24} />
-                <span className="text-white font-black italic text-3xl tracking-tighter uppercase">New Best!</span>
+                <span className="text-white font-black italic text-3xl tracking-tighter uppercase">{t.newBest}</span>
                 <Star className="text-yellow-400 fill-yellow-400 animate-spin" size={24} />
               </div>
             </div>
@@ -1199,13 +1392,13 @@ export default function App() {
           <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/60 to-transparent backdrop-blur-sm">
             {/* Score */}
             <div className="flex flex-col">
-              <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Score</span>
+              <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t.score}</span>
               <span className="text-xl font-black text-yellow-400 italic tabular-nums leading-none">{score}</span>
             </div>
 
             {/* Lives */}
             <div className="flex flex-col items-center gap-1">
-              <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Lives</span>
+              <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t.lives}</span>
               {gameMode === "hardcode" ? (
                 <div className="flex items-center justify-center h-2.5">
                   <Heart size={16} className="text-red-500 fill-red-500 drop-shadow-[0_0_6px_rgba(239,68,68,0.8)]" />
@@ -1224,7 +1417,7 @@ export default function App() {
 
             {/* Best */}
             <div className="flex flex-col items-end">
-              <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Best</span>
+              <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t.best}</span>
               <span className="text-xl font-black text-emerald-400 italic tabular-nums leading-none">
                 {isClassic 
                   ? (gameMode === "hardcode" ? bestScoreClassicHardcore : bestScoreClassicNormal)
@@ -1235,7 +1428,7 @@ export default function App() {
             {/* Snow Freeze Badge */}
             {snowActive && (
               <div className="flex flex-col items-center gap-1 mr-2">
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">Freeze</span>
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t.freeze}</span>
                 <div className="text-xs font-black text-white bg-white/5 px-2 py-1 rounded-full flex items-center gap-2 tabular-nums">
                   <span className="text-[12px]">❄️</span>
                   <span>{snowLeft}s</span>
@@ -1268,22 +1461,22 @@ export default function App() {
               className="flex flex-col items-center w-full max-w-[280px] h-full overflow-y-auto"
             >
               <div className="relative w-full mb-8">
-                <h2 className="text-4xl font-black text-white italic uppercase tracking-tighter mb-2">Game Paused</h2>
+                <h2 className="text-4xl font-black text-white italic uppercase tracking-tighter mb-2">{t.gamePaused}</h2>
                 {isMobile && (
                   <button
                     onClick={toggleAutoMode}
                     className="absolute left-[14px] top-0 w-[20px] h-[36px] opacity-0 cursor-pointer"
-                    aria-label="Toggle Autoplay"
+                    aria-label={t.auto}
                   />
                 )}
               </div>
               <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-8">
-                Current Score: <span className="text-yellow-400">{score}</span>
+                {t.currentScore}: <span className="text-yellow-400">{score}</span>
               </p>
 
               <div className="w-full space-y-3 mb-8">
                 <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest text-left mb-4">
-                  Quick Settings
+                  {t.quickSettings}
                 </h3>
 
                 <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5">
@@ -1293,7 +1486,7 @@ export default function App() {
                     ) : (
                       <Volume2 size={16} className="text-green-500" />
                     )}
-                    <span className="text-white font-bold uppercase tracking-widest text-xs">Audio</span>
+                    <span className="text-white font-bold uppercase tracking-widest text-xs">{t.audio}</span>
                   </div>
                   <button
                     onClick={toggleMute}
@@ -1310,7 +1503,7 @@ export default function App() {
                 <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5">
                   <div className="flex items-center gap-2">
                     <Sparkles size={16} className={particlesEnabled ? "text-yellow-400" : "text-slate-500"} />
-                    <span className="text-white font-bold uppercase tracking-widest text-xs">Particles</span>
+                    <span className="text-white font-bold uppercase tracking-widest text-xs">{t.particles}</span>
                   </div>
                   <button
                     onClick={toggleParticles}
@@ -1327,7 +1520,7 @@ export default function App() {
                 <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5">
                   <div className="flex items-center gap-2">
                     <Wind size={16} className={trailsEnabled ? "text-blue-400" : "text-slate-500"} />
-                    <span className="text-white font-bold uppercase tracking-widest text-xs">Trails</span>
+                    <span className="text-white font-bold uppercase tracking-widest text-xs">{t.trails}</span>
                   </div>
                   <button
                     onClick={toggleTrails}
@@ -1347,7 +1540,7 @@ export default function App() {
                   onClick={resumeGame}
                   className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-blue-500/30 active:scale-95 transition-transform"
                 >
-                  <Play size={20} fill="currentColor" /> CONTINUE
+                  <Play size={20} fill="currentColor" /> {t.continue}
                 </button>
 
                 <button
@@ -1355,7 +1548,7 @@ export default function App() {
                   className={`w-full py-4 rounded-2xl font-black flex items-center justify-center gap-3 transition-all border ${confirmExit ? "bg-red-600 text-white border-red-500 animate-pulse" : "bg-slate-800 text-slate-400 border-white/5 hover:bg-slate-700"}`}
                 >
                   {confirmExit ? <AlertCircle size={20} /> : <Home size={20} />}
-                  {confirmExit ? "CONFIRM EXIT?" : "MAIN MENU"}
+                  {confirmExit ? t.confirmExit : t.mainMenu}
                 </button>
               </div>
             </motion.div>
@@ -1402,7 +1595,7 @@ export default function App() {
                   }`}
                 >
                   <Play size={32} fill="currentColor" />
-                  PLAY
+                  {t.play}
                 </motion.button>
 
                 {/* OPTIONS ROW */}
@@ -1416,7 +1609,7 @@ export default function App() {
                     }`}
                   >
                     <Cpu size={24} />
-                    <span className="text-[10px] uppercase tracking-widest">Auto</span>
+                    <span className="text-[10px] uppercase tracking-widest">{t.auto}</span>
                   </button>
                   <button
                     onClick={() => setIsClassic(!isClassic)}
@@ -1427,7 +1620,7 @@ export default function App() {
                     }`}
                   >
                     <Disc size={24} />
-                    <span className="text-[10px] uppercase tracking-widest">Classic</span>
+                    <span className="text-[10px] uppercase tracking-widest">{t.classic}</span>
                   </button>
                   <button
                     onClick={() => setGameMode(gameMode === "normal" ? "hardcode" : "normal")}
@@ -1438,7 +1631,7 @@ export default function App() {
                     }`}
                   >
                     <Skull size={24} />
-                    <span className="text-[10px] uppercase tracking-widest">Hardcore</span>
+                    <span className="text-[10px] uppercase tracking-widest">{t.hardcore}</span>
                   </button>
                 </motion.div>
 
@@ -1447,23 +1640,23 @@ export default function App() {
                     variants={menuItemVariants}
                     onClick={() => setOpenGuide(true)}
                     className="flex-1 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-indigo-500/20 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 hover:border-indigo-500/40 backdrop-blur-sm text-xs uppercase tracking-wider"
-                    title="Ball Guide"
+                    title={t.ballGuide}
                   >
-                    <Info size={18} /> GUIDE
+                    <Info size={18} /> {t.guide}
                   </motion.button>
                   <motion.button
                     variants={menuItemVariants}
                     onClick={() => setOpenStats(true)}
                     className="flex-1 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/40 backdrop-blur-sm text-xs uppercase tracking-wider"
                   >
-                    <BarChart3 size={18} /> STATS
+                    <BarChart3 size={18} /> {t.stats}
                   </motion.button>
                   <motion.button
                     variants={menuItemVariants}
                     onClick={() => setOpenSettings(true)}
                     className="flex-1 py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border border-slate-600/20 bg-slate-700/20 text-slate-400 hover:bg-slate-700/40 hover:border-slate-500/40 backdrop-blur-sm text-xs uppercase tracking-wider"
                   >
-                    <Settings size={18} /> SETTINGS
+                    <Settings size={18} /> {t.settings}
                   </motion.button>
                 </motion.div>
               </motion.div>
@@ -1472,7 +1665,7 @@ export default function App() {
                 <motion.div variants={menuItemVariants} animate={animationsEnabled ? { scale: [0.94, 1.08, 1] } : { scale: 1 }} transition={animationsEnabled ? { duration: 0.7, times: [0, 0.7, 1], type: "spring", stiffness: 400, damping: 12 } : { duration: 0 }}>
                   <Trophy size={80} className="text-yellow-500 mb-6" />
                 </motion.div>
-                <motion.h2 variants={menuItemVariants} className="text-5xl font-black mb-2 text-white italic uppercase tracking-tighter">Game Over</motion.h2>
+                <motion.h2 variants={menuItemVariants} className="text-5xl font-black mb-2 text-white italic uppercase tracking-tighter">{t.gameOver}</motion.h2>
                 <motion.div variants={menuItemVariants} className="text-7xl font-black text-yellow-400 mb-12 drop-shadow-[0_0_20px_rgba(250,204,21,0.4)]">
                   {score}
                 </motion.div>
@@ -1482,7 +1675,7 @@ export default function App() {
                     onClick={() => setGameState("start")}
                     className="px-10 py-4 bg-slate-800 text-white font-black rounded-full flex items-center gap-3 border border-white/10 hover:bg-slate-700 transition-all"
                   >
-                    <Home size={24} /> HOME
+                    <Home size={24} /> {t.home}
                   </motion.button>
                   <motion.button
                     variants={menuItemVariants}
@@ -1501,7 +1694,7 @@ export default function App() {
       {isAuto && gameState === "running" && (
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-green-500/20 border border-green-500/50 px-4 py-2 rounded-full flex items-center gap-2 backdrop-blur-md">
           <Cpu size={14} className="text-green-500 animate-spin" />
-          <span className="text-[10px] text-green-400 font-bold uppercase tracking-widest">Bot Active</span>
+          <span className="text-[10px] text-green-400 font-bold uppercase tracking-widest">{t.botActive}</span>
         </div>
       )}
 
@@ -1535,7 +1728,7 @@ export default function App() {
             className="absolute inset-0 z-[80] bg-slate-900 p-8 flex flex-col border-t-4 border-blue-600 rounded-t-[3rem]"
           >
             <div className="flex justify-between items-center mb-10">
-              <h3 className="text-2xl font-black text-white italic tracking-tighter">SETTINGS</h3>
+              <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.settings}</h3>
               <button onClick={() => setOpenSettings(false)} className="text-slate-400 hover:text-white">
                 <X size={32} />
               </button>
@@ -1543,8 +1736,22 @@ export default function App() {
             <div className="space-y-4 flex-1 overflow-y-auto">
               <div className="flex justify-between items-center bg-white/5 p-6 rounded-[2rem] border border-white/5">
                 <div className="flex items-center gap-3">
+                  <Globe size={20} className="text-cyan-400" />
+                  <span className="text-white font-bold uppercase tracking-widest text-xs">{t.language}</span>
+                </div>
+                <button
+                  onClick={toggleLanguage}
+                  className="flex items-center gap-2 bg-slate-800 px-4 py-2 rounded-xl border border-white/10 hover:bg-slate-700 transition-colors"
+                >
+                  <span className={`text-xs font-black ${language === "en" ? "text-white" : "text-slate-500"}`}>EN</span>
+                  <div className="w-[1px] h-3 bg-white/20" />
+                  <span className={`text-xs font-black ${language === "vi" ? "text-white" : "text-slate-500"}`}>VI</span>
+                </button>
+              </div>
+              <div className="flex justify-between items-center bg-white/5 p-6 rounded-[2rem] border border-white/5">
+                <div className="flex items-center gap-3">
                   {isMuted ? <VolumeX className="text-red-500" /> : <Volume2 className="text-green-500" />}
-                  <span className="text-white font-bold uppercase tracking-widest text-xs">Audio Effects</span>
+                  <span className="text-white font-bold uppercase tracking-widest text-xs">{t.audioEffects}</span>
                 </div>
                 <button
                   onClick={toggleMute}
@@ -1560,7 +1767,7 @@ export default function App() {
               <div className="flex justify-between items-center bg-white/5 p-6 rounded-[2rem] border border-white/5">
                 <div className="flex items-center gap-3">
                   <Sparkles size={20} className={particlesEnabled ? "text-yellow-400" : "text-slate-500"} />
-                  <span className="text-white font-bold uppercase tracking-widest text-xs">Particles</span>
+                  <span className="text-white font-bold uppercase tracking-widest text-xs">{t.particles}</span>
                 </div>
                 <button
                   onClick={toggleParticles}
@@ -1576,7 +1783,7 @@ export default function App() {
               <div className="flex justify-between items-center bg-white/5 p-6 rounded-[2rem] border border-white/5">
                 <div className="flex items-center gap-3">
                   <Wind size={20} className={trailsEnabled ? "text-blue-400" : "text-slate-500"} />
-                  <span className="text-white font-bold uppercase tracking-widest text-xs">Ball Trails</span>
+                  <span className="text-white font-bold uppercase tracking-widest text-xs">{t.ballTrails}</span>
                 </div>
                 <button
                   onClick={toggleTrails}
@@ -1592,7 +1799,7 @@ export default function App() {
               <div className="flex justify-between items-center bg-white/5 p-6 rounded-[2rem] border border-white/5">
                 <div className="flex items-center gap-3">
                   <Film size={20} className={animationsEnabled ? "text-purple-400" : "text-slate-500"} />
-                  <span className="text-white font-bold uppercase tracking-widest text-xs">Transitions</span>
+                  <span className="text-white font-bold uppercase tracking-widest text-xs">{t.transitions}</span>
                 </div>
                 <button
                   onClick={toggleAnimations}
@@ -1614,7 +1821,7 @@ export default function App() {
               >
                 <div className="flex items-center gap-3">
                   <Bug size={20} className="text-red-400" />
-                  <span className="text-white font-bold uppercase tracking-widest text-xs">Report Issue</span>
+                  <span className="text-white font-bold uppercase tracking-widest text-xs">{t.reportIssue}</span>
                 </div>
                 <ExternalLink size={20} className="text-slate-500" />
               </a>
@@ -1633,7 +1840,7 @@ export default function App() {
             className="absolute inset-0 z-[80] bg-slate-900 p-8 flex flex-col border-t-4 border-emerald-600 rounded-t-[3rem]"
           >
             <div className="flex justify-between items-center mb-10">
-              <h3 className="text-2xl font-black text-white italic tracking-tighter">STATISTICS</h3>
+              <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.statistics}</h3>
               <button onClick={() => setOpenStats(false)} className="text-slate-400 hover:text-white">
                 <X size={32} />
               </button>
@@ -1642,9 +1849,9 @@ export default function App() {
               
               {/* DEFAULT MODES */}
               <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 space-y-4">
-                <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Default Mode</h4>
+                <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">{t.defaultMode}</h4>
                 <div className="flex justify-between items-center text-xs font-bold text-slate-400 px-2 uppercase tracking-widest border-b border-white/5 pb-2">
-                  <span>Best Normal</span>
+                  <span>{t.bestNormal}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-emerald-400 text-xl font-black tabular-nums">{bestScoreNormal}</span>
                     <button
@@ -1666,7 +1873,7 @@ export default function App() {
                   </div>
                 </div>
                 <div className="flex justify-between items-center text-xs font-bold text-slate-400 px-2 uppercase tracking-widest">
-                  <span>Best Hardcore</span>
+                  <span>{t.bestHardcore}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-red-400 text-xl font-black tabular-nums">{bestScoreHardcore}</span>
                     <button
@@ -1691,9 +1898,9 @@ export default function App() {
 
               {/* CLASSIC MODES */}
               <div className="bg-white/5 p-6 rounded-[2rem] border border-white/5 space-y-4">
-                <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Classic Mode</h4>
+                <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2">{t.classicMode}</h4>
                 <div className="flex justify-between items-center text-xs font-bold text-slate-400 px-2 uppercase tracking-widest border-b border-white/5 pb-2">
-                  <span>Best Normal</span>
+                  <span>{t.bestNormal}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-emerald-400 text-xl font-black tabular-nums">{bestScoreClassicNormal}</span>
                     <button
@@ -1715,7 +1922,7 @@ export default function App() {
                   </div>
                 </div>
                 <div className="flex justify-between items-center text-xs font-bold text-slate-400 px-2 uppercase tracking-widest">
-                  <span>Best Hardcore</span>
+                  <span>{t.bestHardcore}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-red-400 text-xl font-black tabular-nums">{bestScoreClassicHardcore}</span>
                     <button
@@ -1762,7 +1969,7 @@ export default function App() {
                   }}
                   className={`w-full py-5 rounded-2xl font-black flex items-center justify-center gap-3 text-xs uppercase transition-all ${confirmReset ? "bg-red-600 text-white animate-pulse" : "bg-slate-800 text-red-400 hover:bg-slate-700"}`}
                 >
-                  {confirmReset ? "Confirm Delete All?" : "Clear All Records"}
+                  {confirmReset ? t.confirmDeleteAll : t.clearAllRecords}
                   <Trash2 size={16} />
                 </button>
               </div>
@@ -1782,8 +1989,8 @@ export default function App() {
           {/* HEADER SECTION */}
           <motion.div variants={menuItemVariants} className="flex justify-between items-center mb-8 px-2">
             <div>
-              <h3 className="text-3xl font-black text-white italic tracking-tighter leading-none">BALL GUIDE</h3>
-              <p className="text-purple-500 text-[10px] font-bold tracking-[0.2em] uppercase mt-1">Manual & Database</p>
+              <h3 className="text-3xl font-black text-white italic tracking-tighter leading-none">{t.ballGuide}</h3>
+              <p className="text-purple-500 text-[10px] font-bold tracking-[0.2em] uppercase mt-1">{t.manualDatabase}</p>
             </div>
             <motion.button
               whileHover={{ scale: 1.1, rotate: 90 }}
@@ -1803,15 +2010,15 @@ export default function App() {
               <div className="w-14 h-14 rounded-full bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)] flex-shrink-0 border-4 border-white/10" />
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-red-500 font-black text-xl uppercase italic">Normal</h4>
-                  <span className="text-[10px] bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full font-bold border border-red-500/20">BASIC</span>
+                  <h4 className="text-red-500 font-black text-xl uppercase italic">{t.ballNormal}</h4>
+                  <span className="text-[10px] bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full font-bold border border-red-500/20">{t.basic}</span>
                 </div>
-                <p className="text-slate-400 text-xs mb-3 italic">"Standard sphere for a balanced start."</p>
+                <p className="text-slate-400 text-xs mb-3 italic">{t.ballNormalDesc}</p>
                 <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Unlock at:</span><span className="text-white">0 PTS</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Mechanic:</span><span className="text-green-400">+1 Score</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Risk:</span><span className="text-yellow-500">Incremental Speed</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Game Modes:</span><span className="text-blue-400">All Modes</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">0 {t.pts}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-green-400">{t.scorePlus1}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-yellow-500">{t.incrementalSpeed}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.allModes}</span></div>
                 </div>
               </div>
             </div>
@@ -1821,15 +2028,15 @@ export default function App() {
               <div className="w-14 h-14 rounded-full bg-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.5)] flex-shrink-0 border-4 border-white/10" />
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-purple-400 font-black text-xl uppercase italic">Fast</h4>
-                  <span className="text-[10px] bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full font-bold border border-purple-500/20">SPEED</span>
+                  <h4 className="text-purple-400 font-black text-xl uppercase italic">{t.ballFast}</h4>
+                  <span className="text-[10px] bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full font-bold border border-purple-500/20">{t.speed}</span>
                 </div>
-                <p className="text-slate-400 text-xs mb-3 italic">"High velocity projectile with triple rewards."</p>
+                <p className="text-slate-400 text-xs mb-3 italic">{t.ballFastDesc}</p>
                 <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Unlock at:</span><span className="text-white">50 PTS</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Mechanic:</span><span className="text-green-400">+3 Score</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Risk:</span><span className="text-red-500">Low Reaction Time</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Game Modes:</span><span className="text-blue-400">Default Only</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">50 {t.pts}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-green-400">{t.scorePlus3}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-red-500">{t.lowReactionTime}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.defaultOnly}</span></div>
                 </div>
               </div>
             </div>
@@ -1839,15 +2046,15 @@ export default function App() {
               <div className="w-14 h-14 rounded-full bg-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.5)] flex-shrink-0 border-4 border-white/10" />
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-yellow-400 font-black text-xl uppercase italic">ZicZac</h4>
-                  <span className="text-[10px] bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded-full font-bold border border-yellow-500/20">TRICKY</span>
+                  <h4 className="text-yellow-400 font-black text-xl uppercase italic">{t.ballZicZac}</h4>
+                  <span className="text-[10px] bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded-full font-bold border border-yellow-500/20">{t.tricky}</span>
                 </div>
-                <p className="text-slate-400 text-xs mb-3 italic">"Erratic movement patterns that defy gravity."</p>
+                <p className="text-slate-400 text-xs mb-3 italic">{t.ballZicZacDesc}</p>
                 <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Unlock at:</span><span className="text-white">100 PTS</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Mechanic:</span><span className="text-green-400">+10 / Wall Bounce</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Risk:</span><span className="text-red-500">Sharp Angles</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Game Modes:</span><span className="text-blue-400">Default Only</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">100 {t.pts}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-green-400">{t.scorePlus10}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-red-500">{t.sharpAngles}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.defaultOnly}</span></div>
                 </div>
               </div>
             </div>
@@ -1857,15 +2064,15 @@ export default function App() {
               <div className="w-14 h-14 rounded-full bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.5)] flex-shrink-0 border-4 border-white/10 animate-pulse" />
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-blue-400 font-black text-xl uppercase italic">Booster</h4>
-                  <span className="text-[10px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full font-bold border border-blue-500/20">BUFF</span>
+                  <h4 className="text-blue-400 font-black text-xl uppercase italic">{t.ballBooster}</h4>
+                  <span className="text-[10px] bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded-full font-bold border border-blue-500/20">{t.buff}</span>
                 </div>
-                <p className="text-slate-400 text-xs mb-3 italic">"Expands the paddle for maximum coverage."</p>
+                <p className="text-slate-400 text-xs mb-3 italic">{t.ballBoosterDesc}</p>
                 <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Unlock at:</span><span className="text-white">200 PTS</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Mechanic:</span><span className="text-cyan-400">Paddle Size x2</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Risk:</span><span className="text-green-500">None</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Game Modes:</span><span className="text-blue-400">Default Only</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">200 {t.pts}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-cyan-400">{t.paddleSize}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-green-500">{t.none}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.defaultOnly}</span></div>
                 </div>
               </div>
             </div>
@@ -1875,15 +2082,15 @@ export default function App() {
               <div className="w-14 h-14 rounded-full bg-slate-400 shadow-[0_0_20px_rgba(148,163,184,0.5)] flex-shrink-0 border-4 border-white/10" />
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-slate-300 font-black text-xl uppercase italic">Shield</h4>
-                  <span className="text-[10px] bg-slate-100/10 text-slate-300 px-2 py-0.5 rounded-full font-bold border border-slate-500/20">DEFENSE</span>
+                  <h4 className="text-slate-300 font-black text-xl uppercase italic">{t.ballShield}</h4>
+                  <span className="text-[10px] bg-slate-100/10 text-slate-300 px-2 py-0.5 rounded-full font-bold border border-slate-500/20">{t.defense}</span>
                 </div>
-                <p className="text-slate-400 text-xs mb-3 italic">"Grants defensive armor to prevent defeat."</p>
+                <p className="text-slate-400 text-xs mb-3 italic">{t.ballShieldDesc}</p>
                 <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Unlock at:</span><span className="text-white">300 PTS</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Mechanic:</span><span className="text-cyan-400">Armor Armor</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Risk:</span><span className="text-green-500">None</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Game Modes:</span><span className="text-blue-400">All Modes</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">300 {t.pts}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-cyan-400">{t.armor}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-green-500">{t.none}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.allModes}</span></div>
                 </div>
               </div>
             </div>
@@ -1893,15 +2100,15 @@ export default function App() {
               <div className="w-14 h-14 rounded-full bg-white shadow-[0_0_20px_rgba(255,255,255,0.7)] flex-shrink-0 border-4 border-cyan-100/50" />
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-white font-black text-xl uppercase italic">Snow</h4>
-                  <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-bold border border-white/30">TIME</span>
+                  <h4 className="text-white font-black text-xl uppercase italic">{t.ballSnow}</h4>
+                  <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-bold border border-white/30">{t.time}</span>
                 </div>
-                <p className="text-slate-400 text-xs mb-3 italic">"Freezes the velocity of all active objects."</p>
+                <p className="text-slate-400 text-xs mb-3 italic">{t.ballSnowDesc}</p>
                 <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Unlock at:</span><span className="text-white">≥500 PTS</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Mechanic:</span><span className="text-cyan-300">Freeze (10s)</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Risk:</span><span className="text-yellow-500">Momentum Loss</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Game Modes:</span><span className="text-blue-400">Default Only</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">≥500 {t.pts}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-cyan-300">{t.freeze10s}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-yellow-500">{t.momentumLoss}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.defaultOnly}</span></div>
                 </div>
               </div>
             </div>
@@ -1911,15 +2118,15 @@ export default function App() {
               <div className="w-14 h-14 rounded-full bg-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.5)] flex-shrink-0 border-4 border-white/10" />
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-orange-500 font-black text-xl uppercase italic">Bomb</h4>
-                  <span className="text-[10px] bg-orange-500/10 text-orange-500 px-2 py-0.5 rounded-full font-bold border border-orange-500/20">DANGER</span>
+                  <h4 className="text-orange-500 font-black text-xl uppercase italic">{t.ballBomb}</h4>
+                  <span className="text-[10px] bg-orange-500/10 text-orange-500 px-2 py-0.5 rounded-full font-bold border border-orange-500/20">{t.danger}</span>
                 </div>
-                <p className="text-slate-400 text-xs mb-3 italic">"Explosive trap. Avoid at all costs!"</p>
+                <p className="text-slate-400 text-xs mb-3 italic">{t.ballBombDesc}</p>
                 <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Unlock at:</span><span className="text-white">2 PTS</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Mechanic:</span><span className="text-red-500">-1 Life / Game Over</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Risk:</span><span className="text-red-500">EXTREME</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Game Modes:</span><span className="text-blue-400">Default Only</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">2 {t.pts}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-red-500">{t.lifeLoss}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-red-500">{t.extreme}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.defaultOnly}</span></div>
                 </div>
               </div>
             </div>
@@ -1929,15 +2136,15 @@ export default function App() {
               <div className="w-14 h-14 rounded-full bg-green-500 shadow-[0_0_20px_rgba(34,197,94,0.5)] flex-shrink-0 border-4 border-white/10" />
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="text-green-400 font-black text-xl uppercase italic">Heal</h4>
-                  <span className="text-[10px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full font-bold border border-green-500/20">LIFE</span>
+                  <h4 className="text-green-400 font-black text-xl uppercase italic">{t.ballHeal}</h4>
+                  <span className="text-[10px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full font-bold border border-green-500/20">{t.life}</span>
                 </div>
-                <p className="text-slate-400 text-xs mb-3 italic">"Restores one point of health immediately."</p>
+                <p className="text-slate-400 text-xs mb-3 italic">{t.ballHealDesc}</p>
                 <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wide">
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Unlock at:</span><span className="text-white">150 PTS</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Mechanic:</span><span className="text-green-400">+1 HP</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Risk:</span><span className="text-green-500">Harmlees</span></div>
-                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">Game Modes:</span><span className="text-blue-400">Normal & Classic</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.unlockAt}:</span><span className="text-white">150 {t.pts}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.mechanic}:</span><span className="text-green-400">{t.hpPlus}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.risk}:</span><span className="text-green-500">{t.harmless}</span></div>
+                  <div className="flex flex-col"><span className="text-slate-500 mb-0.5">{t.gameModes}:</span><span className="text-blue-400">{t.normalAndClassic}</span></div>
                 </div>
               </div>
             </div>
