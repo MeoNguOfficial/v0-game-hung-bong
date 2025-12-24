@@ -25,6 +25,8 @@ import {
   Heart,
   Disc,
   BarChart3,
+  Bug,
+  ExternalLink,
 } from "lucide-react"
 
 // --- Custom Hook: useIsMobile (Được tích hợp trực tiếp để không cần file ngoài) ---
@@ -1601,6 +1603,19 @@ export default function App() {
                   />
                 </button>
               </div>
+              {/* Report Issue Button */}
+              <a
+                href="https://github.com/MeoNguOfficial/v0-game-hung-bong/issues"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex justify-between items-center bg-white/5 p-6 rounded-[2rem] border border-white/5 hover:bg-white/10 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <Bug size={20} className="text-red-400" />
+                  <span className="text-white font-bold uppercase tracking-widest text-xs">Report Issue</span>
+                </div>
+                <ExternalLink size={20} className="text-slate-500" />
+              </a>
             </div>
           </motion.div>
         )}
