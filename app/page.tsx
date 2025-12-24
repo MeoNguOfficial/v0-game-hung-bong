@@ -1227,7 +1227,10 @@ export default function App() {
         }
 
         if (b.y > canvas.height) {
-          if (["normal", "purple", "yellow", "orange"].includes(b.type)) {
+          if (b.type === "orange") {
+            resetBall()
+            if (gameData.current.bombs.length === 0) stopSound("bomb_fall")
+          } else if (["normal", "purple", "yellow"].includes(b.type)) {
             if (gameData.current.hasShield) {
               gameData.current.hasShield = false
               playSound("shield_breaking")
@@ -1235,9 +1238,6 @@ export default function App() {
               gameData.current.combo = 0
               setComboCount(0)
               resetBall()
-            } else if (b.type === "orange") {
-              resetBall() // Bomb fell out safely
-              if (gameData.current.bombs.length === 0) stopSound("bomb_fall")
             } else {
               gameData.current.lives--
               setLives(gameData.current.lives)
@@ -1754,6 +1754,9 @@ export default function App() {
                     <Skull size={24} />
                     <span className="text-[10px] uppercase tracking-widest">{t.hardcore}</span>
                   </button>
+                </motion.div>
+                <motion.div variants={menuItemVariants} className="text-slate-600 text-[10px] font-bold uppercase tracking-widest opacity-40">
+                  v1.0.0
                 </motion.div>
               </motion.div>
               </div>
