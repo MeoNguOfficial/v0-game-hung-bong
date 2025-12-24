@@ -29,6 +29,7 @@ import {
   ExternalLink,
   Globe,
   Edit3,
+  ChevronDown,
 } from "lucide-react"
 
 // --- Custom Hook: useIsMobile (Được tích hợp trực tiếp để không cần file ngoài) ---
@@ -256,6 +257,190 @@ const TRANSLATIONS = {
     selectBalls: "Chọn bóng",
     startCustom: "BẮT ĐẦU",
   },
+  es: {
+    play: "JUGAR",
+    auto: "Auto",
+    classic: "Clásico",
+    hardcore: "Difícil",
+    guide: "GUÍA",
+    stats: "ESTADÍSTICAS",
+    settings: "AJUSTES",
+    gameOver: "Fin del Juego",
+    home: "INICIO",
+    newBest: "¡Nuevo Récord!",
+    audioEffects: "Efectos de Sonido",
+    particles: "Partículas",
+    ballTrails: "Rastros de Bola",
+    transitions: "Transiciones",
+    reportIssue: "Reportar Problema",
+    statistics: "ESTADÍSTICAS",
+    defaultMode: "Modo Por Defecto",
+    bestNormal: "Mejor Normal",
+    bestHardcore: "Mejor Difícil",
+    classicMode: "Modo Clásico",
+    clearAllRecords: "Borrar Récords",
+    confirmDeleteAll: "¿Borrar Todo?",
+    gamePaused: "Juego Pausado",
+    currentScore: "Puntuación Actual",
+    quickSettings: "Ajustes Rápidos",
+    audio: "Audio",
+    trails: "Rastros",
+    continue: "CONTINUAR",
+    mainMenu: "MENÚ PRINCIPAL",
+    confirmExit: "¿CONFIRMAR SALIDA?",
+    score: "Puntos",
+    lives: "Vidas",
+    best: "Mejor",
+    freeze: "Congelar",
+    ballGuide: "GUÍA DE BOLAS",
+    manualDatabase: "Manual y Base de Datos",
+    botActive: "Bot Activo",
+    language: "Idioma",
+    ballNormal: "Normal",
+    ballNormalDesc: "\"Esfera estándar para un inicio equilibrado.\"",
+    ballFast: "Rápida",
+    ballFastDesc: "\"Proyectil de alta velocidad con triple recompensa.\"",
+    ballZicZac: "ZigZag",
+    ballZicZacDesc: "\"Movimientos erráticos que desafían la gravedad.\"",
+    ballBooster: "Potenciador",
+    ballBoosterDesc: "\"Expande la paleta para máxima cobertura.\"",
+    ballShield: "Escudo",
+    ballShieldDesc: "\"Otorga armadura defensiva para evitar la derrota.\"",
+    ballSnow: "Nieve",
+    ballSnowDesc: "\"Congela la velocidad de todos los objetos activos.\"",
+    ballBomb: "Bomba",
+    ballBombDesc: "\"Trampa explosiva. ¡Evítala a toda costa!\"",
+    ballHeal: "Curación",
+    ballHealDesc: "\"Restaura un punto de salud inmediatamente.\"",
+    unlockAt: "Desbloqueo",
+    mechanic: "Mecánica",
+    risk: "Riesgo",
+    gameModes: "Modos",
+    allModes: "Todos",
+    defaultOnly: "Solo Defecto",
+    normalAndClassic: "Normal y Clásico",
+    incrementalSpeed: "Velocidad Incremental",
+    lowReactionTime: "Bajo Tiempo Reacción",
+    sharpAngles: "Ángulos Agudos",
+    none: "Ninguno",
+    momentumLoss: "Pérdida Momento",
+    extreme: "EXTREMO",
+    harmless: "Inofensivo",
+    paddleSize: "Tamaño Paleta x2",
+    armor: "Armadura",
+    freeze10s: "Congelar (10s)",
+    lifeLoss: "-1 Vida / Fin Juego",
+    hpPlus: "+1 PV",
+    scorePlus1: "+1 Punto",
+    scorePlus3: "+3 Puntos",
+    scorePlus10: "+10 / Rebote",
+    basic: "BÁSICO",
+    speed: "VELOCIDAD",
+    tricky: "TRUCO",
+    buff: "MEJORA",
+    defense: "DEFENSA",
+    time: "TIEMPO",
+    danger: "PELIGRO",
+    life: "VIDA",
+    pts: "PTS",
+    max: "¡MAX!",
+    custom: "PERSONALIZAR",
+    customGame: "JUEGO PERSONALIZADO",
+    selectBalls: "Seleccionar Bolas",
+    startCustom: "INICIAR",
+  },
+  ru: {
+    play: "ИГРАТЬ",
+    auto: "Авто",
+    classic: "Классика",
+    hardcore: "Хардкор",
+    guide: "ГАЙД",
+    stats: "СТАТИСТИКА",
+    settings: "НАСТРОЙКИ",
+    gameOver: "Игра Окончена",
+    home: "ДОМОЙ",
+    newBest: "Новый Рекорд!",
+    audioEffects: "Звуковые Эффекты",
+    particles: "Частицы",
+    ballTrails: "Следы Мяча",
+    transitions: "Переходы",
+    reportIssue: "Сообщить об ошибке",
+    statistics: "СТАТИСТИКА",
+    defaultMode: "Стандартный Режим",
+    bestNormal: "Рекорд (Норм)",
+    bestHardcore: "Рекорд (Хард)",
+    classicMode: "Классический Режим",
+    clearAllRecords: "Сбросить Рекорды",
+    confirmDeleteAll: "Удалить Всё?",
+    gamePaused: "Пауза",
+    currentScore: "Текущий Счёт",
+    quickSettings: "Быстрые Настройки",
+    audio: "Звук",
+    trails: "Следы",
+    continue: "ПРОДОЛЖИТЬ",
+    mainMenu: "ГЛАВНОЕ МЕНЮ",
+    confirmExit: "ВЫЙТИ?",
+    score: "Счёт",
+    lives: "Жизни",
+    best: "Лучший",
+    freeze: "Заморозка",
+    ballGuide: "ГАЙД ПО МЯЧАМ",
+    manualDatabase: "База Данных",
+    botActive: "Бот Активен",
+    language: "Язык",
+    ballNormal: "Обычный",
+    ballNormalDesc: "\"Стандартная сфера для сбалансированного начала.\"",
+    ballFast: "Быстрый",
+    ballFastDesc: "\"Высокоскоростной снаряд с тройной наградой.\"",
+    ballZicZac: "ЗигЗаг",
+    ballZicZacDesc: "\"Хаотичные движения, бросающие вызов гравитации.\"",
+    ballBooster: "Бустер",
+    ballBoosterDesc: "\"Расширяет платформу для максимального охвата.\"",
+    ballShield: "Щит",
+    ballShieldDesc: "\"Дает защитную броню для предотвращения поражения.\"",
+    ballSnow: "Снег",
+    ballSnowDesc: "\"Замораживает скорость всех активных объектов.\"",
+    ballBomb: "Бомба",
+    ballBombDesc: "\"Взрывная ловушка. Избегайте любой ценой!\"",
+    ballHeal: "Лечение",
+    ballHealDesc: "\"Мгновенно восстанавливает одно очко здоровья.\"",
+    unlockAt: "Откр. при",
+    mechanic: "Механика",
+    risk: "Риск",
+    gameModes: "Режимы",
+    allModes: "Все Режимы",
+    defaultOnly: "Только Стандарт",
+    normalAndClassic: "Норм. и Классика",
+    incrementalSpeed: "Рост Скорости",
+    lowReactionTime: "Мало Времени",
+    sharpAngles: "Острые Углы",
+    none: "Нет",
+    momentumLoss: "Потеря Инерции",
+    extreme: "ЭКСТРИМ",
+    harmless: "Безвредно",
+    paddleSize: "Платформа x2",
+    armor: "Броня",
+    freeze10s: "Заморозка (10с)",
+    lifeLoss: "-1 Жизнь / Конец",
+    hpPlus: "+1 HP",
+    scorePlus1: "+1 Очко",
+    scorePlus3: "+3 Очка",
+    scorePlus10: "+10 / Отскок",
+    basic: "БАЗА",
+    speed: "СКОРОСТЬ",
+    tricky: "ТРЮК",
+    buff: "БАФФ",
+    defense: "ЗАЩИТА",
+    time: "ВРЕМЯ",
+    danger: "ОПАСНО",
+    life: "ЖИЗНЬ",
+    pts: "ОЧК",
+    max: "МАКС!!",
+    custom: "СВОЯ ИГРА",
+    customGame: "НАСТРОЙКА ИГРЫ",
+    selectBalls: "Выбор Мячей",
+    startCustom: "НАЧАТЬ",
+  },
 }
 
 // --- Main Component ---
@@ -293,7 +478,8 @@ export default function App() {
   const [openGuide, setOpenGuide] = useState(false)
   const [snowLeft, setSnowLeft] = useState(0)
   const [snowActive, setSnowActive] = useState(false)
-  const [language, setLanguage] = useState<"en" | "vi">("en")
+  const [language, setLanguage] = useState<"en" | "vi" | "es" | "ru">("en")
+  const [showLangMenu, setShowLangMenu] = useState(false)
   const [openCustom, setOpenCustom] = useState(false)
   const [customConfig, setCustomConfig] = useState({
     mode: "normal" as "normal" | "hardcode",
@@ -353,10 +539,10 @@ export default function App() {
 
   const t = TRANSLATIONS[language]
 
-  const toggleLanguage = () => {
-    const newLang = language === "en" ? "vi" : "en"
-    setLanguage(newLang)
-    localStorage.setItem("game_language", newLang)
+  const changeLanguage = (lang: "en" | "vi" | "es" | "ru") => {
+    setLanguage(lang)
+    localStorage.setItem("game_language", lang)
+    setShowLangMenu(false)
   }
 
   // --- Anti-Right Click (PC) ---
@@ -828,7 +1014,7 @@ export default function App() {
     setTrailsEnabled(savedTrails)
 
     const savedLang = localStorage.getItem("game_language")
-    if (savedLang === "en" || savedLang === "vi") {
+    if (savedLang === "en" || savedLang === "vi" || savedLang === "es" || savedLang === "ru") {
       setLanguage(savedLang)
     } else if (typeof navigator !== "undefined" && navigator.language.startsWith("vi")) {
       setLanguage("vi")
@@ -1922,19 +2108,42 @@ export default function App() {
               </button>
             </div>
             <div className="space-y-4 flex-1 overflow-y-auto">
-              <div className="flex justify-between items-center bg-white/5 p-6 rounded-[2rem] border border-white/5">
-                <div className="flex items-center gap-3">
-                  <Globe size={20} className="text-cyan-400" />
-                  <span className="text-white font-bold uppercase tracking-widest text-xs">{t.language}</span>
+              <div className="flex flex-col bg-white/5 p-6 rounded-[2rem] border border-white/5 transition-all">
+                <div className="flex justify-between items-center w-full">
+                  <div className="flex items-center gap-3">
+                    <Globe size={20} className="text-cyan-400" />
+                    <span className="text-white font-bold uppercase tracking-widest text-xs">{t.language}</span>
+                  </div>
+                  <button
+                    onClick={() => setShowLangMenu(!showLangMenu)}
+                    className="flex items-center gap-2 bg-slate-800 px-4 py-2 rounded-xl border border-white/10 hover:bg-slate-700 transition-colors"
+                  >
+                    <span className="text-xs font-black text-white uppercase">{language}</span>
+                    <ChevronDown size={14} className={`text-slate-400 transition-transform ${showLangMenu ? "rotate-180" : ""}`} />
+                  </button>
                 </div>
-                <button
-                  onClick={toggleLanguage}
-                  className="flex items-center gap-2 bg-slate-800 px-4 py-2 rounded-xl border border-white/10 hover:bg-slate-700 transition-colors"
-                >
-                  <span className={`text-xs font-black ${language === "en" ? "text-white" : "text-slate-500"}`}>EN</span>
-                  <div className="w-[1px] h-3 bg-white/20" />
-                  <span className={`text-xs font-black ${language === "vi" ? "text-white" : "text-slate-500"}`}>VI</span>
-                </button>
+                
+                <AnimatePresence>
+                  {showLangMenu && (
+                    <motion.div 
+                      initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                      animate={{ height: "auto", opacity: 1, marginTop: 16 }}
+                      exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                      transition={animationsEnabled ? { duration: 0.2 } : { duration: 0 }}
+                      className="overflow-hidden w-full grid grid-cols-2 gap-2"
+                    >
+                      {['en', 'vi', 'es', 'ru'].map((lang) => (
+                         <button 
+                           key={lang} 
+                           onClick={() => changeLanguage(lang as any)}
+                           className={`p-3 rounded-xl text-xs font-black uppercase border transition-colors ${language === lang ? "bg-cyan-600 text-white border-cyan-500" : "bg-slate-800 text-slate-400 border-white/5 hover:bg-slate-700"}`}
+                         >
+                           {lang === 'en' ? 'English' : lang === 'vi' ? 'Tiếng Việt' : lang === 'es' ? 'Español' : 'Русский'}
+                         </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
               <div className="flex justify-between items-center bg-white/5 p-6 rounded-[2rem] border border-white/5">
                 <div className="flex items-center gap-3">
@@ -2181,8 +2390,8 @@ export default function App() {
               <p className="text-purple-500 text-[10px] font-bold tracking-[0.2em] uppercase mt-1">{t.manualDatabase}</p>
             </div>
             <motion.button
-              whileHover={{ scale: 1.1, rotate: 90 }}
-              whileTap={{ scale: 0.9 }}
+              whileHover={animationsEnabled ? { scale: 1.1, rotate: 90 } : {}}
+              whileTap={animationsEnabled ? { scale: 0.9 } : {}}
               onClick={() => setOpenGuide(false)}
               className="bg-slate-800 p-2 rounded-xl text-slate-400 hover:text-white transition-colors border border-slate-700"
             >
