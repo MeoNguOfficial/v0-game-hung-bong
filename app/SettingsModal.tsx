@@ -1,21 +1,19 @@
-import React, { useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import React from "react"
+import { motion } from "framer-motion"
 import {
   X,
-  Globe,
-  ChevronDown,
-  VolumeX,
   Volume2,
+  VolumeX,
   Sparkles,
   Wind,
   Film,
-  Bug,
-  ExternalLink,
+  Music,
+  Globe,
 } from "lucide-react"
 
 interface SettingsModalProps {
   t: any
-  language: "en" | "vi" | "es" | "ru"
+  language: string
   setLanguage: (lang: "en" | "vi" | "es" | "ru") => void
   isMuted: boolean
   toggleMute: () => void
@@ -27,6 +25,11 @@ interface SettingsModalProps {
   toggleAnimations: () => void
   playClick: () => void
   onClose: () => void
+  musicVolume: number
+  setMusicVolume: (e: React.ChangeEvent<HTMLInputElement>) => void
+  sfxVolume: number
+  setSfxVolume: (e: React.ChangeEvent<HTMLInputElement>) => void
+  embed?: boolean
 }
 
 export default function SettingsModal({
@@ -43,160 +46,206 @@ export default function SettingsModal({
   toggleAnimations,
   playClick,
   onClose,
+  musicVolume,
+  setMusicVolume,
+  sfxVolume,
+  setSfxVolume,
+  embed = false,
 }: SettingsModalProps) {
-  const [showLangMenu, setShowLangMenu] = useState(false)
-
-  const handleLanguageChange = (lang: "en" | "vi" | "es" | "ru") => {
-    setLanguage(lang)
-    setShowLangMenu(false)
-  }
+  const Container = embed ? "div" : motion.div
+  const wrapperClass = embed ? "w-full h-full" : "fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+  const contentClass = embed 
+    ? "w-full h-full overflow-y-auto custom-scrollbar p-1" 
+    : "bg-slate-900 border border-slate-700 w-full max-w-md rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar"
 
   return (
-    <motion.div
-      initial={{ y: "100%" }}
-      animate={{ y: 0 }}
-      exit={{ y: "100%" }}
-      transition={animationsEnabled ? { type: "spring", damping: 25 } : { duration: 0 }}
-      className="absolute inset-0 z-[80] bg-slate-900 p-8 flex flex-col border-t-4 border-blue-600 rounded-t-[3rem]"
-    >
-      <div className="flex justify-between items-center mb-10">
-        <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.settings}</h3>
-        <button onClick={() => {
-          playClick()
-          onClose()
-        }} className="text-slate-400 hover:text-white">
-          <X size={32} />
-        </button>
-      </div>
-      <div className="space-y-4 flex-1 overflow-y-auto">
-        <div className="flex flex-col bg-white/5 p-6 rounded-[2rem] border border-white/5 transition-all">
-          <div className="flex justify-between items-center w-full">
-            <div className="flex items-center gap-3">
-              <Globe size={20} className="text-cyan-400" />
-              <span className="text-white font-bold uppercase tracking-widest text-xs">{t.language}</span>
-            </div>
+    <div className={wrapperClass}>
+      <Container
+        {...(!embed ? {
+          initial: { scale: 0.9, opacity: 0, y: 20 },
+          animate: { scale: 1, opacity: 1, y: 0 },
+          exit: { scale: 0.9, opacity: 0, y: 20 },
+          transition: { duration: animationsEnabled ? 0.2 : 0 }
+        } : {})}
+        className={contentClass}
+      >
+        {!embed && (
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">{t.settings}</h2>
             <button
               onClick={() => {
                 playClick()
-                setShowLangMenu(!showLangMenu)
+                onClose()
               }}
-              className="flex items-center gap-2 bg-slate-800 px-4 py-2 rounded-xl border border-white/10 hover:bg-slate-700 transition-colors"
+              className="bg-slate-800 p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
             >
-              <span className="text-xs font-black text-white uppercase">{language}</span>
-              <ChevronDown size={14} className={`text-slate-400 transition-transform ${showLangMenu ? "rotate-180" : ""}`} />
+              <X size={24} />
             </button>
           </div>
-          
-          <AnimatePresence>
-            {showLangMenu && (
-              <motion.div 
-                initial={{ height: 0, opacity: 0, marginTop: 0 }}
-                animate={{ height: "auto", opacity: 1, marginTop: 16 }}
-                exit={{ height: 0, opacity: 0, marginTop: 0 }}
-                transition={animationsEnabled ? { duration: 0.2 } : { duration: 0 }}
-                className="overflow-hidden w-full grid grid-cols-2 gap-2"
-              >
-                {['en', 'vi', 'es', 'ru'].map((lang) => (
-                   <button 
-                     key={lang} 
-                     onClick={() => handleLanguageChange(lang as any)}
-                     className={`p-3 rounded-xl text-xs font-black uppercase border transition-colors ${language === lang ? "bg-cyan-600 text-white border-cyan-500" : "bg-slate-800 text-slate-400 border-white/5 hover:bg-slate-700"}`}
-                   >
-                     {lang === 'en' ? 'English' : lang === 'vi' ? 'Tiếng Việt' : lang === 'es' ? 'Español' : 'Русский'}
-                   </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-        <div className="flex justify-between items-center bg-white/5 p-6 rounded-[2rem] border border-white/5">
-          <div className="flex items-center gap-3">
-            {isMuted ? <VolumeX className="text-red-500" /> : <Volume2 className="text-green-500" />}
-            <span className="text-white font-bold uppercase tracking-widest text-xs">{t.audioEffects}</span>
-          </div>
-          <button
-            onClick={toggleMute}
-            className={`w-16 h-9 rounded-full relative transition-colors ${isMuted ? "bg-slate-700" : "bg-green-600"}`}
-          >
-            <motion.div
-              layout
-              transition={animationsEnabled ? undefined : { duration: 0 }}
-              className={`absolute top-1.5 w-6 h-6 bg-white rounded-full ${isMuted ? "left-2" : "left-8"}`}
-            />
-          </button>
-        </div>
-        <div className="flex justify-between items-center bg-white/5 p-6 rounded-[2rem] border border-white/5">
-          <div className="flex items-center gap-3">
-            <Sparkles size={20} className={particlesEnabled ? "text-yellow-400" : "text-slate-500"} />
-            <span className="text-white font-bold uppercase tracking-widest text-xs">{t.particles}</span>
-          </div>
-          <button
-            onClick={toggleParticles}
-            className={`w-16 h-9 rounded-full relative transition-colors ${!particlesEnabled ? "bg-slate-700" : "bg-blue-600"}`}
-          >
-            <motion.div
-              layout
-              transition={animationsEnabled ? undefined : { duration: 0 }}
-              className={`absolute top-1.5 w-6 h-6 bg-white rounded-full ${!particlesEnabled ? "left-2" : "left-8"}`}
-            />
-          </button>
-        </div>
-        <div className="flex justify-between items-center bg-white/5 p-6 rounded-[2rem] border border-white/5">
-          <div className="flex items-center gap-3">
-            <Wind size={20} className={trailsEnabled ? "text-blue-400" : "text-slate-500"} />
-            <span className="text-white font-bold uppercase tracking-widest text-xs">{t.ballTrails}</span>
-          </div>
-          <button
-            onClick={toggleTrails}
-            className={`w-16 h-9 rounded-full relative transition-colors ${!trailsEnabled ? "bg-slate-700" : "bg-blue-600"}`}
-          >
-            <motion.div
-              layout
-              transition={animationsEnabled ? undefined : { duration: 0 }}
-              className={`absolute top-1.5 w-6 h-6 bg-white rounded-full ${!trailsEnabled ? "left-2" : "left-8"}`}
-            />
-          </button>
-        </div>
-        <div className="flex justify-between items-center bg-white/5 p-6 rounded-[2rem] border border-white/5">
-          <div className="flex items-center gap-3">
-            <Film size={20} className={animationsEnabled ? "text-purple-400" : "text-slate-500"} />
-            <span className="text-white font-bold uppercase tracking-widest text-xs">{t.transitions}</span>
-          </div>
-          <button
-            onClick={toggleAnimations}
-            className={`w-16 h-9 rounded-full relative transition-colors ${!animationsEnabled ? "bg-slate-700" : "bg-blue-600"}`}
-          >
-            <motion.div
-              layout
-              transition={animationsEnabled ? undefined : { duration: 0 }}
-              className={`absolute top-1.5 w-6 h-6 bg-white rounded-full ${!animationsEnabled ? "left-2" : "left-8"}`}
-            />
-          </button>
-        </div>
-        {/* Report Issue Button */}
-        <a
-          href="https://github.com/MeoNguOfficial/v0-game-hung-bong/issues"
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => playClick()}
-          className="flex justify-between items-center bg-white/5 p-6 rounded-[2rem] border border-white/5 hover:bg-white/10 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <Bug size={20} className="text-red-400" />
-            <span className="text-white font-bold uppercase tracking-widest text-xs">{t.reportIssue}</span>
-          </div>
-          <ExternalLink size={20} className="text-slate-500" />
-        </a>
+        )}
 
-        <div className="text-center mt-4 mb-2">
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-            Created by MeoNguOfficial
-          </p>
-          <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest mt-1">
-            deploy and build by V0
-          </p>
+        <div className="space-y-6">
+          {/* Language */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+              <Globe size={14} /> {t.language}
+            </h3>
+            <div className="grid grid-cols-4 gap-2">
+              {(["en", "vi", "es", "ru"] as const).map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => setLanguage(lang)}
+                  className={`py-2 rounded-xl font-bold text-sm uppercase transition-all border ${
+                    language === lang
+                      ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20"
+                      : "bg-slate-800 text-slate-400 border-transparent hover:bg-slate-700"
+                  }`}
+                >
+                  {lang}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Volume Controls */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+              <Volume2 size={14} /> {t.audio}
+            </h3>
+            
+            {/* Music Volume */}
+            <div className="bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+              <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-2 text-purple-400">
+                  <Music size={18} />
+                  <span className="text-sm font-bold uppercase tracking-wide">{t.music}</span>
+                </div>
+                <span className="text-xs font-mono font-bold text-slate-400 bg-slate-900 px-2 py-1 rounded-lg">
+                  {Math.round(musicVolume * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={musicVolume}
+                onChange={setMusicVolume}
+                className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+              />
+            </div>
+
+            {/* SFX Volume */}
+            <div className="bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+              <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-2 text-green-400">
+                  <Volume2 size={18} />
+                  <span className="text-sm font-bold uppercase tracking-wide">{t.sfx}</span>
+                </div>
+                <span className="text-xs font-mono font-bold text-slate-400 bg-slate-900 px-2 py-1 rounded-lg">
+                  {Math.round(sfxVolume * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={sfxVolume}
+                onChange={setSfxVolume}
+                className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-green-500"
+              />
+            </div>
+
+            {/* Mute Toggle */}
+            <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${isMuted ? "bg-red-500/20 text-red-400" : "bg-green-500/20 text-green-400"}`}>
+                  {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                </div>
+                <span className="text-sm font-bold text-slate-300 uppercase">{t.mute}</span>
+              </div>
+              <button
+                onClick={toggleMute}
+                className={`w-12 h-6 rounded-full relative transition-colors ${isMuted ? "bg-slate-600" : "bg-green-600"}`}
+              >
+                <motion.div
+                  layout
+                  transition={{ duration: animationsEnabled ? 0.2 : 0 }}
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full ${isMuted ? "left-1" : "left-7"}`}
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* Toggles */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+              <Sparkles size={14} /> {t.visuals}
+            </h3>
+
+            {/* Particles Toggle */}
+            <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${particlesEnabled ? "bg-yellow-500/20 text-yellow-400" : "bg-slate-700 text-slate-400"}`}>
+                  <Sparkles size={18} />
+                </div>
+                <span className="text-sm font-bold text-slate-300 uppercase">{t.particles}</span>
+              </div>
+              <button
+                onClick={toggleParticles}
+                className={`w-12 h-6 rounded-full relative transition-colors ${!particlesEnabled ? "bg-slate-600" : "bg-blue-600"}`}
+              >
+                <motion.div
+                  layout
+                  transition={{ duration: animationsEnabled ? 0.2 : 0 }}
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!particlesEnabled ? "left-1" : "left-7"}`}
+                />
+              </button>
+            </div>
+
+            {/* Trails Toggle */}
+            <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${trailsEnabled ? "bg-blue-500/20 text-blue-400" : "bg-slate-700 text-slate-400"}`}>
+                  <Wind size={18} />
+                </div>
+                <span className="text-sm font-bold text-slate-300 uppercase">{t.trails}</span>
+              </div>
+              <button
+                onClick={toggleTrails}
+                className={`w-12 h-6 rounded-full relative transition-colors ${!trailsEnabled ? "bg-slate-600" : "bg-blue-600"}`}
+              >
+                <motion.div
+                  layout
+                  transition={{ duration: animationsEnabled ? 0.2 : 0 }}
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!trailsEnabled ? "left-1" : "left-7"}`}
+                />
+              </button>
+            </div>
+
+            {/* Animations Toggle */}
+            <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${animationsEnabled ? "bg-purple-500/20 text-purple-400" : "bg-slate-700 text-slate-400"}`}>
+                  <Film size={18} />
+                </div>
+                <span className="text-sm font-bold text-slate-300 uppercase">{t.transitions}</span>
+              </div>
+              <button
+                onClick={toggleAnimations}
+                className={`w-12 h-6 rounded-full relative transition-colors ${!animationsEnabled ? "bg-slate-600" : "bg-blue-600"}`}
+              >
+                <motion.div
+                  layout
+                  transition={{ duration: animationsEnabled ? 0.2 : 0 }}
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!animationsEnabled ? "left-1" : "left-7"}`}
+                />
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-    </motion.div>
+      </Container>
+    </div>
   )
 }
