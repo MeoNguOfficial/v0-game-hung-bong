@@ -2435,7 +2435,7 @@ export default function App() {
         {snowActive && (
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 0.6 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={animationsEnabled ? { duration: 0.5 } : { duration: 0 }}
             className="absolute inset-0 z-[75] pointer-events-none"
@@ -2444,8 +2444,11 @@ export default function App() {
               initial={{ scale: 1 }}
               animate={animationsEnabled ? { scale: [1, 1.02, 1] } : { scale: 1 }}
               transition={animationsEnabled ? { duration: 3, repeat: Infinity } : { duration: 0 }}
-              className="absolute inset-0 backdrop-blur-sm mix-blend-screen"
-              style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+              className="absolute inset-0"
+              style={{ 
+                backgroundColor: 'rgba(219, 234, 254, 0.15)',
+                boxShadow: 'inset 0 0 100px rgba(255, 255, 255, 0.15)'
+              }}
             />
           </motion.div>
         )}
