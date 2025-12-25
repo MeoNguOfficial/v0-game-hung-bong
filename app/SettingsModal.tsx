@@ -9,6 +9,7 @@ import {
   Film,
   Music,
   Globe,
+  Activity,
 } from "lucide-react"
 
 interface SettingsModalProps {
@@ -29,6 +30,8 @@ interface SettingsModalProps {
   setMusicVolume: (e: React.ChangeEvent<HTMLInputElement>) => void
   sfxVolume: number
   setSfxVolume: (e: React.ChangeEvent<HTMLInputElement>) => void
+  sensitivity: number
+  setSensitivity: (e: React.ChangeEvent<HTMLInputElement>) => void
   embed?: boolean
 }
 
@@ -50,6 +53,8 @@ export default function SettingsModal({
   setMusicVolume,
   sfxVolume,
   setSfxVolume,
+  sensitivity,
+  setSensitivity,
   embed = false,
 }: SettingsModalProps) {
   const Container = embed ? "div" : motion.div
@@ -104,6 +109,28 @@ export default function SettingsModal({
                   {lang}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+              <Activity size={14} /> {t.controls}
+            </h3>
+            <div className="bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-sm font-bold uppercase tracking-wide text-slate-300">{t.sensitivity}</span>
+                <span className="text-xs font-mono font-bold text-slate-400 bg-slate-900 px-2 py-1 rounded-lg">{sensitivity}</span>
+              </div>
+              <input
+                type="range"
+                min="-10"
+                max="10"
+                step="1"
+                value={sensitivity}
+                onChange={setSensitivity}
+                className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              />
             </div>
           </div>
 

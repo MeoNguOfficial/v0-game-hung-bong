@@ -30,6 +30,8 @@ import {
   Edit3,
   Palette,
   Music,
+  RefreshCw,
+  Undo2,
 } from "lucide-react"
 import { TRANSLATIONS } from "./translations"
 import SettingsModal from "./SettingsModal"
@@ -115,21 +117,25 @@ export default function App() {
     mode: "normal" as "normal" | "hardcode",
     isAuto: false,
     balls: {
-      normal: true,
-      purple: true,
-      yellow: true,
-      boost: true,
-      grey: true,
-      snow: true,
-      orange: true,
-      heal: true,
+      normal: { enabled: true, score: 0, rate: 40 },
+      purple: { enabled: true, score: 50, rate: 30 },
+      yellow: { enabled: true, score: 100, rate: 15 },
+      boost: { enabled: true, score: 200, rate: 3 },
+      grey: { enabled: true, score: 300, rate: 2 },
+      snow: { enabled: true, score: 500, rate: 3 },
+      orange: { enabled: true, score: 2, rate: 2 },
+      heal: { enabled: true, score: 150, rate: 5 },
     }
   })
 
   const [activeTab, setActiveTab] = useState<"home" | "guide" | "stats" | "skins" | "settings">("home")
+  const [direction, setDirection] = useState(0)
 
+  const [configHistory, setConfigHistory] = useState<typeof customConfig[]>([])
   const [musicVolume, setMusicVolume] = useState(0.5)
   const [sfxVolume, setSfxVolume] = useState(0.5)
+  const [sensitivity, setSensitivity] = useState(0)
+  const [isConfigLoaded, setIsConfigLoaded] = useState(false)
 
   const isMobile = useIsMobile()
 
@@ -139,10 +145,13 @@ export default function App() {
     combo: 0,
     isAuto: false,
     isCustom: false,
+    customBallConfig: {} as Record<string, { enabled: boolean; score: number; rate: number }>,
     allowedBalls: [] as string[],
     isClassic: false,
     gameMode: "normal" as "normal" | "hardcode",
     playerX: 160,
+    targetPlayerX: 160,
+    sensitivity: 0,
     playerWidth: 80,
     targetWidth: 80,
     isBoosted: false,
@@ -207,6 +216,13 @@ export default function App() {
     setSfxVolume(v)
     gameData.current.sfxVolume = v
     localStorage.setItem("game_sfx_volume", String(v))
+  }
+
+  const changeSensitivity = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseFloat(e.target.value)
+    setSensitivity(v)
+    gameData.current.sensitivity = v
+    localStorage.setItem("game_sensitivity", String(v))
   }
 
   // --- Anti-Right Click (PC) ---
@@ -341,6 +357,10 @@ export default function App() {
     if (currentBgmRef.current) {
       currentBgmRef.current.pause()
     }
+    // Pause Bomb Fall Sound
+    if (audioRefs.current?.bomb_fall) {
+      audioRefs.current.bomb_fall.pause()
+    }
     // Play Pause Music
     if (audioRefs.current?.pause_bg && !gameData.current.isMuted) {
       audioRefs.current.pause_bg.volume = musicVolume
@@ -360,14 +380,24 @@ export default function App() {
       audioRefs.current.pause_bg.pause()
       audioRefs.current.pause_bg.currentTime = 0
     }
+
+    const resumeBombSound = () => {
+      const hasBombs = gameData.current.bombs.length > 0 || gameData.current.ball.type === "orange"
+      if (hasBombs && audioRefs.current?.bomb_fall && !gameData.current.isMuted) {
+        audioRefs.current.bomb_fall.play().catch(() => {})
+      }
+    }
+
     // If autoplay is enabled, resume immediately
     if (gameData.current.isAuto) {
       setGameState("running")
+      resumeBombSound()
       return
     }
     // Start a short countdown to resume (preserve gameData)
     runCountdown(false, () => {
       setGameState("running")
+      resumeBombSound()
     })
   }
 
@@ -385,6 +415,12 @@ export default function App() {
     // Stop Pause Music
     if (audioRefs.current?.pause_bg) {
       fadeAudio(audioRefs.current.pause_bg, 0, 500)
+    }
+
+    // Stop Bomb Sound
+    if (audioRefs.current?.bomb_fall) {
+      audioRefs.current.bomb_fall.pause()
+      audioRefs.current.bomb_fall.currentTime = 0
     }
 
     setGameState("start")
@@ -466,12 +502,38 @@ export default function App() {
     }
 
     if (gameData.current.isCustom) {
-      const allowed = gameData.current.allowedBalls
-      // Custom Mode Priority: Always pick from allowed list
-      if (allowed && allowed.length > 0) {
-        b.type = allowed[Math.floor(Math.random() * allowed.length)] as any
+      const config = gameData.current.customBallConfig
+      const currentScore = gameData.current.score
+      
+      // Filter eligible balls based on score threshold and enabled status
+      const eligible = Object.entries(config).filter(([_, cfg]) => cfg.enabled && currentScore >= cfg.score)
+      
+      if (eligible.length > 0) {
+        // Calculate total weight
+        const totalWeight = eligible.reduce((sum, [_, cfg]) => sum + cfg.rate, 0)
+        
+        if (totalWeight <= 0) {
+          // Fallback to equal probability if rates are 0
+          b.type = eligible[Math.floor(Math.random() * eligible.length)][0] as any
+        } else {
+          let r = Math.random() * totalWeight
+          for (const [type, cfg] of eligible) {
+            if (r < cfg.rate) {
+              b.type = type as any
+              break
+            }
+            r -= cfg.rate
+          }
+        }
       } else {
-        b.type = "normal"
+        // Fallback if no balls are eligible (e.g. score too low)
+        // Try to find any enabled ball regardless of score
+        const anyEnabled = Object.entries(config).filter(([_, cfg]) => cfg.enabled)
+        if (anyEnabled.length > 0) {
+           b.type = anyEnabled[Math.floor(Math.random() * anyEnabled.length)][0] as any
+        } else {
+           b.type = "normal"
+        }
       }
     } else if (gameData.current.isClassic) {
       // Classic Mode: 93% Normal (Red), 5% Heal (Green), 2% Shield (Grey)
@@ -542,9 +604,11 @@ export default function App() {
         combo: 0,
         gameMode: mode,
         isCustom: false,
+        customBallConfig: {},
         allowedBalls: [],
         isClassic: isClassic,
         playerX: 160,
+        targetPlayerX: 160,
         playerWidth: 80,
         targetWidth: 80,
         isBoosted: false,
@@ -574,6 +638,7 @@ export default function App() {
       setComboCount(0)
       setGameState("running")
       setActiveTab("home")
+      setDirection(-1)
       setShowNewBest(false)
       particles.current = []
       trails.current = []
@@ -591,8 +656,9 @@ export default function App() {
 
   const startCustomGame = () => {
     const isAutoCustom = customConfig.isAuto
+    const mode = customConfig.mode
     const allowed = Object.entries(customConfig.balls)
-      .filter(([_, enabled]) => enabled)
+      .filter(([_, cfg]) => cfg.enabled)
       .map(([type]) => type)
     
     if (allowed.length === 0) {
@@ -600,19 +666,30 @@ export default function App() {
       return
     }
 
-    setGameMode(customConfig.mode)
+    const totalRate = Object.values(customConfig.balls)
+      .filter(b => b.enabled)
+      .reduce((acc, b) => acc + b.rate, 0)
+
+    if (totalRate !== 100) {
+      setCustomError(t.totalRateError)
+      return
+    }
+
+    setGameMode(mode)
     
     runCountdown(isAutoCustom, () => {
       gameData.current = {
         ...gameData.current,
         score: 0,
-        lives: customConfig.mode === "hardcode" ? 1 : 5,
+        lives: mode === "hardcode" ? 1 : 5,
         combo: 0,
-        gameMode: customConfig.mode,
+        gameMode: mode,
         isClassic: false,
         isCustom: true,
+        customBallConfig: JSON.parse(JSON.stringify(customConfig.balls)),
         allowedBalls: allowed,
         playerX: 160,
+        targetPlayerX: 160,
         playerWidth: 80,
         targetWidth: 80,
         isBoosted: false,
@@ -664,9 +741,11 @@ export default function App() {
       combo: 0,
       gameMode: gameMode,
       isCustom: false,
+      customBallConfig: {},
       allowedBalls: [],
       isClassic: isClassic,
       playerX: 160,
+      targetPlayerX: 160,
       playerWidth: 80,
       targetWidth: 80,
       isBoosted: false,
@@ -729,7 +808,7 @@ export default function App() {
       count: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/count.mp3"),
       go: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/go.mp3"),
       kjacs: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/kjacs.mp3"),
-      click: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/click.mp3"),
+      click: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/click2.mp3"),
       combo: [
         loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/c1.mp3"),
         loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/c2.mp3"),
@@ -763,6 +842,32 @@ export default function App() {
       setSfxVolume(v)
       gameData.current.sfxVolume = v
     }
+
+    const savedSensitivity = localStorage.getItem("game_sensitivity")
+    if (savedSensitivity) {
+      const s = parseFloat(savedSensitivity)
+      setSensitivity(s)
+      gameData.current.sensitivity = s
+    }
+
+    // Load Custom Config
+    const savedCustomConfig = localStorage.getItem("game_custom_config")
+    if (savedCustomConfig) {
+      try {
+        const parsed = JSON.parse(savedCustomConfig)
+        setCustomConfig(prev => ({
+          ...prev,
+          ...parsed,
+          balls: {
+            ...prev.balls,
+            ...(parsed.balls || {})
+          }
+        }))
+      } catch (e) {
+        console.error("Error loading custom config", e)
+      }
+    }
+    setIsConfigLoaded(true)
 
     const dataNormal = localStorage.getItem("my_game_best_normal")
     const savedBestNormal = dataNormal ? Number.parseInt(dataNormal) ^ 0xaa : 0
@@ -808,6 +913,12 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (isConfigLoaded) {
+      localStorage.setItem("game_custom_config", JSON.stringify(customConfig))
+    }
+  }, [customConfig, isConfigLoaded])
+
+  useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext("2d")
@@ -849,7 +960,12 @@ export default function App() {
       const rect = canvas.getBoundingClientRect()
       const scaleX = canvas.width / rect.width
       const mouseX = (clientX - rect.left) * scaleX
-      gameData.current.playerX = mouseX - gameData.current.playerWidth / 2
+      const targetX = mouseX - gameData.current.playerWidth / 2
+      gameData.current.targetPlayerX = targetX
+      
+      if (gameData.current.sensitivity === 0) {
+        gameData.current.playerX = targetX
+      }
     }
 
     window.addEventListener("mousemove", handleMove)
@@ -1008,6 +1124,21 @@ export default function App() {
         const targetX = targetPaddleCenterX - gameData.current.playerWidth / 2
 
         gameData.current.playerX += (targetX - gameData.current.playerX) * 0.5
+      }
+
+      // --- Manual Movement Smoothing ---
+      if (!gameData.current.isAuto && canvas.getAttribute("data-state") === "running" && !gameData.current.isDying) {
+        if (gameData.current.sensitivity > 0) {
+          const factor = 1 / (gameData.current.sensitivity * 0.5 + 1)
+          gameData.current.playerX += (gameData.current.targetPlayerX - gameData.current.playerX) * factor
+        } else if (gameData.current.sensitivity < 0) {
+          // Negative: Spring/Overshoot effect (Snappy)
+          const factor = 1 + (Math.abs(gameData.current.sensitivity) * 0.05)
+          gameData.current.playerX += (gameData.current.targetPlayerX - gameData.current.playerX) * factor
+        } else {
+          // Ensure sync if sensitivity is 0 (redundant but safe)
+          gameData.current.playerX = gameData.current.targetPlayerX
+        }
       }
 
       gameData.current.playerX = Math.max(
@@ -1432,6 +1563,96 @@ export default function App() {
     exit: { opacity: 0, y: -18, scale: 0.985, transition: { duration: animationsEnabled ? 0.28 : 0, ease: "easeInOut" } },
   }
 
+  const tabVariants = {
+    hidden: (direction: number) => ({ opacity: 0, x: direction > 0 ? 20 : -20, scale: 0.98 }),
+    visible: { 
+      opacity: 1, x: 0, scale: 1,
+      transition: animationsEnabled ? { type: "spring", stiffness: 300, damping: 25 } : { duration: 0 }
+    },
+    exit: (direction: number) => ({ opacity: 0, x: direction < 0 ? 20 : -20, scale: 0.98, transition: { duration: animationsEnabled ? 0.15 : 0 } }),
+  }
+
+  const getTotalRate = () => Object.values(customConfig.balls).filter(b => b.enabled).reduce((acc, b) => acc + b.rate, 0)
+
+  const saveHistory = () => {
+    setConfigHistory(prev => [...prev, JSON.parse(JSON.stringify(customConfig))])
+  }
+
+  const handleUndo = () => {
+    if (configHistory.length === 0) return
+    playClick()
+    const previous = configHistory[configHistory.length - 1]
+    setCustomConfig(previous)
+    setConfigHistory(prev => prev.slice(0, -1))
+  }
+
+  const handleReset = () => {
+    playClick()
+    saveHistory()
+    setCustomConfig({
+      mode: "normal",
+      isAuto: false,
+      balls: {
+        normal: { enabled: true, score: 0, rate: 40 },
+        purple: { enabled: true, score: 50, rate: 30 },
+        yellow: { enabled: true, score: 100, rate: 15 },
+        boost: { enabled: true, score: 200, rate: 3 },
+        grey: { enabled: true, score: 300, rate: 2 },
+        snow: { enabled: true, score: 500, rate: 3 },
+        orange: { enabled: true, score: 2, rate: 2 },
+        heal: { enabled: true, score: 150, rate: 5 },
+      }
+    })
+  }
+
+  const autoBalanceRates = () => {
+    saveHistory()
+    const enabledKeys = Object.keys(customConfig.balls).filter(k => customConfig.balls[k as keyof typeof customConfig.balls].enabled)
+    const count = enabledKeys.length
+    if (count === 0) return
+
+    const share = Math.floor(100 / count)
+    let remainder = 100 - (share * count)
+    
+    setCustomConfig(prev => {
+      const newBalls = { ...prev.balls }
+      enabledKeys.forEach(k => {
+        const extra = remainder > 0 ? 1 : 0
+        newBalls[k as keyof typeof newBalls] = { ...newBalls[k as keyof typeof newBalls], rate: share + extra }
+        if (remainder > 0) remainder--
+      })
+      return { ...prev, balls: newBalls }
+    })
+  }
+
+  const toggleBall = (id: string) => {
+    playClick()
+    saveHistory()
+    setCustomConfig(prev => {
+      const isEnabled = !prev.balls[id as keyof typeof prev.balls].enabled
+      const newBalls = { 
+        ...prev.balls, 
+        [id]: { ...prev.balls[id as keyof typeof prev.balls], enabled: isEnabled } 
+      }
+      
+      // Auto balance logic on toggle
+      const enabledKeys = Object.keys(newBalls).filter(k => newBalls[k as keyof typeof newBalls].enabled)
+      const count = enabledKeys.length
+      if (count > 0) {
+        const share = Math.floor(100 / count)
+        let remainder = 100 - (share * count)
+        enabledKeys.forEach(k => {
+          const extra = remainder > 0 ? 1 : 0
+          newBalls[k as keyof typeof newBalls].rate = share + extra
+          if (remainder > 0) remainder--
+        })
+      }
+      
+      return { ...prev, balls: newBalls }
+    })
+    setCustomError(null)
+  }
+
   return (
     <div className="fixed inset-0 bg-[#020617] flex flex-col items-center justify-center overflow-hidden touch-none font-sans select-none md:p-4">
       {!animationsEnabled && (
@@ -1665,8 +1886,9 @@ export default function App() {
             exit="exit"
             className="absolute inset-0 z-30 bg-slate-950/95 backdrop-blur-2xl flex flex-col overflow-hidden"
           >
+            <AnimatePresence mode="wait" custom={direction}>
             {gameState === "start" && activeTab === "home" && (
-              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center overflow-y-auto custom-scrollbar">
+              <motion.div key="home" custom={direction} variants={tabVariants} initial="hidden" animate="visible" exit="exit" className="flex-1 flex flex-col items-center justify-center p-8 text-center overflow-y-auto custom-scrollbar">
               <motion.div 
                 variants={menuItemVariants} 
                 initial="hidden" 
@@ -1756,14 +1978,14 @@ export default function App() {
                   </button>
                 </motion.div>
                 <motion.div variants={menuItemVariants} className="text-slate-600 text-[10px] font-bold uppercase tracking-widest opacity-40">
-                  v1.0.0
+                  v1.0.1
                 </motion.div>
               </motion.div>
-              </div>
+              </motion.div>
             )}
 
             {gameState === "over" && (
-              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+              <motion.div key="over" custom={direction} variants={tabVariants} initial="hidden" animate="visible" exit="exit" className="flex-1 flex flex-col items-center justify-center p-8 text-center">
               <motion.div 
                 variants={menuItemVariants} 
                 initial="hidden" 
@@ -1785,6 +2007,7 @@ export default function App() {
                       playClick()
                       setGameState("start")
                       setActiveTab("home")
+                      setDirection(-1)
                     }}
                     className="px-10 py-4 bg-slate-800 text-white font-black rounded-full flex items-center gap-3 border border-white/10 hover:bg-slate-700 transition-all"
                   >
@@ -1796,6 +2019,7 @@ export default function App() {
                       playClick()
                       setGameState("start")
                       setActiveTab("settings")
+                      setDirection(1)
                     }}
                     className="p-4 bg-slate-800 text-white rounded-full border border-white/10"
                   >
@@ -1803,12 +2027,12 @@ export default function App() {
                   </motion.button>
                 </motion.div>
               </motion.div>
-              </div>
+              </motion.div>
             )}
 
             {/* --- TAB CONTENT: GUIDE --- */}
             {gameState === "start" && activeTab === "guide" && (
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+              <motion.div key="guide" custom={direction} variants={tabVariants} initial="hidden" animate="visible" exit="exit" className="flex-1 overflow-y-auto custom-scrollbar p-6">
                 <div className="flex justify-between items-center mb-6">
                   <div>
                     <h3 className="text-3xl font-black text-white italic tracking-tighter leading-none">{t.ballGuide}</h3>
@@ -1953,12 +2177,12 @@ export default function App() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             )}
 
             {/* --- TAB CONTENT: STATS --- */}
             {gameState === "start" && activeTab === "stats" && (
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+              <motion.div key="stats" custom={direction} variants={tabVariants} initial="hidden" animate="visible" exit="exit" className="flex-1 overflow-y-auto custom-scrollbar p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.statistics}</h3>
                 </div>
@@ -2095,12 +2319,12 @@ export default function App() {
                     </button>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             )}
 
             {/* --- TAB CONTENT: SKINS --- */}
             {gameState === "start" && activeTab === "skins" && (
-              <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+              <motion.div key="skins" custom={direction} variants={tabVariants} initial="hidden" animate="visible" exit="exit" className="flex-1 overflow-y-auto custom-scrollbar p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.skins}</h3>
                 </div>
@@ -2134,12 +2358,12 @@ export default function App() {
                     </button>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             )}
 
             {/* --- TAB CONTENT: SETTINGS --- */}
             {gameState === "start" && activeTab === "settings" && (
-              <div className="flex-1 overflow-hidden">
+              <motion.div key="settings" custom={direction} variants={tabVariants} initial="hidden" animate="visible" exit="exit" className="flex-1 overflow-hidden">
                 <SettingsModal
                   t={t}
                   language={language}
@@ -2153,15 +2377,21 @@ export default function App() {
                   animationsEnabled={animationsEnabled}
                   playClick={playClick}
                   toggleAnimations={toggleAnimations}
-                  onClose={() => setActiveTab("home")}
+                  onClose={() => {
+                    setDirection(-1)
+                    setActiveTab("home")
+                  }}
                   musicVolume={musicVolume}
                   setMusicVolume={changeMusicVolume}
                   sfxVolume={sfxVolume}
                   setSfxVolume={changeSfxVolume}
+                  sensitivity={sensitivity}
+                  setSensitivity={changeSensitivity}
                   embed={true}
                 />
-              </div>
+              </motion.div>
             )}
+            </AnimatePresence>
 
             {/* --- BOTTOM TAB BAR --- */}
             {gameState === "start" && (
@@ -2172,10 +2402,15 @@ export default function App() {
                   { id: "stats", icon: BarChart3, label: t.stats },
                   { id: "skins", icon: Palette, label: t.skins },
                   { id: "settings", icon: Settings, label: t.settings },
-                ].map((tab) => (
+                ].map((tab, index, arr) => (
                   <button
                     key={tab.id}
-                    onClick={() => { playClick(); setActiveTab(tab.id as any) }}
+                    onClick={() => { 
+                      playClick(); 
+                      const currentIndex = arr.findIndex((t) => t.id === activeTab)
+                      setDirection(index > currentIndex ? 1 : -1)
+                      setActiveTab(tab.id as any) 
+                    }}
                     className={`flex-1 py-3 flex flex-col items-center justify-center gap-1 transition-colors relative ${activeTab === tab.id ? "text-blue-400" : "text-slate-500 hover:text-slate-300"}`}
                   >
                     <tab.icon size={22} strokeWidth={activeTab === tab.id ? 2.5 : 2} />
@@ -2271,8 +2506,26 @@ export default function App() {
 
               {/* Ball Selection */}
               <div>
-                <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">{t.selectBalls}</h4>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest">{t.selectBalls}</h4>  
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <button onClick={handleUndo} disabled={configHistory.length === 0} className={`flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${configHistory.length === 0 ? "bg-slate-800 text-slate-600 border-transparent" : "bg-slate-800 text-slate-300 border-white/10 hover:bg-slate-700 hover:text-white"}`}>
+                    <Undo2 size={14} /> {t.undo}
+                  </button>
+                  <button onClick={handleReset} className="flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-slate-800 text-slate-300 border border-white/10 hover:bg-slate-700 hover:text-white transition-all">
+                    <RotateCcw size={14} /> {t.reset}
+                  </button>
+                  <button 
+                    onClick={() => { playClick(); autoBalanceRates(); }}
+                    className="flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-blue-400 hover:text-blue-300 bg-blue-500/10 border border-blue-500/20 transition-all"
+                  >
+                    <RefreshCw size={14} /> {t.autoBalance}
+                  </button>
+                </div>
+                <div className="space-y-2">
                   {[
                     { id: "normal", color: "bg-red-500", label: t.ballNormal },
                     { id: "purple", color: "bg-purple-500", label: t.ballFast },
@@ -2283,22 +2536,62 @@ export default function App() {
                     { id: "orange", color: "bg-orange-500", label: t.ballBomb },
                     { id: "heal", color: "bg-green-500", label: t.ballHeal },
                   ].map((ball) => (
-                    <button
+                    <div
                       key={ball.id}
-                      onClick={() => {
-                        playClick()
-                        setCustomConfig(prev => ({
-                          ...prev,
-                          balls: { ...prev.balls, [ball.id]: !prev.balls[ball.id as keyof typeof prev.balls] }
-                        }))
-                        setCustomError(null)
-                      }}
-                      className={`p-3 rounded-xl border transition-all flex items-center gap-3 ${customConfig.balls[ball.id as keyof typeof customConfig.balls] ? "bg-slate-800 border-white/20" : "bg-slate-900/50 border-transparent opacity-50"}`}
+                      className={`p-3 rounded-xl border transition-all flex items-center gap-3 ${customConfig.balls[ball.id as keyof typeof customConfig.balls].enabled ? "bg-slate-800 border-white/20" : "bg-slate-900/50 border-transparent opacity-50"}`}
                     >
-                      <div className={`w-4 h-4 rounded-full ${ball.color} shadow-sm`} />
-                      <span className={`text-xs font-bold uppercase ${customConfig.balls[ball.id as keyof typeof customConfig.balls] ? "text-white" : "text-slate-500"}`}>{ball.label}</span>
-                    </button>
+                      <button onClick={() => toggleBall(ball.id)} className="flex items-center gap-3 flex-1">
+                        <div className={`w-4 h-4 rounded-full ${ball.color} shadow-sm shrink-0`} />
+                        <span className={`text-xs font-bold uppercase truncate ${customConfig.balls[ball.id as keyof typeof customConfig.balls].enabled ? "text-white" : "text-slate-500"}`}>{ball.label}</span>
+                      </button>
+                      
+                      {customConfig.balls[ball.id as keyof typeof customConfig.balls].enabled && (
+                        <div className="flex items-center gap-2">
+                          <div className="flex flex-col items-end">
+                            <label className="text-[8px] text-slate-500 font-bold uppercase">{t.score}</label>
+                            <input 
+                              type="number" 
+                              min="0" 
+                              max="1000"
+                              value={customConfig.balls[ball.id as keyof typeof customConfig.balls].score}
+                              onChange={(e) => {
+                                saveHistory()
+                                const val = Math.min(1000, Math.max(0, parseInt(e.target.value) || 0))
+                                setCustomConfig(prev => ({
+                                  ...prev,
+                                  balls: { ...prev.balls, [ball.id]: { ...prev.balls[ball.id as keyof typeof prev.balls], score: val } }
+                                }))
+                              }}
+                              className="w-14 bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-xs font-mono text-right text-white focus:border-blue-500 outline-none"
+                            />
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <label className="text-[8px] text-slate-500 font-bold uppercase">{t.rate}</label>
+                            <input 
+                              type="number" 
+                              min="0" 
+                              max="100"
+                              value={customConfig.balls[ball.id as keyof typeof customConfig.balls].rate}
+                              onChange={(e) => {
+                                saveHistory()
+                                const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0))
+                                setCustomConfig(prev => ({
+                                  ...prev,
+                                  balls: { ...prev.balls, [ball.id]: { ...prev.balls[ball.id as keyof typeof prev.balls], rate: val } }
+                                }))
+                              }}
+                              className="w-12 bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-xs font-mono text-right text-yellow-400 focus:border-yellow-500 outline-none"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   ))}
+                </div>
+                <div className="mt-2 flex justify-end">
+                   <span className={`text-[10px] font-bold uppercase tracking-wider ${getTotalRate() === 100 ? "text-green-400" : "text-red-400"}`}>
+                     {t.totalRate}: {getTotalRate()}%
+                   </span>
                 </div>
               </div>
             </div>
@@ -2315,7 +2608,12 @@ export default function App() {
                 playClick()
                 startCustomGame()
               }}
-              className="w-full py-4 mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black rounded-2xl flex items-center justify-center gap-3 shadow-lg shadow-purple-500/30 active:scale-95 transition-transform"
+              disabled={getTotalRate() !== 100}
+              className={`w-full py-4 mt-4 font-black rounded-2xl flex items-center justify-center gap-3 shadow-lg transition-transform ${
+                getTotalRate() === 100 
+                  ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-purple-500/30 active:scale-95" 
+                  : "bg-slate-800 text-slate-500 cursor-not-allowed opacity-50"
+              }`}
             >
               <Play size={20} fill="currentColor" /> {t.startCustom}
             </button>
@@ -2343,6 +2641,8 @@ export default function App() {
             setMusicVolume={changeMusicVolume}
             sfxVolume={sfxVolume}
             setSfxVolume={changeSfxVolume}
+            sensitivity={sensitivity}
+            setSensitivity={changeSensitivity}
           />
         )}
       </AnimatePresence>
