@@ -134,8 +134,13 @@ export default function App() {
   const [configHistory, setConfigHistory] = useState<typeof customConfig[]>([])
   const [musicVolume, setMusicVolume] = useState(0.5)
   const [sfxVolume, setSfxVolume] = useState(0.5)
+  const [bgMenuEnabled, setBgMenuEnabled] = useState(true)
   const [sensitivity, setSensitivity] = useState(0)
   const [isConfigLoaded, setIsConfigLoaded] = useState(false)
+
+  // Intro modal: show on first page load / reload until user hits Start
+  const [showIntro, setShowIntro] = useState(true)
+  const [introStep, setIntroStep] = useState(0)
 
   const isMobile = useIsMobile()
 
@@ -208,6 +213,18 @@ export default function App() {
     if (audioRefs.current?.pause_bg) {
       audioRefs.current.pause_bg.volume = v
     }
+
+    const menu = audioRefs.current?.bg_menu
+    // If menu BGM is currently playing, fade it to the new volume (do not restart)
+    if (menu && currentBgmRef.current === menu && !gameData.current.isMuted) {
+      fadeAudio(menu, v, 300)
+    } else if (menu && gameState === "start" && !showIntro && !gameData.current.isMuted) {
+      // If menu exists but isn't playing (e.g., first time or previously stopped), start it from the beginning
+      try { menu.pause(); menu.currentTime = 0 } catch (e) {}
+      currentBgmRef.current = menu
+      fadeAudio(menu, v, 300)
+    }
+
     localStorage.setItem("game_music_volume", String(v))
   }
 
@@ -216,6 +233,13 @@ export default function App() {
     setSfxVolume(v)
     gameData.current.sfxVolume = v
     localStorage.setItem("game_sfx_volume", String(v))
+  }
+
+  const toggleBgMenu = () => {
+    const newState = !bgMenuEnabled
+    playClick()
+    setBgMenuEnabled(newState)
+    localStorage.setItem("game_bg_menu_enabled", String(newState))
   }
 
   const changeSensitivity = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -290,6 +314,16 @@ export default function App() {
         if (onComplete) onComplete()
       }
     }, 50)
+  }
+
+  // Helper: stop menu BGM with fade and reset to start (global scope)
+  const stopMenuBgm = () => {
+    if (!audioRefs.current || !audioRefs.current.bg_menu) return
+    const menu = audioRefs.current.bg_menu
+    fadeAudio(menu, 0, 500, () => {
+      try { menu.pause(); menu.currentTime = 0 } catch (e) {}
+      if (currentBgmRef.current === menu) currentBgmRef.current = null
+    })
   }
 
   // Countdown timer refs and helpers
@@ -445,6 +479,7 @@ export default function App() {
       // Mute all
       if (currentBgmRef.current) currentBgmRef.current.pause()
       if (audioRefs.current?.pause_bg) audioRefs.current.pause_bg.pause()
+      if (audioRefs.current?.bg_menu) audioRefs.current.bg_menu.pause()
     } else {
       // Unmute
       if (gameState === "running" && currentBgmRef.current) {
@@ -453,6 +488,9 @@ export default function App() {
       } else if (gameState === "paused" && audioRefs.current?.pause_bg) {
         audioRefs.current.pause_bg.volume = musicVolume
         audioRefs.current.pause_bg.play().catch(() => {})
+      } else if (gameState === "start" && audioRefs.current?.bg_menu && bgMenuEnabled) {
+        audioRefs.current.bg_menu.volume = musicVolume
+        audioRefs.current.bg_menu.play().catch(() => {})
       }
     }
   }
@@ -576,8 +614,13 @@ export default function App() {
       b.speed = b.type === "purple" ? Math.min(baseSpeed * 1.5, 160) : baseSpeed
     }
 
+    // Ensure bomb (orange) has consistent size/texture across modes
+    b.radius = b.type === "orange" ? 12 : 10
+
     // Bomb Spawn Logic (Simultaneous)
-    if (!gameData.current.isClassic && !gameData.current.isCustom && score > 50 && Math.random() < 0.2) {
+    // Allow simultaneous bomb spawns in custom mode only if "orange" is enabled in the custom config
+    const canSpawnSimultaneousBombs = !gameData.current.isClassic && (!gameData.current.isCustom || (gameData.current.allowedBalls && gameData.current.allowedBalls.includes("orange")))
+    if (canSpawnSimultaneousBombs && score > 50 && Math.random() < 0.2) {
       const delayY = Math.random() * 150
       gameData.current.bombs.push({
         x: Math.random() * (canvas.width - 40) + 20,
@@ -593,6 +636,9 @@ export default function App() {
   }
 
   const startCountdown = (isAuto: boolean, mode: "normal" | "hardcode" = "normal") => {
+    // Ensure menu BGM stops fully when entering any game mode
+    stopMenuBgm()
+
     // Update startCountdown to accept and set game mode, then run countdown
     setGameMode(mode)
     
@@ -675,6 +721,9 @@ export default function App() {
       return
     }
 
+    // Ensure menu BGM stops when starting custom game
+    stopMenuBgm()
+
     setGameMode(mode)
     
     runCountdown(isAutoCustom, () => {
@@ -734,6 +783,9 @@ export default function App() {
   }
 
   const startAutoGame = () => {
+    // Ensure menu BGM stops when starting auto game
+    stopMenuBgm()
+
     gameData.current = {
       ...gameData.current,
       score: 0,
@@ -803,6 +855,8 @@ export default function App() {
       bg_game_hardcode: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bg_game_hardcode.mp3"),
       bg_game_auto: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bg_game_auto.mp3"),
       bg_game_custom: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bg_game_custom.mp3"),
+      // Main Menu Background
+      bg_menu: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/menu_bg.mp3"),
       pause_bg: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/pause_music.mp3"),
       // UI Sounds
       count: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/count.mp3"),
@@ -824,6 +878,7 @@ export default function App() {
     if (audioRefs.current.bg_game_hardcode) audioRefs.current.bg_game_hardcode.loop = true
     if (audioRefs.current.bg_game_auto) audioRefs.current.bg_game_auto.loop = true
     if (audioRefs.current.bg_game_custom) audioRefs.current.bg_game_custom.loop = true
+    if (audioRefs.current.bg_menu) audioRefs.current.bg_menu.loop = true
     if (audioRefs.current.pause_bg) audioRefs.current.pause_bg.loop = true
 
     const savedMute = localStorage.getItem("game_muted") === "true"
@@ -841,6 +896,11 @@ export default function App() {
       const v = parseFloat(savedSfxVol)
       setSfxVolume(v)
       gameData.current.sfxVolume = v
+    }
+
+    const savedBgMenu = localStorage.getItem("game_bg_menu_enabled")
+    if (savedBgMenu !== null) {
+      setBgMenuEnabled(savedBgMenu === "true")
     }
 
     const savedSensitivity = localStorage.getItem("game_sensitivity")
@@ -912,6 +972,47 @@ export default function App() {
     document.title = "Catch Master - Power by V0"
   }, [])
 
+  // Menu Background Music: play when on main menu (gameState === "start") but not during the Intro
+  useEffect(() => {
+    if (!audioRefs.current) return
+    const menuBgm = audioRefs.current.bg_menu
+    if (!menuBgm) return
+
+    if (gameState === "start" && !showIntro && bgMenuEnabled) {
+      // Ensure music plays from beginning each time we enter menu
+      try { menuBgm.currentTime = 0 } catch (e) {}
+      currentBgmRef.current = menuBgm
+      if (!gameData.current.isMuted) fadeAudio(menuBgm, musicVolume, 1000)
+    } else {
+      if (currentBgmRef.current === menuBgm) {
+        // Fade out then fully stop & reset so next menu entry starts from the beginning
+        fadeAudio(menuBgm, 0, 500, () => {
+          try { menuBgm.pause(); menuBgm.currentTime = 0 } catch (e) {}
+          if (currentBgmRef.current === menuBgm) currentBgmRef.current = null
+        })
+      }
+    }
+  }, [gameState, showIntro, bgMenuEnabled])
+
+  // Intro effect: advance the intro steps and ensure menu music is paused/reset while intro is active
+  useEffect(() => {
+    if (showIntro) {
+      if (audioRefs.current?.bg_menu) {
+        try { audioRefs.current.bg_menu.pause(); audioRefs.current.bg_menu.currentTime = 0 } catch (e) {}
+        if (currentBgmRef.current === audioRefs.current.bg_menu) currentBgmRef.current = null
+      }
+
+      setIntroStep(0)
+      const t1 = window.setTimeout(() => setIntroStep(1), 700)
+      const t2 = window.setTimeout(() => setIntroStep(2), 1400)
+      return () => {
+        clearTimeout(t1)
+        clearTimeout(t2)
+      }
+    }
+  }, [showIntro])
+
+  // Persist custom config separately (so it doesn't interfere with intro timings)
   useEffect(() => {
     if (isConfigLoaded) {
       localStorage.setItem("game_custom_config", JSON.stringify(customConfig))
@@ -1445,13 +1546,31 @@ export default function App() {
         })
       }
 
+      // Helper: draw a ball with consistent texture (used for main ball and bombs)
+      const drawBall = (x: number, y: number, radius: number, type: string) => {
+        ctx.beginPath()
+        ctx.arc(x, y, radius, 0, Math.PI * 2)
+        if (type === "orange") {
+          // radial highlight for bomb texture to keep it consistent whether it's single or simultaneous
+          const grad = ctx.createRadialGradient(x - radius * 0.3, y - radius * 0.3, radius * 0.1, x, y, radius)
+          grad.addColorStop(0, "#fff7ed")
+          grad.addColorStop(0.4, "#ffd6a8")
+          grad.addColorStop(1, ballColors.orange)
+          ctx.fillStyle = grad
+          ctx.fill()
+          ctx.lineWidth = 1.5
+          ctx.strokeStyle = "#f97316"
+          ctx.stroke()
+        } else {
+          ctx.fillStyle = ballColors[type] || ballColors.normal
+          ctx.fill()
+        }
+        ctx.closePath()
+      }
+
       // Render Bombs
       gameData.current.bombs.forEach(bomb => {
-        ctx.beginPath()
-        ctx.arc(bomb.x, bomb.y, bomb.radius, 0, Math.PI * 2)
-        ctx.fillStyle = ballColors.orange
-        ctx.fill()
-        ctx.closePath()
+        drawBall(bomb.x, bomb.y, bomb.radius, "orange")
       })
 
       ctx.globalAlpha = 1
@@ -1503,11 +1622,8 @@ export default function App() {
       ctx.fill()
       ctx.restore()
 
-      ctx.beginPath()
-      ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2)
-      ctx.fillStyle = ballColors[b.type]
-      ctx.fill()
-      ctx.closePath()
+      // Draw main ball using the shared helper for consistent texture
+      drawBall(b.x, b.y, b.radius, b.type)
 
       // Render Death Effect (Glowing Bomb)
       if (gameData.current.isDying) {
@@ -1520,6 +1636,22 @@ export default function App() {
         ctx.beginPath()
         ctx.arc(dx, dy, 15 + Math.sin(Date.now() / 50) * 3, 0, Math.PI * 2)
         ctx.fill()
+        ctx.restore()
+      }
+
+      // Flashing warning when main ball is orange and no bombs present (single bomb ball)
+      if (b.type === "orange" && gameData.current.bombs.length === 0) {
+        const tWarn = Date.now()
+        const alpha = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(tWarn / 200))
+        ctx.save()
+        ctx.globalAlpha = alpha
+        ctx.font = "bold 20px Arial"
+        ctx.textAlign = "center"
+        ctx.textBaseline = "top"
+        ctx.shadowColor = "rgba(249,115,22,0.7)"
+        ctx.shadowBlur = 10
+        ctx.fillStyle = "#fff7ed"
+        ctx.fillText("! BOMB !", canvas.width / 2, 8)
         ctx.restore()
       }
 
@@ -1878,6 +2010,43 @@ export default function App() {
           </motion.div>
         )}
 
+        { /* Intro Modal overlay */ }
+        {showIntro && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[100] bg-black/90 flex items-center justify-center p-8">
+            <div className="max-w-md w-full text-center">
+              {introStep === 0 && (
+                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-white">
+                  <h3 className="text-4xl font-black">MeoTN Gaming</h3>
+                </motion.div>
+              )}
+              {introStep === 1 && (
+                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-white">
+                  <h3 className="text-3xl font-bold">Build by V0</h3>
+                </motion.div>
+              )}
+              {introStep === 2 && (
+                <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-white">
+                  <h1 className="text-5xl font-black mb-6">Catch Master</h1>
+                  <button onClick={() => {
+                      playClick();
+                      setShowIntro(false);
+                      // start menu music from the beginning when leaving intro
+                      const menu = audioRefs.current?.bg_menu
+                      if (menu && !gameData.current.isMuted) {
+                        try { menu.pause(); menu.currentTime = 0 } catch (e) {}
+                        currentBgmRef.current = menu
+                        fadeAudio(menu, musicVolume, 1000)
+                      }
+                    }}
+                    className="px-10 py-4 rounded-2xl font-black text-xl bg-gradient-to-r from-blue-600 to-cyan-600 shadow-lg">
+                    Start
+                  </button>
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
         {gameState !== "running" && gameState !== "countdown" && gameState !== "paused" && !openCustom && (
           <motion.div
             variants={menuContainerVariants}
@@ -2127,7 +2296,21 @@ export default function App() {
                   </div>
                   {/* SNOW BALL */}
                   <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-5 flex gap-5 items-center group border-l-4 border-l-cyan-300">
-                    <div className="w-14 h-14 rounded-full bg-white shadow-[0_0_20px_rgba(255,255,255,0.7)] flex-shrink-0 border-4 border-cyan-100/50" />
+                    <div className="w-14 h-14 flex-shrink-0">
+                      <svg width="56" height="56" viewBox="0 0 56 56" className="rounded-full" aria-hidden>
+                        <defs>
+                          <radialGradient id="snowGuideGrad" cx="30%" cy="25%">
+                            <stop offset="0%" stopColor="#ffffff" />
+                            <stop offset="60%" stopColor="#e6f9ff" />
+                            <stop offset="100%" stopColor="#e6fbff" />
+                          </radialGradient>
+                        </defs>
+                        <circle cx="28" cy="28" r="24" fill="url(#snowGuideGrad)" stroke="#cfeffd" strokeWidth="2" />
+                        <g fill="#ffffff" opacity="0.95">
+                          <path d="M28 16 L30 24 L28 32 L26 24 Z" />
+                        </g>
+                      </svg>
+                    </div>"
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="text-white font-black text-xl uppercase italic">{t.ballSnow}</h4>
@@ -2144,7 +2327,20 @@ export default function App() {
                   </div>
                   {/* BOMB BALL */}
                   <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-5 flex gap-5 items-center group border-l-4 border-l-orange-500">
-                    <div className="w-14 h-14 rounded-full bg-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.5)] flex-shrink-0 border-4 border-white/10" />
+                    <div className="w-14 h-14 flex-shrink-0">
+                      <svg width="56" height="56" viewBox="0 0 56 56" aria-hidden>
+                        <defs>
+                          <radialGradient id="bombGuideGrad" cx="35%" cy="25%">
+                            <stop offset="0%" stopColor="#fff7ed" />
+                            <stop offset="40%" stopColor="#ffd6a8" />
+                            <stop offset="100%" stopColor="#f97316" />
+                          </radialGradient>
+                        </defs>
+                        <circle cx="28" cy="28" r="24" fill="url(#bombGuideGrad)" stroke="#f97316" strokeWidth="1.5" />
+                        <rect x="36" y="10" width="8" height="6" rx="1" fill="#374151" />
+                        <rect x="41" y="6" width="3" height="6" rx="1" fill="#374151" />
+                      </svg>
+                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="text-orange-500 font-black text-xl uppercase italic">{t.ballBomb}</h4>
@@ -2381,6 +2577,8 @@ export default function App() {
                     setDirection(-1)
                     setActiveTab("home")
                   }}
+                  bgMenuEnabled={bgMenuEnabled}
+                  toggleBgMenu={toggleBgMenu}
                   musicVolume={musicVolume}
                   setMusicVolume={changeMusicVolume}
                   sfxVolume={sfxVolume}
@@ -2640,6 +2838,8 @@ export default function App() {
             playClick={playClick}
             toggleAnimations={toggleAnimations}
             onClose={() => setOpenSettings(false)}
+            bgMenuEnabled={bgMenuEnabled}
+            toggleBgMenu={toggleBgMenu}
             musicVolume={musicVolume}
             setMusicVolume={changeMusicVolume}
             sfxVolume={sfxVolume}

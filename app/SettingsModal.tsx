@@ -10,6 +10,7 @@ import {
   Music,
   Globe,
   Activity,
+  Disc,
 } from "lucide-react"
 
 interface SettingsModalProps {
@@ -26,6 +27,8 @@ interface SettingsModalProps {
   toggleAnimations: () => void
   playClick: () => void
   onClose: () => void
+  bgMenuEnabled: boolean
+  toggleBgMenu: () => void
   musicVolume: number
   setMusicVolume: (e: React.ChangeEvent<HTMLInputElement>) => void
   sfxVolume: number
@@ -49,6 +52,8 @@ export default function SettingsModal({
   toggleAnimations,
   playClick,
   onClose,
+  bgMenuEnabled,
+  toggleBgMenu,
   musicVolume,
   setMusicVolume,
   sfxVolume,
@@ -182,6 +187,28 @@ export default function SettingsModal({
                 onChange={setSfxVolume}
                 className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-green-500"
               />
+            </div>
+
+            {/* Menu Music Toggle */}
+            <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${bgMenuEnabled ? "bg-pink-500/20 text-pink-400" : "bg-slate-700 text-slate-400"}`}>
+                  <Disc size={18} className={bgMenuEnabled ? "animate-spin" : ""} style={{ animationDuration: "3s" }} />
+                </div>
+                <span className="text-sm font-bold text-slate-300 uppercase">
+                  {t.menuMusic}
+                </span>
+              </div>
+              <button
+                onClick={toggleBgMenu}
+                className={`w-12 h-6 rounded-full relative transition-colors ${!bgMenuEnabled ? "bg-slate-600" : "bg-pink-600"}`}
+              >
+                <motion.div
+                  layout
+                  transition={{ duration: animationsEnabled ? 0.2 : 0 }}
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!bgMenuEnabled ? "left-1" : "left-7"}`}
+                />
+              </button>
             </div>
 
             {/* Mute Toggle */}
