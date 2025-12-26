@@ -1589,6 +1589,16 @@ export default function App() {
         case "inferno": paddleColor = "#ea580c"; shadowColor = "#f97316"; shadowBlur = 15; break
         case "void": paddleColor = "#4c1d95"; shadowColor = "#8b5cf6"; shadowBlur = 10; break
         case "galaxy": paddleColor = "#4338ca"; break
+        case "diamond": paddleColor = "#a5f3fc"; shadowColor = "#22d3ee"; shadowBlur = 10; break
+        case "iron": paddleColor = "#94a3b8"; break
+        case "gold": paddleColor = "#facc15"; shadowColor = "#fde047"; shadowBlur = 10; break
+        case "copper": paddleColor = "#fb923c"; break
+        case "wooden": paddleColor = "#92400e"; break
+        case "ruby": paddleColor = "#dc2626"; shadowColor = "#ef4444"; shadowBlur = 10; break
+        case "sapphire": paddleColor = "#1d4ed8"; shadowColor = "#3b82f6"; shadowBlur = 10; break
+        case "platinum": paddleColor = "#cbd5e1"; shadowColor = "#e2e8f0"; shadowBlur = 10; break
+        case "leaves": paddleColor = "#16a34a"; break
+        case "water": paddleColor = "#0ea5e9"; shadowColor = "#38bdf8"; shadowBlur = 10; break
         default: paddleColor = "#3b82f6"; break
       }
 
@@ -2534,6 +2544,16 @@ export default function App() {
                     { id: "inferno", name: "Inferno", class: "bg-gradient-to-b from-orange-500 to-orange-800 shadow-[0_0_15px_#f97316]" },
                     { id: "void", name: "Void", class: "bg-violet-900 shadow-[0_0_10px_#8b5cf6]" },
                     { id: "galaxy", name: "Galaxy", class: "bg-gradient-to-b from-indigo-700 to-indigo-950" },
+                    { id: "diamond", name: "Diamond", class: "bg-cyan-200 shadow-[0_0_10px_#22d3ee]" },
+                    { id: "iron", name: "Iron", class: "bg-slate-400" },
+                    { id: "gold", name: "Gold", class: "bg-yellow-400 shadow-[0_0_10px_#fde047]" },
+                    { id: "copper", name: "Copper", class: "bg-orange-400" },
+                    { id: "wooden", name: "Wooden", class: "bg-amber-800" },
+                    { id: "ruby", name: "Ruby", class: "bg-red-600 shadow-[0_0_10px_#ef4444]" },
+                    { id: "sapphire", name: "Sapphire", class: "bg-blue-700 shadow-[0_0_10px_#3b82f6]" },
+                    { id: "platinum", name: "Platinum", class: "bg-slate-300 shadow-[0_0_10px_#e2e8f0]" },
+                    { id: "leaves", name: "Leaves", class: "bg-green-600" },
+                    { id: "water", name: "Water", class: "bg-sky-500 shadow-[0_0_10px_#38bdf8]" },
                   ].map((s) => (
                     <button
                       key={s.id}

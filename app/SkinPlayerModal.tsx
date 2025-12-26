@@ -20,6 +20,16 @@ export const SKINS = [
   { id: "inferno", name: "Inferno Core", color: "bg-orange-600" },
   { id: "void", name: "Void Rift", color: "bg-violet-900" },
   { id: "galaxy", name: "Galaxy Sky", color: "bg-indigo-600" },
+  { id: "diamond", name: "Diamond", color: "bg-cyan-200" },
+  { id: "iron", name: "Iron", color: "bg-slate-400" },
+  { id: "gold", name: "Gold", color: "bg-yellow-400" },
+  { id: "copper", name: "Copper", color: "bg-orange-400" },
+  { id: "wooden", name: "Wooden", color: "bg-amber-800" },
+  { id: "ruby", name: "Ruby", color: "bg-red-600" },
+  { id: "sapphire", name: "Sapphire", color: "bg-blue-700" },
+  { id: "platinum", name: "Platinum", color: "bg-slate-300" },
+  { id: "leaves", name: "Leaves", color: "bg-green-600" },
+  { id: "water", name: "Water", color: "bg-sky-500" },
 ]
 
 export default function SkinPlayerModal({
