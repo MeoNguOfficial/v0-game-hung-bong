@@ -1747,11 +1747,12 @@ export default function App() {
         ctx.globalAlpha = alpha
         ctx.font = "bold 20px Arial"
         ctx.textAlign = "center"
-        ctx.textBaseline = "top"
+        ctx.textBaseline = "middle"
         ctx.shadowColor = "rgba(249,115,22,0.7)"
         ctx.shadowBlur = 10
         ctx.fillStyle = "#fff7ed"
-        ctx.fillText("! BOMB !", canvas.width / 2, 8)
+        const warnY = gameData.current.isReverse ? canvas.height - 100 : 100
+        ctx.fillText("! BOMB !", canvas.width / 2, warnY)
         ctx.restore()
       }
 
@@ -1915,21 +1916,6 @@ export default function App() {
                 </div>
               )}
             </div>
-
-            {/* Best */}
-            {!isAuto && !gameData.current.isCustom && (
-              <div className="flex flex-col items-end">
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t.best}</span>
-                <span className="text-xl font-black text-emerald-400 italic tabular-nums leading-none">
-                  {(() => {
-                    const difficultyKey = (gameMode === "hardcode" || gameMode === "sudden_death") ? "hardcode" : "normal"
-                    const gameTypeKey = isClassic ? "classic" : "default"
-                    const modifiers = { isHidden: !!isHidden, isBlank: !!isBlank, isReverse: !!isReverse }
-                    return bestScores[getScoreKey(difficultyKey as Difficulty, gameTypeKey as GameType, modifiers)] ?? 0
-                  })()}
-                </span>
-              </div>
-            )}
 
             {/* Snow Freeze Badge */}
             {snowActive && (
@@ -2201,7 +2187,7 @@ export default function App() {
       </div>
 
       {isAuto && gameState === "running" && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-green-500/20 border border-green-500/50 px-4 py-2 rounded-full flex items-center gap-2 backdrop-blur-md">
+        <div className={`absolute left-1/2 -translate-x-1/2 bg-green-500/20 border border-green-500/50 px-4 py-2 rounded-full flex items-center gap-2 backdrop-blur-md transition-all duration-300 ${isReverse ? "bottom-24" : "top-24"}`}>
           <Cpu size={14} className="text-green-500 animate-spin" />
           <span className="text-[10px] text-green-400 font-bold uppercase tracking-widest">{t.botActive}</span>
         </div>

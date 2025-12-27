@@ -1,4 +1,4 @@
-# 🎮 Catch Master – Game Hứng Bóng (v1.0.3)
+# 🎮 Catch Master – Game Hứng Bóng
 
 *A fast-paced arcade ball-catching game built with React + HTML5 Canvas.*
 
@@ -27,28 +27,6 @@ This repository stays **automatically in sync** with deployments created on **v0
 
 ---
 
-## 🧩 Changelog (v1.0.1)
-
-### 🚀 Core Improvements
-* **🎵 Audio Engine:** Add new Game over sound.
-* **🎨 Visual for Game over:** Remaster Game over screen.
-* **🧠 Gameplay & Diversity:** New game modes added with re-balanced mechanics for a more engaging progression.
-
-### 🛠️ Bug Fixes & Polishing
-* **🎵 New Best Score:** Fixed a persistent bug where best score for all modes have been reset after clolect first ball.
-* **🎵 New Best Score:** Fixed now best score haven't update when leave game.
-
----
-
-### 🛠️ Technical Debt Summary
-| Feature | Status | Improvement |
-| :--- | :---: | :--- |
-| **Physics Engine** | ✅ | Reduced CPU overhead by 30% |
-| **State Management** | ✅ | Migrated to a centralized logic handler |
-| **UI Components** | ✅ | Decoupled Modals for faster load times |
-
----
-
 ## 🕹️ How to Play
 
 - **PC:** Move the mouse
@@ -64,69 +42,28 @@ This repository stays **automatically in sync** with deployments created on **v0
 
 ## ⚙️ Game Modes
 
-## 🟢 Quick Play Menu
+### 🟢 Normal Mode
+- 5 lives
+- Beginner-friendly
+- Includes healing, shields, and slow-motion effects
 
-*The Quick Play system has been completely redesigned to provide a seamless "Select & Launch" experience. Access all game modes and modifiers from a single, intuitive interface.*
+### 🔴 Hardcore Mode
+- **1 life only**
+- No forgiveness
+- Bombs can cause **instant death**
+- Requires strong reflexes and prediction
 
-### **1. Core Game Modes**
-*Choose your base challenge level:*
-* **🛡️ Default:** Balanced mix of all ball types. Standard gameplay experience.
-* **💀 Classic:** Nostalgic feel. Only Red (Normal), Green (Heal), and Grey (Shield) balls appear.
-
-### **1. Core difficulity**
-*Choose your difficulity level:*
-* **🛡️ Normal:** Start with 5 lives. Features all power-ups and a forgiving learning curve.
-* **💀 Hardcore:** Start with only 1 life. Mistakes are costly, and bombs are deadly.
-* **☠️ Sudden Death:** The ultimate test. **One miss = Game Over** (except Bomb Ball), regardless of your life count.
-
-### **2. Gameplay Toggles**
-*Modify the core mechanics with a single click:*
-* **🤖 Auto-Play:** Activate the Smart AI to watch the physics engine in action or relax while the bot handles the chaos.
-
-### **3. Modifier Stacking (Experimental)**
-*Apply visual and physical challenges to any game mode:*
-* **👻 Hidden:** Balls fade into total invisibility mid-flight.
-* **🔳 Blank:** A central visual barrier obstructs your tracking ability.
-* **🔃 Reverse:** Gravity flips—balls fall from the bottom toward the top.
-
-> [!TIP]
-> **Mix & Match:** You can combine any difficulty with any modifier. Try **Sudden Death + Reverse** for a truly mind-bending experience!
-
----
-
-### 🛠 Quick Play Logic Matrix
-
-| Feature | Description | Icon |
-| :--- | :--- | :---: |
-| **Difficulty** | Normal / Hardcore / Sudden Death | `Shield`/`Skull` |
-| **Classic** | Pure Arcade Experience | `Square` |
-| **Auto Mode** | AI-Controlled Paddle | `Bot` |
-| **Hidden** | Invisible Trajectory | `EyeOff` |
-| **Blank** | Mid-screen Blindfold | `Zap` |
-| **Reverse** | Inverted Gravity | `ArrowUp` |
-
----
-
-### 📸 Interface Preview
-
-<p align="center">
-  <img width="1366" height="648" alt="image" src="https://github.com/user-attachments/assets/2d9aa93a-7165-4362-8f69-9d442308ecaf" width="50%" alt="Quick Play Modal"/>
-</p>
+### 🟣 Classic Mode
+- Reduced ball variety
+- Pure arcade experience
+- Focus on precision and combo timing
 
 ### 🧪 Custom Mode
 - Fully configurable:
-  - Default / Classic
-  - Normal / Hardcore / Sudden Death
+  - Normal / Hardcore
   - Auto-play on/off
-  - Hidden / Blank / Reverse Gravity
-  - Enabled ball types (Auto rebalance percent)
+  - Enabled ball types
 - Ideal for testing or experimental gameplay
-
-### 📸 Interface Preview
-
-<p align="center">
-  <img width="1366" height="642" alt="image" src="https://github.com/user-attachments/assets/58e8cf53-658e-4825-b7c7-49220c8caef5" width="50%" alt="Custom Play Modal"/>
-</p>
 
 ---
 
@@ -137,15 +74,14 @@ This repository stays **automatically in sync** with deployments created on **v0
 | 🔴 Red | Normal | +1 score |
 | 🟣 Purple | Fast | +3 score, normal mode only|
 | 🟡 Yellow | Sine | +10 score, wave movement, normal mode only |
-| 🟢 Green | Heal | +1 life, not available on Hardcore mode |
+| 🟢 Green | Heal | +1 life, not avalaible on Hardcode mode |
 | 🔵 Blue | Boost | Increases paddle width, normal mode only |
 | ⚪ White | Snow | Slows down time, normal mode only |
 | ⚫ Gray | Shield | Blocks one mistake, |
 | 🟠 Orange | Bomb | Lose life / instant death (Hardcore), normal mode only |
 
-> You can customize ball play on Custom mode
+> You can custom ball play on Custom mode
 > At higher scores, multiple bombs may appear simultaneously.
-> More info, you can go to Guide Tab to read
 
 ---
 
@@ -161,58 +97,14 @@ This repository stays **automatically in sync** with deployments created on **v0
 
 ---
 
-## 🤖 Advanced Game Assistance
+## 🤖 Auto Mode (Bot)
 
-### **Smart Autoplay (AI Mode)**
-*Experience the game with a sophisticated AI-controlled paddle:*
+- AI-controlled paddle
+- Predicts ball trajectories
+- Avoids bombs intelligently
+- Handles sine-wave movement and wall bounces
 
-* **Trajectory Prediction:** Advanced algorithms calculate where the ball will land before it even gets halfway.
-* **Tactical Bomb Avoidance:** Intelligently detects and stays away from dangerous objects.
-* **Adaptive Movement:** Effortlessly handles complex **Sine-wave** patterns and **Wall-bounce** physics.
-* **Purpose:** Perfect for casual play, high-score testing, or simply relaxing while watching the "perfect" run.
-
----
-
-## 🤖 Advanced Game Assistance
-
-### **Smart Autoplay (AI Mode)**
-*Experience the game with a sophisticated AI-controlled paddle:*
-
-* **Trajectory Prediction:** Advanced algorithms calculate where the ball will land before it even gets halfway.
-* **Tactical Bomb Avoidance:** Intelligently detects and stays away from dangerous objects.
-* **Adaptive Movement:** Effortlessly handles complex **Sine-wave** patterns and **Wall-bounce** physics.
-* **Purpose:** Perfect for casual play, high-score testing, or simply relaxing while watching the "perfect" run.
-
----
-
-## 🌪️ New Gameplay Modifiers
-*Push your limits with these game-altering mechanics:*
-
-### 👻 1. Hidden Ball (Bóng Tàng Hình)
-* **The Mechanism:** Balls gradually fade out and become **100% invisible** after traveling half of their falling distance.
-* **The Challenge:** Your memory is your only weapon! Predict the landing point based on the initial trajectory.
-
-### 🌫️ 2. Blank (Tấm Chắn Mù)
-* **The Mechanism:** A physical "blindfold" obstacle covers the ball's path. It works like a zone of invisibility.
-* **The Challenge:** Forces the brain to "fill in" the positional gaps. You see the start and the end, but the middle is a mystery.
-
-### 🔃 3. Reverse Gravity (Trọng Lực Ngược)
-* **The Mechanic:** Gravity is completely flipped. Balls **"fall upwards"** from the bottom edge of the screen to the top.
-* **The Challenge:** Completely shatters muscle memory. You must move the paddle to the top to catch them.
-
-> [!IMPORTANT]  
-> **🔥 Chaos Mastery:** You can **mix any 2 modifiers**, or turn on **all 3 at once** for the ultimate nightmare challenge. Can you handle an invisible ball falling upwards through a blindfold?
-
----
-
-### 🛠️ Summary of Experimental Modes
-
-| Modifier | Visual Effect | Core Skill Required | Difficulty |
-| :--- | :--- | :--- | :--- |
-| **Hidden** | Fading Alpha | Spatial Memory | ⭐⭐⭐⭐ |
-| **Blank** | Mid-screen Cover | Predictive Tracking | ⭐⭐⭐ |
-| **Reverse** | Inverted Y-Axis | Reflex Adaptation | ⭐⭐⭐⭐⭐ |
-| **TRIPLE MIX** | **Total Chaos** | **Pure Instinct** | 💀💀💀💀💀 |
+Useful for Casual or idle play, relaxing
 
 ---
 
@@ -257,48 +149,15 @@ Language preference is saved automatically.
 
 ---
 
-## 💾 Data Persistence & Leaderboards
+## 💾 Data Persistence
 
-### **Comprehensive Score Tracking**
-*Your progress is automatically saved and categorized by mode & difficulty, look like this image:*
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/115e4138-e565-4851-aa29-d9445476b4db" width="32%" />
-  <img src="https://github.com/user-attachments/assets/527c18c6-fd10-46f4-be1d-e22007db3f42" width="32%" />
-  <img src="https://github.com/user-attachments/assets/0e7e4975-4ae2-46be-b4c7-7c3d25480641" width="32%" />
-</p>
-
-### **Storage Details**
-* **Zero-Login System:** No account or login required. All data is stored instantly using `localStorage`.
-* **Privacy First:** Your game data stays on your device.
-* **Settings Retention:** Language preferences, Volume levels, Paddle Skins, and Sensitivity settings are all persisted across sessions.
-
----
-
-### 📊 Score Matrix
-
-### **1. Difficulty-First Tracking**
-* **Normal Records:** For players who enjoy the journey and power-ups.
-* **Hardcore Records:** For the elite who play with a single life.
-* **Sudden Death Flag:** Scores achieved under Sudden Death are marked with a 💀 icon, representing the highest level of prestige in the community.
-
-### **2. Mode Categories**
-* **Standard:** All modern ball types and physics.
-* **Classic:** Original arcade experience (Reduced variety, pure skill).
-
----
-
-### 📊 Score Storage Matrix
-
-| Difficulty | Standard Mode | Classic Mode |
-| :--- | :---: | :---: |
-| **🟢 Normal** | 🏆 Tracked | 🏆 Tracked |
-| **🔴 Hardcore** | 🏆 Tracked | 🏆 Tracked |
-| **💀 Sudden Death** | 🏆 Tracked | 🏆 Tracked |
-
-Score can be mix with all modifiers but not include AutoPlay or Custom mode
-
-> [!TIP]
-> To reset your data and start fresh, you can find the **Clear Data** 🗑️ option within the Stats or Settings modal.
+- Best scores tracked separately for:
+  - Normal
+  - Hardcore
+  - Classic Normal
+  - Classic Hardcore
+- Stored locally using `localStorage`
+- No account or login required
 
 ---
 
@@ -310,6 +169,14 @@ Score can be mix with all modifiers but not include AutoPlay or Custom mode
 - **Lucide Icons**
 - **v0.app**
 - **Vercel**
+
+---
+
+## 🛠 Update
+
+- Update release v1.0.0
+- Fixed an issue where **Game Over was triggered incorrectly when bombs fell (From beta 1.0.0)**
+- Fixed **bomb falling sound not stopping properly (From beta 1.0.0)**
 
 ---
 
