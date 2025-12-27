@@ -271,23 +271,13 @@ Language preference is saved automatically.
 
 ---
 
-### 📸 Game Previews & Modifiers
-
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/115e4138-e565-4851-aa29-d9445476b4db" width="32%" alt="Home Screen" />
-  <img src="https://github.com/user-attachments/assets/527c18c6-fd10-46f4-be1d-e22007db3f42" width="32%" alt="Gameplay Modifiers" />
-  <img src="https://github.com/user-attachments/assets/0e7e4975-4ae2-46be-b4c7-7c3d25480641" width="32%" alt="Stats & Records" />
-</p>
-
----
-
 ### 📊 Score Storage Matrix
 
 | Difficulty | Standard Mode | Classic Mode |
-| :--- | :---: | :---: | :---: |
+| :--- | :---: | :---: |
 | **🟢 Normal** | 🏆 Tracked | 🏆 Tracked |
 | **🔴 Hardcore** | 🏆 Tracked | 🏆 Tracked |
-| **🔴 Sudden Death** | 🏆 Tracked | 🏆 Tracked |
+| **💀 Sudden Death** | 🏆 Tracked | 🏆 Tracked |
 
 Score can be mix with all modifiers but not include AutoPlay or Custom mode
 
