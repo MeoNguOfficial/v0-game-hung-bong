@@ -1999,7 +1999,7 @@ export default function App() {
                 className="flex flex-col items-center" 
                 key="over"
               >
-                <motion.div variants={menuItemVariants} animate={animationsEnabled ? { scale: [0.94, 1.08, 1] } : { scale: 1 }} transition={animationsEnabled ? { duration: 0.7, times: [0, 0.7, 1], type: "spring", stiffness: 400, damping: 12 } : { duration: 0 }}>
+                <motion.div variants={menuItemVariants} animate={animationLevel !== 'none' ? { scale: [0.94, 1.08, 1] } : { scale: 1 }} transition={animationLevel !== 'none' ? { duration: 0.7, times: [0, 0.7, 1], type: "spring", stiffness: 400, damping: 12 } : { duration: 0 }}>
                   <Trophy size={80} className="text-yellow-500 mb-6" />
                 </motion.div>
                 <motion.h2 variants={menuItemVariants} className="text-5xl font-black mb-2 text-white italic uppercase tracking-tighter">{t.gameOver}</motion.h2>
