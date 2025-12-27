@@ -1,4 +1,4 @@
-# 🎮 Catch Master – Game Hứng Bóng (v1.0.1)
+# 🎮 Catch Master – Game Hứng Bóng (v1.0.3)
 
 *A fast-paced arcade ball-catching game built with React + HTML5 Canvas.*
 
@@ -28,8 +28,6 @@ This repository stays **automatically in sync** with deployments created on **v0
 ---
 
 ## 🧩 Changelog (v1.0.1)
-
-*The "Mega Refactor" update focuses on architectural integrity, performance overhead reduction, and a refined user experience.*
 
 ### 🚀 Core Improvements
 * **🎵 Audio Engine:** Add new Game over sound.
