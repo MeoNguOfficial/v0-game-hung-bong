@@ -71,7 +71,9 @@ export default function StatsModal({
       <div className="space-y-6">
         {DIFFICULTIES.map(diff => (
           <div key={diff} className="bg-white/5 p-4 sm:p-6 rounded-[2rem] border border-white/5">
-            <h4 className="text-sm sm:text-base font-black text-white uppercase tracking-widest mb-4 capitalize">{t[`diff${diff.charAt(0).toUpperCase() + diff.slice(1)}`] || diff}</h4>
+            <h4 className="text-sm sm:text-base font-black text-white uppercase tracking-widest mb-4 capitalize">
+              {t[`diff${diff === 'sudden_death' ? 'SuddenDeath' : diff.charAt(0).toUpperCase() + diff.slice(1)}`] || diff}
+            </h4>
             <div className="space-y-4">
               {GAME_TYPES.map(type => (
                 <div key={type}>

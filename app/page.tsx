@@ -33,6 +33,7 @@ import StatsModal from "./TabModal/StatsModal"
 import HomeModal from "./TabModal/HomeModal"
 import CustomGameModal, { CustomConfig } from "./GameModal/CustomGameModal"
 import PauseModal from "./GameModal/PauseModal"
+import GameOverModal from "./GameModal/GameOverModal"
 import QuickPlayModal from "./ModeModal/QuickPlayModal"
 import { spawnBall } from "./MainGameLogic"
 import { isSuddenDeathMiss } from "./GameModal/SuddenDeathGameModal"
@@ -88,6 +89,13 @@ export default function App() {
   const [score, setScore] = useState(0)
   const [lives, setLives] = useState(5)
   const [bestScores, setBestScores] = useState<Record<string, number>>(initializeScores())
+  const bestScoresRef = useRef<Record<string, number>>(bestScores)
+  const [isNewBestRecord, setIsNewBestRecord] = useState(false)
+
+  useEffect(() => {
+    bestScoresRef.current = bestScores
+  }, [bestScores])
+
   const [gameState, setGameState] = useState<"start" | "countdown" | "running" | "paused" | "over">("start")
   const [countdown, setCountdown] = useState<number | string>(3)
   const [comboCount, setComboCount] = useState(0)
@@ -226,6 +234,38 @@ export default function App() {
     skin: "default",
   })
 
+  // Save score only when Game Over
+  useEffect(() => {
+    if (gameState === "over") {
+      const { score, isAuto, isCustom, gameMode, isClassic, isHidden, isBlank, isReverse } = gameData.current
+
+      if (!isAuto && !isCustom) {
+        const currentDiff = gameMode
+        const currentType = isClassic ? "classic" : "default"
+        const currentMods = {
+          isHidden: !!isHidden,
+          isBlank: !!isBlank,
+          isReverse: !!isReverse,
+        }
+
+        const scoreKey = getScoreKey(currentDiff as any, currentType as any, currentMods)
+        const currentBest = bestScoresRef.current[scoreKey] ?? 0
+
+        if (score > currentBest) {
+          setIsNewBestRecord(true)
+          setBestScores((prev) => {
+            const next = { ...prev, [scoreKey]: score }
+            bestScoresRef.current = next
+            return next
+          })
+          localStorage.setItem(scoreKey, String(score))
+        }
+      } else {
+        setIsNewBestRecord(false)
+      }
+    }
+  }, [gameState])
+
   const particles = useRef<Particle[]>([])
   const trails = useRef<Trail[]>([])
   const audioRefs = useRef<any>(null)
@@ -263,7 +303,7 @@ export default function App() {
       fadeAudio(menu, v, 300)
     } else if (menu && gameState === "start" && !showIntro && !gameData.current.isMuted) {
       // If menu exists but isn't playing (e.g., first time or previously stopped), start it from the beginning
-      try { menu.pause(); menu.currentTime = 0 } catch (e) {}
+      try { menu.pause(); menu.currentTime = 0 } catch (e) { }
       currentBgmRef.current = menu
       fadeAudio(menu, v, 300)
     }
@@ -353,16 +393,16 @@ export default function App() {
 
     const startVol = audio.volume
     const startTime = Date.now()
-    
+
     if (targetVol > 0) {
       audio.volume = startVol // Start from current (usually 0 if fading in)
-      audio.play().catch(() => {})
+      audio.play().catch(() => { })
     }
 
     (audio as any).fadeInterval = setInterval(() => {
       const elapsed = Date.now() - startTime
       const progress = Math.min(elapsed / duration, 1)
-      
+
       // Linear interpolation
       const newVol = startVol + (targetVol - startVol) * progress
       audio.volume = Math.max(0, Math.min(newVol, 1))
@@ -383,7 +423,7 @@ export default function App() {
     if (!audioRefs.current || !audioRefs.current.bg_menu) return
     const menu = audioRefs.current.bg_menu
     fadeAudio(menu, 0, 500, () => {
-      try { menu.pause(); menu.currentTime = 0 } catch (e) {}
+      try { menu.pause(); menu.currentTime = 0 } catch (e) { }
       if (currentBgmRef.current === menu) currentBgmRef.current = null
     })
   }
@@ -403,6 +443,13 @@ export default function App() {
       audio.volume = gameData.current.sfxVolume
       audio.currentTime = 0
       audio.play().catch(() => { })
+    }
+  }
+
+  const stopSound = (name: string) => {
+    if (audioRefs.current && audioRefs.current[name]) {
+      audioRefs.current[name].pause()
+      audioRefs.current[name].currentTime = 0
     }
   }
 
@@ -460,7 +507,7 @@ export default function App() {
     // Play Pause Music
     if (audioRefs.current?.pause_bg && !gameData.current.isMuted) {
       audioRefs.current.pause_bg.volume = musicVolume
-      audioRefs.current.pause_bg.play().catch(() => {})
+      audioRefs.current.pause_bg.play().catch(() => { })
     }
   }
 
@@ -469,7 +516,7 @@ export default function App() {
     // Resume Game Music
     if (currentBgmRef.current && !gameData.current.isMuted) {
       currentBgmRef.current.volume = musicVolume
-      currentBgmRef.current.play().catch(() => {})
+      currentBgmRef.current.play().catch(() => { })
     }
     // Stop Pause Music
     if (audioRefs.current?.pause_bg) {
@@ -480,7 +527,7 @@ export default function App() {
     const resumeBombSound = () => {
       const hasBombs = gameData.current.bombs.length > 0 || gameData.current.ball.type === "orange"
       if (hasBombs && audioRefs.current?.bomb_fall && !gameData.current.isMuted) {
-        audioRefs.current.bomb_fall.play().catch(() => {})
+        audioRefs.current.bomb_fall.play().catch(() => { })
       }
     }
 
@@ -546,13 +593,13 @@ export default function App() {
       // Unmute
       if (gameState === "running" && currentBgmRef.current) {
         currentBgmRef.current.volume = musicVolume
-        currentBgmRef.current.play().catch(() => {})
+        currentBgmRef.current.play().catch(() => { })
       } else if (gameState === "paused" && audioRefs.current?.pause_bg) {
         audioRefs.current.pause_bg.volume = musicVolume
-        audioRefs.current.pause_bg.play().catch(() => {})
+        audioRefs.current.pause_bg.play().catch(() => { })
       } else if (gameState === "start" && audioRefs.current?.bg_menu && bgMenuEnabled) {
         audioRefs.current.bg_menu.volume = musicVolume
-        audioRefs.current.bg_menu.play().catch(() => {})
+        audioRefs.current.bg_menu.play().catch(() => { })
       }
     }
   }
@@ -609,12 +656,13 @@ export default function App() {
     // Update startCountdown to accept and set game mode, then run countdown
     setGameMode(mode)
     setIsClassic(isClassicMode)
+    setIsNewBestRecord(false)
     setIsAuto(isAutoMode)
     // These are now part of the quick play modal, so we use their state directly
     // setIsReverse(isReverse)
     // setIsHidden(isHidden) 
     // setIsBlank(isBlank)
-    
+
     runCountdown(isAutoMode, () => {
       gameData.current = {
         ...gameData.current,
@@ -685,7 +733,7 @@ export default function App() {
     const allowed = Object.entries(customConfig.balls)
       .filter(([_, cfg]) => cfg.enabled)
       .map(([type]) => type)
-    
+
     if (allowed.length === 0) {
       setCustomError(t.selectAtLeastOneBall)
       return
@@ -703,6 +751,7 @@ export default function App() {
     // Ensure menu BGM stops when starting custom game
     stopMenuBgm()
 
+    setIsNewBestRecord(false)
     // Đóng modal trước khi bắt đầu đếm ngược
     setOpenCustom(false)
 
@@ -774,10 +823,11 @@ export default function App() {
     // Ensure menu BGM stops when starting auto game
     stopMenuBgm()
 
+    setIsNewBestRecord(false)
     gameData.current = {
       ...gameData.current,
       score: 0,
-        lives: (gameMode === "hardcode" || gameMode === "sudden_death") ? 1 : 5,
+      lives: (gameMode === "hardcode" || gameMode === "sudden_death") ? 1 : 5,
       combo: 0,
       gameMode: gameMode,
       isCustom: false,
@@ -841,6 +891,8 @@ export default function App() {
       bomb: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bomb.mp3"),
       critical_bomb: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/critical_bomb.mp3"),
       bomb_fall: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bomb_fall_loop.mp3"),
+      score_count: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/score_count.mp3"),
+      game_over_new_best: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/game_over_new_best.mp3"),
       // Background Musics
       bg_game_default: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bg_game_default.mp3"),
       bg_game_hardcode: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bg_game_hardcode.mp3"),
@@ -871,6 +923,7 @@ export default function App() {
     if (audioRefs.current.bg_game_custom) audioRefs.current.bg_game_custom.loop = true
     if (audioRefs.current.bg_menu) audioRefs.current.bg_menu.loop = true
     if (audioRefs.current.pause_bg) audioRefs.current.pause_bg.loop = true
+    if (audioRefs.current.score_count) audioRefs.current.score_count.loop = true
 
     const savedMute = localStorage.getItem("game_muted") === "true"
     setIsMuted(savedMute)
@@ -929,7 +982,7 @@ export default function App() {
         setIsHidden(parsed.isHidden || false)
         setIsBlank(parsed.isBlank || false)
         setIsAuto(parsed.isAuto || false)
-          setIsReverse(parsed.isReverse || false)
+        setIsReverse(parsed.isReverse || false)
       } catch (e) {
         console.error("Error loading quick play config", e)
       }
@@ -968,14 +1021,14 @@ export default function App() {
 
     if (gameState === "start" && !showIntro && bgMenuEnabled) {
       // Ensure music plays from beginning each time we enter menu
-      try { menuBgm.currentTime = 0 } catch (e) {}
+      try { menuBgm.currentTime = 0 } catch (e) { }
       currentBgmRef.current = menuBgm
       if (!gameData.current.isMuted) fadeAudio(menuBgm, musicVolume, 1000)
     } else {
       if (currentBgmRef.current === menuBgm) {
         // Fade out then fully stop & reset so next menu entry starts from the beginning
         fadeAudio(menuBgm, 0, 500, () => {
-          try { menuBgm.pause(); menuBgm.currentTime = 0 } catch (e) {}
+          try { menuBgm.pause(); menuBgm.currentTime = 0 } catch (e) { }
           if (currentBgmRef.current === menuBgm) currentBgmRef.current = null
         })
       }
@@ -986,7 +1039,7 @@ export default function App() {
   useEffect(() => {
     if (showIntro) {
       if (audioRefs.current?.bg_menu) {
-        try { audioRefs.current.bg_menu.pause(); audioRefs.current.bg_menu.currentTime = 0 } catch (e) {}
+        try { audioRefs.current.bg_menu.pause(); audioRefs.current.bg_menu.currentTime = 0 } catch (e) { }
         if (currentBgmRef.current === audioRefs.current.bg_menu) currentBgmRef.current = null
       }
 
@@ -1009,7 +1062,7 @@ export default function App() {
         isClassic,
         isAuto,
         isHidden,
-        isBlank, 
+        isBlank,
         isReverse,
       }))
     }
@@ -1059,7 +1112,7 @@ export default function App() {
       const mouseX = (clientX - rect.left) * scaleX
       const targetX = mouseX - gameData.current.playerWidth / 2
       gameData.current.targetPlayerX = targetX
-      
+
       if (gameData.current.sensitivity === 0) {
         gameData.current.playerX = targetX
       }
@@ -1070,7 +1123,7 @@ export default function App() {
 
     const update = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
-      
+
       const isReverse = gameData.current.isReverse
       const gravityDirection = isReverse ? -1 : 1
       const paddleY = isReverse ? 90 : canvas.height - 90
@@ -1084,13 +1137,6 @@ export default function App() {
         grey: "#94a3b8",
         snow: "#ffffff",
         orange: "#f97316",
-      }
-
-      const stopSound = (name: string) => {
-        if (audioRefs.current && audioRefs.current[name]) {
-          audioRefs.current[name].pause()
-          audioRefs.current[name].currentTime = 0
-        }
       }
 
       // Helper for Bomb Hit
@@ -1127,7 +1173,7 @@ export default function App() {
             setTimeout(() => setIsFlashWhite(false), 800)
             setGameState("over")
             playSound("gameover")
-            
+
             // Stop Game Music (Fade Out)
             fadeAudio(currentBgmRef.current, 0, 1500)
           }, 1250)
@@ -1337,6 +1383,8 @@ export default function App() {
           const isCenter =
             Math.abs(b.x - (gameData.current.playerX + gameData.current.playerWidth / 2)) <
             (gameData.current.playerWidth * 0.3) / 2
+
+          // --- PHẦN XỬ LÝ LOẠI BÓNG (Giữ nguyên logic của bạn) ---
           if (b.type === "grey") {
             gameData.current.hasShield = true
             playSound("shield")
@@ -1359,7 +1407,6 @@ export default function App() {
             }, 1000)
             createParticles(b.x, b.y, "#3b82f6", "absorb", true)
           } else if (b.type === "snow") {
-            // Snowball: slows the whole game for 10s (only effective when score >= 500)
             if (gameData.current.score >= 500) {
               gameData.current.targetTimeScale = 0.4
               gameData.current.snowTimeLeft = 10
@@ -1389,7 +1436,6 @@ export default function App() {
                 }
               }, 1000)
             } else {
-              // If score < 500, just a normal white catch visual
               createParticles(b.x, b.y, "#ffffff", "explode", true)
             }
           } else if (b.type === "orange") {
@@ -1403,6 +1449,7 @@ export default function App() {
             playSound("heal")
           }
 
+          // --- PHẦN TÍNH ĐIỂM ---
           let scoreAdd = b.type === "orange" ? 0 : 1
           if (isCenter) {
             gameData.current.combo = Math.min(gameData.current.combo + 1, 6)
@@ -1418,16 +1465,31 @@ export default function App() {
           }
           if (b.type === "purple") scoreAdd += 2
           if (b.type === "yellow") scoreAdd += 9
-          
-          gameData.current.score += scoreAdd
-          
-          const difficultyKey = (gameData.current.gameMode === "hardcode" || gameData.current.gameMode === "sudden_death") ? "hardcode" : "normal"
-          const gameTypeKey = gameData.current.isClassic || gameData.current.isCustom ? "classic" : "default"
-          const modifiersForBest = { isHidden: !!gameData.current.isHidden, isBlank: !!gameData.current.isBlank, isReverse: !!gameData.current.isReverse }
-          const currentBest = bestScores[getScoreKey(difficultyKey as any, gameTypeKey as any, modifiersForBest)] ?? 0
 
+          gameData.current.score += scoreAdd
+
+          // --- FIX LỖI RESET/SAI KEY TẠI ĐÂY ---
+
+          // 1. Tạo Key nhất quán (Không ép kiểu sudden_death về hardcode nữa)
+          const currentDiff = gameData.current.gameMode;
+          const currentType = gameData.current.isClassic ? "classic" : "default";
+          const currentMods = {
+            isHidden: !!gameData.current.isHidden,
+            isBlank: !!gameData.current.isBlank,
+            isReverse: !!gameData.current.isReverse
+          };
+
+          // Dùng hàm getScoreKey chuẩn từ ScoreManager
+          const scoreKey = getScoreKey(currentDiff as any, currentType as any, currentMods);
+
+          // 2. Lấy currentBest chuẩn từ state (đã load khi bắt đầu game)
+          const currentBest = bestScoresRef.current[scoreKey] ?? 0;
+
+          // 3. Kiểm tra điều kiện lưu (Không lưu nếu Auto hoặc Custom)
           if (gameData.current.score > currentBest && !gameData.current.isAuto && !gameData.current.isCustom) {
-            if (!gameData.current.hasPlayedNewBest && gameData.current.gameMode !== "sudden_death") { // Don't save best score for sudden death yet or treat as hardcore
+
+            // Hiển thị thông báo New Best (Chỉ chạy 1 lần mỗi trận)
+            if (!gameData.current.hasPlayedNewBest) {
               playSound("newbest")
               setShowNewBest(true)
               gameData.current.hasPlayedNewBest = true
@@ -1435,15 +1497,8 @@ export default function App() {
               createParticles((3 * canvas.width) / 4, canvas.height / 3, "#facc15", "firework", true)
               setTimeout(() => setShowNewBest(false), 2500)
             }
-            
-            // Save best score using ScoreManager keys (migrate legacy keys separately)
-            const difficultyKeyToSave = (gameData.current.gameMode === "hardcode" || gameData.current.gameMode === "sudden_death") ? "hardcode" : "normal"
-            const gameTypeToSave = gameData.current.isClassic ? "classic" : "default"
-            const modifiersToSave = { isHidden: !!gameData.current.isHidden, isBlank: !!gameData.current.isBlank, isReverse: !!gameData.current.isReverse }
-            const scoreKey = getScoreKey(difficultyKeyToSave as any, gameTypeToSave as any, modifiersToSave)
-            setBestScores(prev => ({ ...prev, [scoreKey]: gameData.current.score }))
-            localStorage.setItem(scoreKey, String(gameData.current.score))
           }
+
           setScore(gameData.current.score)
           resetBall()
         }
@@ -1462,12 +1517,12 @@ export default function App() {
               setIsFlashRed(true)
               setTimeout(() => setIsFlashRed(false), 150)
               createParticles(b.x, isReverse ? 6 : canvas.height - 6, "#ef4444", "miss", true)
-              
+
               setGameState("over")
               stopSound("bomb_fall")
               playSound("gameover")
               fadeAudio(currentBgmRef.current, 0, 1500)
-              
+
               resetBall()
             } else {
               // Should not happen if isSuddenDeathMiss covers all non-orange, but safe fallback
@@ -1580,7 +1635,7 @@ export default function App() {
       })
 
       ctx.globalAlpha = 1
-      
+
       // --- PADDLE RENDERING WITH SKINS ---
       const currentSkin = gameData.current.skin || "default"
       let paddleColor = "#3b82f6"
@@ -1742,7 +1797,7 @@ export default function App() {
 
   const tabVariants = {
     hidden: (direction: number) => ({ opacity: 0, x: direction > 0 ? 20 : -20, scale: 0.98 }),
-    visible: { 
+    visible: {
       opacity: 1, x: 0, scale: 1,
       transition: animationLevel === 'full' ? { type: "spring", stiffness: 300, damping: 25 } : { duration: 0 }
     },
@@ -1763,7 +1818,7 @@ export default function App() {
         {isFlashRed && (
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 0.4 }} 
+            animate={{ opacity: 0.4 }}
             exit={{ opacity: 0 }}
             transition={animationLevel !== 'none' ? undefined : { duration: 0 }}
             className="fixed inset-0 z-[100] bg-red-600 pointer-events-none"
@@ -1832,11 +1887,10 @@ export default function App() {
         />
 
         {(gameState === "running" || gameState === "paused") && (
-          <div className={`absolute left-0 right-0 z-20 flex items-center justify-between px-4 py-3 backdrop-blur-sm ${
-            isReverse
-              ? "bottom-0 bg-gradient-to-t from-black/60 to-transparent"
-              : "top-0 bg-gradient-to-b from-black/60 to-transparent"
-          }`}>
+          <div className={`absolute left-0 right-0 z-20 flex items-center justify-between px-4 py-3 backdrop-blur-sm ${isReverse
+            ? "bottom-0 bg-gradient-to-t from-black/60 to-transparent"
+            : "top-0 bg-gradient-to-b from-black/60 to-transparent"
+            }`}>
             {/* Score */}
             <div className="flex flex-col">
               <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t.score}</span>
@@ -1931,7 +1985,7 @@ export default function App() {
           </motion.div>
         )}
 
-        { /* Intro Modal overlay */ }
+        { /* Intro Modal overlay */}
         {showIntro && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[100] bg-black/90 flex items-center justify-center p-8">
             <div className="max-w-md w-full text-center">
@@ -1949,16 +2003,16 @@ export default function App() {
                 <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-white">
                   <h1 className="text-5xl font-black mb-6">Catch Master</h1>
                   <button onClick={() => {
-                      playClick();
-                      setShowIntro(false);
-                      // start menu music from the beginning when leaving intro
-                      const menu = audioRefs.current?.bg_menu
-                      if (menu && !gameData.current.isMuted) {
-                        try { menu.pause(); menu.currentTime = 0 } catch (e) {}
-                        currentBgmRef.current = menu
-                        fadeAudio(menu, musicVolume, 1000)
-                      }
-                    }}
+                    playClick();
+                    setShowIntro(false);
+                    // start menu music from the beginning when leaving intro
+                    const menu = audioRefs.current?.bg_menu
+                    if (menu && !gameData.current.isMuted) {
+                      try { menu.pause(); menu.currentTime = 0 } catch (e) { }
+                      currentBgmRef.current = menu
+                      fadeAudio(menu, musicVolume, 1000)
+                    }
+                  }}
                     className="px-10 py-4 rounded-2xl font-black text-xl bg-gradient-to-r from-blue-600 to-cyan-600 shadow-lg">
                     Start
                   </button>
@@ -1977,164 +2031,142 @@ export default function App() {
             className="absolute inset-0 z-30 bg-slate-950/95 backdrop-blur-2xl flex flex-col overflow-hidden"
           >
             <AnimatePresence mode="wait" custom={direction}>
-            {gameState === "start" && activeTab === "home" && (
-              <HomeModal
-                key="home"
-                t={t}
-                direction={direction}
-                variants={tabVariants}
-                menuItemVariants={menuItemVariants}
-                playClick={playClick}
-                setOpenQuickPlay={setOpenQuickPlay}
-                setOpenCustom={setOpenCustom}
-              />
-            )}
-
-            {gameState === "over" && (
-              <motion.div key="over" custom={direction} variants={tabVariants} initial="hidden" animate="visible" exit="exit" className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-              <motion.div 
-                variants={menuItemVariants} 
-                initial="hidden" 
-                animate="visible" 
-                className="flex flex-col items-center" 
-                key="over"
-              >
-                <motion.div variants={menuItemVariants} animate={animationLevel !== 'none' ? { scale: [0.94, 1.08, 1] } : { scale: 1 }} transition={animationLevel !== 'none' ? { duration: 0.7, times: [0, 0.7, 1], type: "spring", stiffness: 400, damping: 12 } : { duration: 0 }}>
-                  <Trophy size={80} className="text-yellow-500 mb-6" />
-                </motion.div>
-                <motion.h2 variants={menuItemVariants} className="text-5xl font-black mb-2 text-white italic uppercase tracking-tighter">{t.gameOver}</motion.h2>
-                <motion.div variants={menuItemVariants} className="text-7xl font-black text-yellow-400 mb-12 drop-shadow-[0_0_20px_rgba(250,204,21,0.4)]">
-                  {score}
-                </motion.div>
-                <motion.div variants={menuItemVariants} className="flex gap-4 pointer-events-auto">
-                  <motion.button
-                    variants={menuItemVariants}
-                    onClick={() => {
-                      playClick()
-                      setGameState("start")
-                      setActiveTab("home")
-                      setDirection(-1)
-                    }}
-                    className="px-10 py-4 bg-slate-800 text-white font-black rounded-full flex items-center gap-3 border border-white/10 hover:bg-slate-700 transition-all"
-                  >
-                    <Home size={24} /> {t.home}
-                  </motion.button>
-                  <motion.button
-                    variants={menuItemVariants}
-                    onClick={() => {
-                      playClick()
-                      setGameState("start")
-                      setActiveTab("settings")
-                      setDirection(1)
-                    }}
-                    className="p-4 bg-slate-800 text-white rounded-full border border-white/10"
-                  >
-                    <Settings size={24} />
-                  </motion.button>
-                </motion.div>
-              </motion.div>
-              </motion.div>
-            )}
-
-            {/* --- TAB CONTENT: GUIDE --- */}
-            {gameState === "start" && activeTab === "guide" && (
-              <BallGuide key="guide" t={t} direction={direction} variants={tabVariants} />
-            )}
-
-            {/* --- TAB CONTENT: STATS --- */}
-            {gameState === "start" && activeTab === "stats" && (
-              <StatsModal
-                key="stats"
-                t={t}
-                direction={direction}
-                variants={tabVariants}
-                bestScores={bestScores}
-                setBestScores={setBestScores}
-                playClick={playClick}
-              />
-            )}
-
-            {/* --- TAB CONTENT: SKINS --- */}
-            {gameState === "start" && activeTab === "skins" && (
-              <motion.div key="skins" custom={direction} variants={tabVariants} initial="hidden" animate="visible" exit="exit" className="flex-1 overflow-y-auto custom-scrollbar p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.skins}</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-4 pb-4">
-                  {[
-                    { id: "default", name: "Default", class: "bg-blue-500" },
-                    { id: "emerald", name: "Emerald", class: "bg-emerald-500" },
-                    { id: "neon", name: "Neon", class: "bg-fuchsia-500 shadow-[0_0_15px_#d946ef]" },
-                    { id: "ice", name: "Ice", class: "bg-cyan-500 shadow-[0_0_10px_#cffafe]" },
-                    { id: "cyber", name: "Cyber", class: "bg-lime-500" },
-                    { id: "inferno", name: "Inferno", class: "bg-gradient-to-b from-orange-500 to-orange-800 shadow-[0_0_15px_#f97316]" },
-                    { id: "void", name: "Void", class: "bg-violet-900 shadow-[0_0_10px_#8b5cf6]" },
-                    { id: "galaxy", name: "Galaxy", class: "bg-gradient-to-b from-indigo-700 to-indigo-950" },
-                    { id: "diamond", name: "Diamond", class: "bg-cyan-200 shadow-[0_0_10px_#22d3ee]" },
-                    { id: "iron", name: "Iron", class: "bg-slate-400" },
-                    { id: "gold", name: "Gold", class: "bg-yellow-400 shadow-[0_0_10px_#fde047]" },
-                    { id: "copper", name: "Copper", class: "bg-orange-400" },
-                    { id: "wooden", name: "Wooden", class: "bg-amber-800" },
-                    { id: "ruby", name: "Ruby", class: "bg-red-600 shadow-[0_0_10px_#ef4444]" },
-                    { id: "sapphire", name: "Sapphire", class: "bg-blue-700 shadow-[0_0_10px_#3b82f6]" },
-                    { id: "platinum", name: "Platinum", class: "bg-slate-300 shadow-[0_0_10px_#e2e8f0]" },
-                    { id: "leaves", name: "Leaves", class: "bg-green-600" },
-                    { id: "water", name: "Water", class: "bg-sky-500 shadow-[0_0_10px_#38bdf8]" },
-                  ].map((s) => (
-                    <button
-                      key={s.id}
-                      onClick={() => changeSkin(s.id)}
-                      className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 group ${
-                        skin === s.id 
-                          ? "bg-slate-800 border-blue-500 shadow-lg shadow-blue-500/20" 
-                          : "bg-slate-900/50 border-white/5 hover:bg-slate-800 hover:border-white/10"
-                      }`}
-                    >
-                      <div className={`w-16 h-4 rounded-full ${s.class}`} />
-                      <span className={`text-xs font-black uppercase tracking-wider ${skin === s.id ? "text-white" : "text-slate-500 group-hover:text-slate-300"}`}>
-                        {s.name}
-                      </span>
-                      {skin === s.id && (
-                        <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full shadow-[0_0_8px_#3b82f6]" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {/* --- TAB CONTENT: SETTINGS --- */}
-            {gameState === "start" && activeTab === "settings" && (
-              <motion.div key="settings" custom={direction} variants={tabVariants} initial="hidden" animate="visible" exit="exit" className="flex-1 overflow-hidden">
-                <SettingsModal
+              {gameState === "start" && activeTab === "home" && (
+                <HomeModal
+                  key="home"
                   t={t}
-                  language={language}
-                  setLanguage={changeLanguage}
-                  isMuted={isMuted}
-                  toggleMute={toggleMute}
-                  particlesEnabled={particlesEnabled}
-                  toggleParticles={toggleParticles} 
-                  trailsEnabled={trailsEnabled}
-                  toggleTrails={toggleTrails}
-                  animationLevel={animationLevel}
-                  setAnimationLevel={changeAnimationLevel}
+                  direction={direction}
+                  variants={tabVariants}
+                  menuItemVariants={menuItemVariants}
                   playClick={playClick}
-                  onClose={() => {
-                    setDirection(-1)
-                    setActiveTab("home")
-                  }}
-                  bgMenuEnabled={bgMenuEnabled}
-                  toggleBgMenu={toggleBgMenu}
-                  musicVolume={musicVolume}
-                  setMusicVolume={changeMusicVolume}
-                  sfxVolume={sfxVolume}
-                  setSfxVolume={changeSfxVolume}
-                  sensitivity={sensitivity}
-                  setSensitivity={changeSensitivity}
-                  embed={true}
+                  setOpenQuickPlay={setOpenQuickPlay}
+                  setOpenCustom={setOpenCustom}
                 />
-              </motion.div>
-            )}
+              )}
+
+              {gameState === "over" && (
+                <GameOverModal
+                  t={t}
+                  score={score}
+                  direction={direction}
+                  tabVariants={tabVariants}
+                  menuItemVariants={menuItemVariants}
+                  animationLevel={animationLevel}
+                  playClick={playClick}
+                  isNewBest={isNewBestRecord}
+                  playSound={playSound}
+                  stopSound={stopSound}
+                  onHome={() => {
+                    setGameState("start")
+                    setActiveTab("home")
+                    setDirection(-1)
+                  }}
+                  onSettings={() => {
+                    setGameState("start")
+                    setActiveTab("settings")
+                    setDirection(1)
+                  }}
+                />
+              )}
+
+              {/* --- TAB CONTENT: GUIDE --- */}
+              {gameState === "start" && activeTab === "guide" && (
+                <BallGuide key="guide" t={t} direction={direction} variants={tabVariants} />
+              )}
+
+              {/* --- TAB CONTENT: STATS --- */}
+              {gameState === "start" && activeTab === "stats" && (
+                <StatsModal
+                  key="stats"
+                  t={t}
+                  direction={direction}
+                  variants={tabVariants}
+                  bestScores={bestScores}
+                  setBestScores={setBestScores}
+                  playClick={playClick}
+                />
+              )}
+
+              {/* --- TAB CONTENT: SKINS --- */}
+              {gameState === "start" && activeTab === "skins" && (
+                <motion.div key="skins" custom={direction} variants={tabVariants} initial="hidden" animate="visible" exit="exit" className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.skins}</h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 pb-4">
+                    {[
+                      { id: "default", name: "Default", class: "bg-blue-500" },
+                      { id: "emerald", name: "Emerald", class: "bg-emerald-500" },
+                      { id: "neon", name: "Neon", class: "bg-fuchsia-500 shadow-[0_0_15px_#d946ef]" },
+                      { id: "ice", name: "Ice", class: "bg-cyan-500 shadow-[0_0_10px_#cffafe]" },
+                      { id: "cyber", name: "Cyber", class: "bg-lime-500" },
+                      { id: "inferno", name: "Inferno", class: "bg-gradient-to-b from-orange-500 to-orange-800 shadow-[0_0_15px_#f97316]" },
+                      { id: "void", name: "Void", class: "bg-violet-900 shadow-[0_0_10px_#8b5cf6]" },
+                      { id: "galaxy", name: "Galaxy", class: "bg-gradient-to-b from-indigo-700 to-indigo-950" },
+                      { id: "diamond", name: "Diamond", class: "bg-cyan-200 shadow-[0_0_10px_#22d3ee]" },
+                      { id: "iron", name: "Iron", class: "bg-slate-400" },
+                      { id: "gold", name: "Gold", class: "bg-yellow-400 shadow-[0_0_10px_#fde047]" },
+                      { id: "copper", name: "Copper", class: "bg-orange-400" },
+                      { id: "wooden", name: "Wooden", class: "bg-amber-800" },
+                      { id: "ruby", name: "Ruby", class: "bg-red-600 shadow-[0_0_10px_#ef4444]" },
+                      { id: "sapphire", name: "Sapphire", class: "bg-blue-700 shadow-[0_0_10px_#3b82f6]" },
+                      { id: "platinum", name: "Platinum", class: "bg-slate-300 shadow-[0_0_10px_#e2e8f0]" },
+                      { id: "leaves", name: "Leaves", class: "bg-green-600" },
+                      { id: "water", name: "Water", class: "bg-sky-500 shadow-[0_0_10px_#38bdf8]" },
+                    ].map((s) => (
+                      <button
+                        key={s.id}
+                        onClick={() => changeSkin(s.id)}
+                        className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 group ${skin === s.id
+                          ? "bg-slate-800 border-blue-500 shadow-lg shadow-blue-500/20"
+                          : "bg-slate-900/50 border-white/5 hover:bg-slate-800 hover:border-white/10"
+                          }`}
+                      >
+                        <div className={`w-16 h-4 rounded-full ${s.class}`} />
+                        <span className={`text-xs font-black uppercase tracking-wider ${skin === s.id ? "text-white" : "text-slate-500 group-hover:text-slate-300"}`}>
+                          {s.name}
+                        </span>
+                        {skin === s.id && (
+                          <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full shadow-[0_0_8px_#3b82f6]" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* --- TAB CONTENT: SETTINGS --- */}
+              {gameState === "start" && activeTab === "settings" && (
+                <motion.div key="settings" custom={direction} variants={tabVariants} initial="hidden" animate="visible" exit="exit" className="flex-1 overflow-hidden">
+                  <SettingsModal
+                    t={t}
+                    language={language}
+                    setLanguage={changeLanguage}
+                    isMuted={isMuted}
+                    toggleMute={toggleMute}
+                    particlesEnabled={particlesEnabled}
+                    toggleParticles={toggleParticles}
+                    trailsEnabled={trailsEnabled}
+                    toggleTrails={toggleTrails}
+                    animationLevel={animationLevel}
+                    setAnimationLevel={changeAnimationLevel}
+                    playClick={playClick}
+                    onClose={() => {
+                      setDirection(-1)
+                      setActiveTab("home")
+                    }}
+                    bgMenuEnabled={bgMenuEnabled}
+                    toggleBgMenu={toggleBgMenu}
+                    musicVolume={musicVolume}
+                    setMusicVolume={changeMusicVolume}
+                    sfxVolume={sfxVolume}
+                    setSfxVolume={changeSfxVolume}
+                    sensitivity={sensitivity}
+                    setSensitivity={changeSensitivity}
+                    embed={true}
+                  />
+                </motion.div>
+              )}
             </AnimatePresence>
 
             {/* --- BOTTOM TAB BAR --- */}
@@ -2149,11 +2181,11 @@ export default function App() {
                 ].map((tab, index, arr) => (
                   <button
                     key={tab.id}
-                    onClick={() => { 
-                      playClick(); 
+                    onClick={() => {
+                      playClick();
                       const currentIndex = arr.findIndex((t) => t.id === activeTab)
                       setDirection(index > currentIndex ? 1 : -1)
-                      setActiveTab(tab.id as any) 
+                      setActiveTab(tab.id as any)
                     }}
                     className={`flex-1 py-3 flex flex-col items-center justify-center gap-1 transition-colors relative ${activeTab === tab.id ? "text-blue-400" : "text-slate-500 hover:text-slate-300"}`}
                   >
@@ -2189,7 +2221,7 @@ export default function App() {
               animate={animationLevel !== 'none' ? { scale: [1, 1.02, 1] } : { scale: 1 }}
               transition={animationLevel !== 'none' ? { duration: 3, repeat: Infinity } : { duration: 0 }}
               className="absolute inset-0"
-              style={{ 
+              style={{
                 backgroundColor: 'rgba(219, 234, 254, 0.15)',
                 boxShadow: 'inset 0 0 100px rgba(255, 255, 255, 0.15)'
               }}
