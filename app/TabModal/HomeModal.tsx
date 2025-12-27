@@ -77,7 +77,7 @@ export default function HomeModal({
         </motion.button>
 
         <motion.div variants={menuItemVariants} className="text-slate-600 text-[10px] font-bold uppercase tracking-widest opacity-40 mt-8">
-          v1.0.2
+          v1.0.3
         </motion.div>
       </motion.div>
     </motion.div>
