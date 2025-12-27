@@ -23,8 +23,8 @@ interface SettingsModalProps {
   toggleParticles: () => void
   trailsEnabled: boolean
   toggleTrails: () => void
-  animationsEnabled: boolean
-  toggleAnimations: () => void
+  animationLevel: "full" | "min" | "none"
+  setAnimationLevel: (level: "full" | "min" | "none") => void
   playClick: () => void
   onClose: () => void
   bgMenuEnabled: boolean
@@ -48,8 +48,8 @@ export default function SettingsModal({
   toggleParticles,
   trailsEnabled,
   toggleTrails,
-  animationsEnabled,
-  toggleAnimations,
+  animationLevel,
+  setAnimationLevel,
   playClick,
   onClose,
   bgMenuEnabled,
@@ -75,7 +75,7 @@ export default function SettingsModal({
           initial: { scale: 0.9, opacity: 0, y: 20 },
           animate: { scale: 1, opacity: 1, y: 0 },
           exit: { scale: 0.9, opacity: 0, y: 20 },
-          transition: { duration: animationsEnabled ? 0.2 : 0 }
+          transition: { duration: animationLevel !== 'none' ? 0.2 : 0 }
         } : {})}
         className={contentClass}
       >
@@ -205,8 +205,8 @@ export default function SettingsModal({
               >
                 <motion.div
                   layout
-                  transition={{ duration: animationsEnabled ? 0.2 : 0 }}
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!bgMenuEnabled ? "left-1" : "left-7"}`}
+                  transition={{ duration: animationLevel !== 'none' ? 0.2 : 0 }}
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!bgMenuEnabled ? "left-1" : "left-7" }`}
                 />
               </button>
             </div>
@@ -225,8 +225,8 @@ export default function SettingsModal({
               >
                 <motion.div
                   layout
-                  transition={{ duration: animationsEnabled ? 0.2 : 0 }}
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full ${isMuted ? "left-1" : "left-7"}`}
+                  transition={{ duration: animationLevel !== 'none' ? 0.2 : 0 }}
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full ${isMuted ? "left-1" : "left-7" }`}
                 />
               </button>
             </div>
@@ -252,8 +252,8 @@ export default function SettingsModal({
               >
                 <motion.div
                   layout
-                  transition={{ duration: animationsEnabled ? 0.2 : 0 }}
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!particlesEnabled ? "left-1" : "left-7"}`}
+                  transition={{ duration: animationLevel !== 'none' ? 0.2 : 0 }}
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!particlesEnabled ? "left-1" : "left-7" }`}
                 />
               </button>
             </div>
@@ -272,30 +272,32 @@ export default function SettingsModal({
               >
                 <motion.div
                   layout
-                  transition={{ duration: animationsEnabled ? 0.2 : 0 }}
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!trailsEnabled ? "left-1" : "left-7"}`}
+                  transition={{ duration: animationLevel !== 'none' ? 0.2 : 0 }}
+                  className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!trailsEnabled ? "left-1" : "left-7" }`}
                 />
               </button>
             </div>
 
             {/* Animations Toggle */}
-            <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-white/5">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${animationsEnabled ? "bg-purple-500/20 text-purple-400" : "bg-slate-700 text-slate-400"}`}>
-                  <Film size={18} />
-                </div>
-                <span className="text-sm font-bold text-slate-300 uppercase">{t.transitions}</span>
+            <div className="space-y-3">
+              <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <Film size={14} /> {t.animationLevel || "Animation Level"}
+              </h3>
+              <div className="grid grid-cols-3 gap-2">
+                {(["full", "min", "none"] as const).map((level) => (
+                  <button
+                    key={level}
+                    onClick={() => setAnimationLevel(level)}
+                    className={`py-2 rounded-xl font-bold text-sm uppercase transition-all border ${
+                      animationLevel === level
+                        ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20"
+                        : "bg-slate-800 text-slate-400 border-transparent hover:bg-slate-700"
+                    }`}
+                  >
+                    {t[`anim${level.charAt(0).toUpperCase() + level.slice(1)}`] || level}
+                  </button>
+                ))}
               </div>
-              <button
-                onClick={toggleAnimations}
-                className={`w-12 h-6 rounded-full relative transition-colors ${!animationsEnabled ? "bg-slate-600" : "bg-blue-600"}`}
-              >
-                <motion.div
-                  layout
-                  transition={{ duration: animationsEnabled ? 0.2 : 0 }}
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!animationsEnabled ? "left-1" : "left-7"}`}
-                />
-              </button>
             </div>
           </div>
         </div>
