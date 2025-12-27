@@ -11,6 +11,9 @@ import {
   Globe,
   Activity,
   Disc,
+  Bug,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react"
 
 interface SettingsModalProps {
@@ -67,6 +70,14 @@ export default function SettingsModal({
   const contentClass = embed 
     ? "w-full h-full overflow-y-auto custom-scrollbar p-1" 
     : "bg-slate-900 border border-slate-700 w-full max-w-md rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar"
+
+  const [showResetConfirm, setShowResetConfirm] = React.useState(false)
+  const [resetComplete, setResetComplete] = React.useState(false)
+
+  const handleResetData = () => {
+    localStorage.clear()
+    setResetComplete(true)
+  }
 
   return (
     <div className={wrapperClass}>
@@ -298,6 +309,82 @@ export default function SettingsModal({
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* System / Data */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+              <AlertTriangle size={14} /> {t.system || "System"}
+            </h3>
+
+            {/* Report Bug */}
+            <button
+              onClick={() => window.open("https://github.com/MeoNguOfficial/v0-game-hung-bong/issues", "_blank")}
+              className="w-full flex items-center justify-between bg-slate-800/50 p-4 rounded-2xl border border-white/5 hover:bg-slate-700 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-orange-500/20 text-orange-400">
+                  <Bug size={18} />
+                </div>
+                <span className="text-sm font-bold text-slate-300 uppercase">{t.reportBug || "Report Bug"}</span>
+              </div>
+            </button>
+
+            {/* Reset Data */}
+            <div className="bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+              {!showResetConfirm && !resetComplete && (
+                <button
+                  onClick={() => setShowResetConfirm(true)}
+                  className="w-full flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-red-500/20 text-red-400">
+                      <Trash2 size={18} />
+                    </div>
+                    <span className="text-sm font-bold text-slate-300 uppercase">{t.resetData || "Reset Data"}</span>
+                  </div>
+                </button>
+              )}
+
+              {showResetConfirm && !resetComplete && (
+                <div className="space-y-3">
+                  <p className="text-sm text-red-400 font-bold text-center">
+                    {t.resetConfirmText || "Delete all data? This cannot be undone."}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowResetConfirm(false)}
+                      className="flex-1 py-2 rounded-xl bg-slate-700 text-white font-bold text-sm hover:bg-slate-600"
+                    >
+                      {t.cancel || "Cancel"}
+                    </button>
+                    <button
+                      onClick={handleResetData}
+                      className="flex-1 py-2 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-500"
+                    >
+                      {t.confirm || "Confirm"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {resetComplete && (
+                <div className="text-center py-2">
+                  <p className="text-sm text-green-400 font-bold mb-1">
+                    {t.resetComplete || "Data cleared!"}
+                  </p>
+                  <p className="text-xs text-slate-400 mb-3">
+                    {t.restartRequired || "Please restart the game."}
+                  </p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="w-full py-2 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-500 transition-colors"
+                  >
+                    {t.restartNow || "Restart Now"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
