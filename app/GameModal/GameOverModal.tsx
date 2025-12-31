@@ -55,7 +55,7 @@ export default function GameOverModal({
       
       const controls = animate(0, score, {
         duration: score > 0 ? 1.5 : 0.5,
-        ease: "easeOut",
+        ease: "circOut",
         onUpdate: (value) => setDisplayScore(Math.floor(value)),
         onComplete: () => {
           stopSound("score_count")
