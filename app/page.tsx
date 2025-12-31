@@ -346,16 +346,32 @@ export default function App() {
         const relevantBests = Object.entries(nextBestScores)
           .filter(([k]) => {
             const s = k.replace(/^best_score_/, "")
-            const parts = s.split("_")
-            const type = parts[1]
-            return isClassic ? type === "classic" : type !== "classic"
+            let diff = ""
+            let type = ""
+            if (s.startsWith("sudden_death_")) {
+              diff = "sudden_death"
+              type = s.replace("sudden_death_", "").split("_")[0]
+            } else {
+              const parts = s.split("_")
+              diff = parts[0]
+              type = parts[1]
+            }
+            return diff === currentDiff && (isClassic ? type === "classic" : type !== "classic")
           })
           .map(([k, v]) => {
             // Parse key to get details for deduplication
             const s = k.replace(/^best_score_/, "")
-            const parts = s.split("_")
-            const difficulty = parts[0]
-            const modifierParts = parts.slice(2)
+            let difficulty = ""
+            let modifierParts: string[] = []
+            if (s.startsWith("sudden_death_")) {
+              difficulty = "sudden_death"
+              const rest = s.replace("sudden_death_", "")
+              modifierParts = rest.split("_").slice(1)
+            } else {
+              const parts = s.split("_")
+              difficulty = parts[0]
+              modifierParts = parts.slice(2)
+            }
             return {
               value: v,
               difficulty,
@@ -373,7 +389,7 @@ export default function App() {
         const updatedRecents = [newEntry, ...recentScores].slice(0, 10)
         
         const relevantRecents = updatedRecents
-          .filter(r => isClassic ? r.gameType === "classic" : r.gameType !== "classic")
+          .filter(r => r.difficulty === currentDiff && (isClassic ? r.gameType === "classic" : r.gameType !== "classic"))
           .map(r => ({
             value: r.score,
             difficulty: r.difficulty,
@@ -2216,15 +2232,17 @@ export default function App() {
                     const filtered = entries.filter(([k]) => {
                       if (!k.startsWith("best_score_")) return false
                       const s = k.replace(/^best_score_/, "")
-                      let type = "default"
-                      if (s.startsWith('sudden_death_')) {
-                         const parts = s.replace('sudden_death_', '').split('_')
-                         type = parts[0]
+                      let diff = ""
+                      let type = ""
+                      if (s.startsWith("sudden_death_")) {
+                        diff = "sudden_death"
+                        type = s.replace("sudden_death_", "").split("_")[0]
                       } else {
-                         const parts = s.split('_')
-                         if (parts.length > 1) type = parts[1]
+                        const parts = s.split("_")
+                        diff = parts[0]
+                        type = parts[1]
                       }
-                      return isClassic ? type === "classic" : type !== "classic"
+                      return diff === gameMode && (isClassic ? type === "classic" : type !== "classic")
                     })
                     
                     const top5 = filtered.sort((a, b) => b[1] - a[1]).slice(0, 5)
