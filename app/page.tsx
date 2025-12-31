@@ -220,14 +220,25 @@ export default function App() {
       }
     })
 
-    setBestScores(loaded)
-
     const savedHistory = localStorage.getItem("game_recent_history")
     if (savedHistory) {
       try {
-        setRecentScores(JSON.parse(savedHistory))
+        const parsed = JSON.parse(savedHistory)
+        setRecentScores(parsed)
+
+        // Sync Best Scores from History (Retroactive fix for missing best scores)
+        if (Array.isArray(parsed)) {
+          parsed.forEach((h: any) => {
+            const key = getScoreKey(h.difficulty, h.gameType, h.modifiers)
+            if ((loaded[key] || 0) < h.score) {
+              loaded[key] = h.score
+              localStorage.setItem(key, String(h.score))
+            }
+          })
+        }
       } catch (e) { console.error("Failed to load history", e) }
     }
+    setBestScores(loaded)
   }, [])
 
   const gameData = useRef({
