@@ -27,6 +27,40 @@ This repository stays **automatically in sync** with deployments created on **v0
 
 ---
 
+## 🛠 Changelogs and Updates
+
+### 🚀 Catch Master v1.0.4
+
+#### 🌟 Improvements
+- **Remastered Intro:** Enhanced opening sequence for a more polished experience.
+- **Score Mechanic Restructure:** Introduced a new multiplier system to reward high-risk gameplay.
+- **Data Persistence Update:** The system now tracks the **Top 20** best scores per combination instead of just a single high score.
+
+#### 📈 New Multiplier System
+Your final score is now calculated using the following formula:
+`Final Score = Base Score × Difficulty Multiplier × Modifier Multiplier × Funny Bonus`
+
+**1. Base Multipliers**
+| Category | Type | Multiplier |
+| :--- | :--- | :--- |
+| **Difficulty** | Normal | 1.0x |
+| | Hardcode | 1.5x |
+| | Sudden Death | 2.0x |
+| **Game Type** | Default / Classic | 1.0x |
+
+**2. Modifier Multipliers (Stackable)**
+Adding gameplay modifiers increases your score potential:
+* **None:** 1.0x
+* **Hidden (h):** 1.1x
+* **Blank (b):** 1.2x
+* **Reverse (r):** 1.3x
+* **Combo (h + b + r):** Up to **1.7x**
+
+**3. Funny Mode Bonus**
+* Enabling **Funny Modes** (Reverse Control, Mirror, or Invisible) now grants a **1.1x** global bonus to the final score.
+
+---
+
 ## 🕹️ How to Play
 
 - **PC:** Move the mouse
@@ -40,32 +74,52 @@ This repository stays **automatically in sync** with deployments created on **v0
 
 ---
 
-## ⚙️ Game Modes
+## 🎮 Main Gameplay
 
-### 🟢 Normal Mode
-- 5 lives
+### ⚡ Quick Play
+Chọn nhanh các chế độ chơi mặc định để bắt đầu ngay lập tức.
+
+#### 🟢 Normal Mode
+- **5 lives**
 - Beginner-friendly
 - Includes healing, shields, and slow-motion effects
 
-### 🔴 Hardcore Mode
+#### 🔴 Hardcore Mode
 - **1 life only**
 - No forgiveness
 - Bombs can cause **instant death**
 - Requires strong reflexes and prediction
 
-### 🟣 Classic Mode
+#### 🔴 Sudden Death Mode
+- **1 life only**
+- No forgiveness: Missing any ball (except bomb ball) = **Game Over**
+- Bombs can cause **instant death**
+- Requires extreme precision
+
+#### 🟣 Classic Mode
 - Reduced ball variety
 - Pure arcade experience
 - Focus on precision and combo timing
 
-### 🧪 Custom Mode
-- Fully configurable:
-  - Normal / Hardcore
-  - Auto-play on/off
-  - Enabled ball types
-- Ideal for testing or experimental gameplay
-
 ---
+
+### 🧪 Custom Play
+Chế độ tùy chỉnh hoàn toàn theo ý thích, lý tưởng để thử nghiệm hoặc tạo ra các thử thách "không tưởng".
+
+**Basic Settings:**
+- Game Rules: Normal / Hardcore
+- Auto-play: On / Off
+- Enabled ball types: (Tùy chọn danh sách bóng xuất hiện)
+
+**Modifiers:**
+- **Hidden ball:** Ball becomes hidden after spawning.
+- **Blank:** A blank space will get you stuck.
+- **Reverse gravity:** Everything falls upward.
+
+**Funny Modifiers:**
+- **Reverse control:** Left becomes right, right becomes left.
+- **Mirror:** Your position is flipped to the top.
+- **Invisible:** Your character/paddle becomes invisible.
 
 ## 🎯 Ball Types
 
@@ -151,15 +205,22 @@ Language preference is saved automatically.
 
 ## 💾 Data Persistence
 
-- Best scores tracked separately for:
-  - Normal
-  - Hardcore
-  - Classic Normal
-  - Classic Hardcore
-- Stored locally using `localStorage`
-- No account or login required
+- **Score History:** The system tracks a list of the **20 score recent** for each specific game mode combination.
+- **Tracking Categories:** Scores are categorized based on:
+  - **Difficulty:** Normal, Hardcore, or Sudden Death.
+  - **Game Type:** Default or Classic.
+  - **Modifiers:** Combinations of Hidden, Blank, and Reverse Gravity.
+- **Storage:** All data is saved locally via `localStorage`.
+- **Privacy:** No account or login required.
+- **Unique Keys:** Storage keys are dynamically generated to ensure consistent record-keeping (e.g., `best_score_hardcode_classic_h_b_r`).
 
 ---
+
+### 3. Funny Mode Bonus
+* Enabling any "Funny Mode" (Reverse Control, Mirror, or Invisible) grants an additional **1.1x** global bonus to your score.
+
+> **Formula:**
+> `Final Score` = `Base Score` × `Difficulty Multiplier` × `Modifiers Multiplier` × `Funny Bonus`
 
 ## 🧠 Tech Stack
 
@@ -169,14 +230,6 @@ Language preference is saved automatically.
 - **Lucide Icons**
 - **v0.app**
 - **Vercel**
-
----
-
-## 🛠 Update
-
-- Update release v1.0.0
-- Fixed an issue where **Game Over was triggered incorrectly when bombs fell (From beta 1.0.0)**
-- Fixed **bomb falling sound not stopping properly (From beta 1.0.0)**
 
 ---
 
