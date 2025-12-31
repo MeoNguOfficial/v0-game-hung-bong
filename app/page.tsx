@@ -6,6 +6,7 @@ import {
   Settings,
   Volume2,
   VolumeX,
+  X,
   Trophy,
   Trash2,
   Cpu,
@@ -25,23 +26,27 @@ import {
   ExternalLink,
   Palette,
   Music,
+  EyeOff,
+  Square,
+  ArrowUpCircle,
 } from "lucide-react"
 import { TRANSLATIONS } from "./translations"
 import SettingsModal from "./TabModal/SettingsModal"
 import BallGuide from "./TabModal/BallGuide"
 import StatsModal from "./TabModal/StatsModal"
 import HomeModal from "./TabModal/HomeModal"
-import CustomGameModal, { CustomConfig } from "./GameModal/CustomGameModal"
+import CustomGameModal, { CustomConfig } from "./ModeModal/CustomGameModal"
 import PauseModal from "./GameModal/PauseModal"
 import GameOverModal from "./GameModal/GameOverModal"
 import QuickPlayModal from "./ModeModal/QuickPlayModal"
+import DevModeModal from "./DevModal/DevModeModal"
 import { spawnBall } from "./MainGameLogic"
 import { isSuddenDeathMiss } from "./GameModal/SuddenDeathGameModal"
 import { getHiddenBallAlpha } from "./GameModal/HiddenBallModal"
 import { getBlankObstacleProps } from "./GameModal/BlankModal"
 import { getInitialVerticalState } from "./GameModal/ReverseGameModal"
-import { getScoreKey, initializeScores } from "./ScoreManager"
-import type { Difficulty, GameType } from "./ScoreManager"
+import { getScoreKey, initializeScores, getScoreMultiplier } from "./ScoreManager"
+import type { Difficulty, GameType, HistoryEntry } from "./ScoreManager"
 
 // --- Custom Hook: useIsMobile (Được tích hợp trực tiếp để không cần file ngoài) ---
 function useIsMobile() {
@@ -90,13 +95,15 @@ export default function App() {
   const [lives, setLives] = useState(5)
   const [bestScores, setBestScores] = useState<Record<string, number>>(initializeScores())
   const bestScoresRef = useRef<Record<string, number>>(bestScores)
+  const [recentScores, setRecentScores] = useState<HistoryEntry[]>([])
   const [isNewBestRecord, setIsNewBestRecord] = useState(false)
+  const [newBestRank, setNewBestRank] = useState<number | null>(null)
 
   useEffect(() => {
     bestScoresRef.current = bestScores
   }, [bestScores])
 
-  const [gameState, setGameState] = useState<"start" | "countdown" | "running" | "paused" | "over">("start")
+  const [gameState, setGameState] = useState<"start" | "countdown" | "running" | "paused" | "over" | "dev_paused">("start")
   const [countdown, setCountdown] = useState<number | string>(3)
   const [comboCount, setComboCount] = useState(0)
   const [showCombo, setShowCombo] = useState(false)
@@ -122,6 +129,9 @@ export default function App() {
   const [isHidden, setIsHidden] = useState(false)
   const [isBlank, setIsBlank] = useState(false)
   const [isReverse, setIsReverse] = useState(false)
+  const [isReverseControl, setIsReverseControl] = useState(false)
+  const [isMirror, setIsMirror] = useState(false)
+  const [isInvisible, setIsInvisible] = useState(false)
   const [customError, setCustomError] = useState<string | null>(null)
   const [customConfig, setCustomConfig] = useState<CustomConfig>({
     isClassic: false,
@@ -130,6 +140,9 @@ export default function App() {
     isHidden: false,
     isBlank: false,
     isReverse: false,
+    isReverseControl: false,
+    isMirror: false,
+    isInvisible: false,
     balls: {
       normal: { enabled: true, score: 0, rate: 40 },
       purple: { enabled: true, score: 50, rate: 30 },
@@ -151,12 +164,26 @@ export default function App() {
   const [bgMenuEnabled, setBgMenuEnabled] = useState(true)
   const [sensitivity, setSensitivity] = useState(0)
   const [isConfigLoaded, setIsConfigLoaded] = useState(false)
+  const [devMode, setDevMode] = useState(false)
+  const [showDevToast, setShowDevToast] = useState(false)
+  const [showDevMenu, setShowDevMenu] = useState(false)
+  const [debugUI, setDebugUI] = useState(false)
+  const [debugHitboxPlay, setDebugHitboxPlay] = useState(false)
 
   // Intro modal: show on first page load / reload until user hits Start
   const [showIntro, setShowIntro] = useState(true)
   const [introStep, setIntroStep] = useState(0)
 
   const isMobile = useIsMobile()
+
+  const [bestScoreIndex, setBestScoreIndex] = useState(0)
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setBestScoreIndex((prev) => prev + 1)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [])
 
   // Load persisted best scores and migrate old keys if present
   useEffect(() => {
@@ -194,6 +221,13 @@ export default function App() {
     })
 
     setBestScores(loaded)
+
+    const savedHistory = localStorage.getItem("game_recent_history")
+    if (savedHistory) {
+      try {
+        setRecentScores(JSON.parse(savedHistory))
+      } catch (e) { console.error("Failed to load history", e) }
+    }
   }, [])
 
   const gameData = useRef({
@@ -208,6 +242,9 @@ export default function App() {
     isHidden: false,
     isBlank: false,
     isReverse: false,
+    isReverseControl: false,
+    isMirror: false,
+    isInvisible: false,
     gameMode: "normal" as "normal" | "hardcode" | "sudden_death",
     playerX: 210,
     targetPlayerX: 210,
@@ -234,12 +271,58 @@ export default function App() {
     skin: "default",
   })
 
+  const debugFlags = useRef({ hitbox: false })
+
+  useEffect(() => {
+    debugFlags.current.hitbox = debugHitboxPlay
+  }, [debugHitboxPlay])
+
   // Save score only when Game Over
   useEffect(() => {
     if (gameState === "over") {
-      const { score, isAuto, isCustom, gameMode, isClassic, isHidden, isBlank, isReverse } = gameData.current
+      const { score, isAuto, isCustom, gameMode, isClassic, isHidden, isBlank, isReverse, isReverseControl, isMirror, isInvisible } = gameData.current
 
+      // Funny modes do not count for records
+      const isFunny = isReverseControl || isMirror || isInvisible
+
+      let newEntry: HistoryEntry | undefined
+
+      // Save History for Quick Play (Non-Auto, Non-Custom)
       if (!isAuto && !isCustom) {
+        newEntry = {
+          score: Math.floor(score),
+          timestamp: Date.now(),
+          difficulty: gameMode,
+          gameType: isClassic ? "classic" : "default",
+          modifiers: { isHidden: !!isHidden, isBlank: !!isBlank, isReverse: !!isReverse },
+          funny: { isReverseControl, isMirror, isInvisible }
+        }
+        
+        const entryToSave = newEntry
+        setRecentScores(prev => {
+          const all = [entryToSave, ...prev]
+
+          // 1. Tìm Top 5 của mỗi chế độ để bảo vệ (không bị xóa do đầy)
+          const classic = all.filter(x => x.gameType === 'classic')
+          const def = all.filter(x => x.gameType !== 'classic')
+
+          const topClassic = [...classic].sort((a, b) => b.score - a.score).slice(0, 5)
+          const topDefault = [...def].sort((a, b) => b.score - a.score).slice(0, 5)
+          const protectedSet = new Set([...topClassic, ...topDefault])
+
+          // 2. Lấy 20 trận gần nhất
+          const recent20 = all.slice(0, 20)
+
+          // 3. Gộp: Giữ lại nếu nằm trong 20 trận gần nhất HOẶC nằm trong Top 5
+          const result = all.filter(x => recent20.includes(x) || protectedSet.has(x))
+          result.sort((a, b) => b.timestamp - a.timestamp)
+
+          localStorage.setItem("game_recent_history", JSON.stringify(result))
+          return result
+        })
+      }
+
+      if (!isAuto && !isCustom && !isFunny && newEntry) {
         const currentDiff = gameMode
         const currentType = isClassic ? "classic" : "default"
         const currentMods = {
@@ -250,18 +333,83 @@ export default function App() {
 
         const scoreKey = getScoreKey(currentDiff as any, currentType as any, currentMods)
         const currentBest = bestScoresRef.current[scoreKey] ?? 0
+        const currentScore = Math.floor(score)
+        let nextBestScores = bestScoresRef.current
 
-        if (score > currentBest) {
+        if (currentScore > currentBest) {
           setIsNewBestRecord(true)
-          setBestScores((prev) => {
-            const next = { ...prev, [scoreKey]: score }
-            bestScoresRef.current = next
-            return next
-          })
-          localStorage.setItem(scoreKey, String(score))
+          nextBestScores = { ...bestScoresRef.current, [scoreKey]: currentScore }
+          setBestScores(nextBestScores)
+          bestScoresRef.current = nextBestScores
+          localStorage.setItem(scoreKey, String(currentScore))
         }
+
+        // --- Calculate Top 5 Rank ---
+        // 1. Get all Best Scores for current mode (Classic/Default)
+        const relevantBests = Object.entries(nextBestScores)
+          .filter(([k]) => {
+            const s = k.replace(/^best_score_/, "")
+            const parts = s.split("_")
+            const type = parts[1]
+            return isClassic ? type === "classic" : type !== "classic"
+          })
+          .map(([k, v]) => {
+            // Parse key to get details for deduplication
+            const s = k.replace(/^best_score_/, "")
+            const parts = s.split("_")
+            const difficulty = parts[0]
+            const modifierParts = parts.slice(2)
+            return {
+              value: v,
+              difficulty,
+              modifiers: {
+                isHidden: modifierParts.includes('h'),
+                isBlank: modifierParts.includes('b'),
+                isReverse: modifierParts.includes('r'),
+              }
+            }
+          })
+
+        // 2. Get all Recent Scores for current mode (using the updated list)
+        // We need to use the 'updated' list from the setRecentScores callback, but we can't access it here easily.
+        // However, we know we just added 'newEntry' to 'recentScores'.
+        const updatedRecents = [newEntry, ...recentScores].slice(0, 10)
+        
+        const relevantRecents = updatedRecents
+          .filter(r => isClassic ? r.gameType === "classic" : r.gameType !== "classic")
+          .map(r => ({
+            value: r.score,
+            difficulty: r.difficulty,
+            modifiers: r.modifiers,
+            // We ignore 'funny' here because we already returned early if isFunny is true
+          }))
+
+        // 3. Filter duplicates (Remove Bests that are already in Recents)
+        const uniqueBests = relevantBests.filter(b => {
+          return !relevantRecents.some(r => 
+            r.value === b.value && 
+            r.difficulty === b.difficulty &&
+            r.modifiers.isHidden === b.modifiers.isHidden &&
+            r.modifiers.isBlank === b.modifiers.isBlank &&
+            r.modifiers.isReverse === b.modifiers.isReverse
+          )
+        })
+
+        // 4. Combine and Sort
+        const allScores = [...uniqueBests.map(b => b.value), ...relevantRecents.map(r => r.value)]
+          .sort((a, b) => b - a)
+
+        // 5. Find Rank
+        const rank = allScores.indexOf(currentScore) + 1
+        if (rank > 0 && rank <= 5) {
+          setNewBestRank(rank)
+        } else {
+          setNewBestRank(null)
+        }
+
       } else {
         setIsNewBestRecord(false)
+        setNewBestRank(null)
       }
     }
   }, [gameState])
@@ -331,40 +479,6 @@ export default function App() {
     gameData.current.sensitivity = v
     localStorage.setItem("game_sensitivity", String(v))
   }
-
-  // --- Anti-Right Click (PC) ---
-  useEffect(() => {
-    let isDevMode = false
-    const keys = new Set<string>()
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      keys.add(e.code)
-      if (e.repeat) return
-
-      // Toggle DevMode if Left Control + Backquote (` or ~) are pressed
-      if (keys.has("ControlLeft") && keys.has("Backquote")) {
-        isDevMode = !isDevMode
-      }
-    }
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      keys.delete(e.code)
-    }
-
-    const handleContextMenu = (e: MouseEvent) => {
-      if (!isDevMode) e.preventDefault()
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    window.addEventListener("keyup", handleKeyUp)
-    window.addEventListener("contextmenu", handleContextMenu)
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown)
-      window.removeEventListener("keyup", handleKeyUp)
-      window.removeEventListener("contextmenu", handleContextMenu)
-    }
-  }, [])
 
   // --- Keyboard Shortcuts (PC) ---
   useEffect(() => {
@@ -566,6 +680,17 @@ export default function App() {
       audioRefs.current.bomb_fall.currentTime = 0
     }
 
+    // Reset Snow Effect
+    if (snowIntervalRef.current) {
+      clearInterval(snowIntervalRef.current)
+      snowIntervalRef.current = null
+    }
+    setSnowLeft(0)
+    setSnowActive(false)
+    gameData.current.isSnowSlowed = false
+    gameData.current.timeScale = 1
+    gameData.current.targetTimeScale = 1
+
     setGameState("start")
     setConfirmExit(false)
   }
@@ -657,6 +782,7 @@ export default function App() {
     setGameMode(mode)
     setIsClassic(isClassicMode)
     setIsNewBestRecord(false)
+    setNewBestRank(null)
     setIsAuto(isAutoMode)
     // These are now part of the quick play modal, so we use their state directly
     // setIsReverse(isReverse)
@@ -677,6 +803,9 @@ export default function App() {
         isHidden: isHidden,
         isBlank: isBlank,
         isReverse: isReverse,
+        isReverseControl: isReverseControl,
+        isMirror: isMirror,
+        isInvisible: isInvisible,
         playerX: 210,
         targetPlayerX: 210,
         playerWidth: 80,
@@ -752,6 +881,7 @@ export default function App() {
     stopMenuBgm()
 
     setIsNewBestRecord(false)
+    setNewBestRank(null)
     // Đóng modal trước khi bắt đầu đếm ngược
     setOpenCustom(false)
 
@@ -770,6 +900,9 @@ export default function App() {
         customBallConfig: JSON.parse(JSON.stringify(customConfig.balls)),
         allowedBalls: allowed,
         isReverse: customConfig.isReverse,
+        isReverseControl: customConfig.isReverseControl,
+        isMirror: customConfig.isMirror,
+        isInvisible: customConfig.isInvisible,
         playerX: 210,
         isHidden: customConfig.isHidden,
         isBlank: customConfig.isBlank,
@@ -802,6 +935,9 @@ export default function App() {
       setIsHidden(customConfig.isHidden)
       setIsBlank(customConfig.isBlank)
       setIsReverse(customConfig.isReverse)
+      setIsReverseControl(customConfig.isReverseControl)
+      setIsMirror(customConfig.isMirror)
+      setIsInvisible(customConfig.isInvisible)
       setScore(0)
       setLives(lives)
       setComboCount(0)
@@ -824,6 +960,7 @@ export default function App() {
     stopMenuBgm()
 
     setIsNewBestRecord(false)
+    setNewBestRank(null)
     gameData.current = {
       ...gameData.current,
       score: 0,
@@ -837,6 +974,9 @@ export default function App() {
       isHidden: isHidden,
       isBlank: isBlank,
       isReverse: isReverse,
+      isReverseControl: isReverseControl,
+      isMirror: isMirror,
+      isInvisible: isInvisible,
       playerX: 210,
       targetPlayerX: 210,
       playerWidth: 80,
@@ -983,6 +1123,9 @@ export default function App() {
         setIsBlank(parsed.isBlank || false)
         setIsAuto(parsed.isAuto || false)
         setIsReverse(parsed.isReverse || false)
+        setIsReverseControl(parsed.isReverseControl || false)
+        setIsMirror(parsed.isMirror || false)
+        setIsInvisible(parsed.isInvisible || false)
       } catch (e) {
         console.error("Error loading quick play config", e)
       }
@@ -1044,8 +1187,8 @@ export default function App() {
       }
 
       setIntroStep(0)
-      const t1 = window.setTimeout(() => setIntroStep(1), 700)
-      const t2 = window.setTimeout(() => setIntroStep(2), 1400)
+      const t1 = window.setTimeout(() => setIntroStep(1), 1000)
+      const t2 = window.setTimeout(() => setIntroStep(2), 2000)
       return () => {
         clearTimeout(t1)
         clearTimeout(t2)
@@ -1064,6 +1207,9 @@ export default function App() {
         isHidden,
         isBlank,
         isReverse,
+        isReverseControl,
+        isMirror,
+        isInvisible,
       }))
     }
   }, [customConfig, gameMode, isClassic, isAuto, isHidden, isBlank, isReverse, isConfigLoaded])
@@ -1109,7 +1255,10 @@ export default function App() {
       const clientX = "touches" in e ? e.touches[0].clientX : e.clientX
       const rect = canvas.getBoundingClientRect()
       const scaleX = canvas.width / rect.width
-      const mouseX = (clientX - rect.left) * scaleX
+      let mouseX = (clientX - rect.left) * scaleX
+      if (gameData.current.isReverseControl) {
+        mouseX = canvas.width - mouseX
+      }
       const targetX = mouseX - gameData.current.playerWidth / 2
       gameData.current.targetPlayerX = targetX
 
@@ -1126,7 +1275,10 @@ export default function App() {
 
       const isReverse = gameData.current.isReverse
       const gravityDirection = isReverse ? -1 : 1
-      const paddleY = isReverse ? 90 : canvas.height - 90
+      const logicPaddleY = isReverse ? 90 : canvas.height - 90
+      const visualPaddleY = gameData.current.isMirror 
+        ? (isReverse ? canvas.height - 90 : 90) 
+        : logicPaddleY
 
       const ballColors: any = {
         heal: "#22c55e",
@@ -1212,7 +1364,8 @@ export default function App() {
       if (gameData.current.isAuto && canvas.getAttribute("data-state") === "running" && !gameData.current.isDying) {
         const ts = gameData.current.timeScale || 1
 
-        const timeToHit = Math.abs(paddleY - b.y) / (b.speed * ts)
+        // 1. Predict Ball Position
+        const timeToHit = Math.abs(logicPaddleY - b.y) / (b.speed * ts)
         let predictedX = b.x
 
         if (timeToHit > 0) {
@@ -1235,38 +1388,146 @@ export default function App() {
           // Yellow ball sine wave
           if (b.type === "yellow") {
             const futureSinTime = b.sinTime + 0.15 * timeToHit
-            const dynamicAmplitude = b.speed * 2
+            const dynamicAmplitude = b.speed * 3
             predictedX += Math.sin(futureSinTime) * dynamicAmplitude
           }
         }
 
-        let targetPaddleCenterX = predictedX
+        // 2. Identify Danger Zones
+        const pWidth = gameData.current.playerWidth
+        const safetyMargin = 15
+        
+        // Hard Zones: Immediate threats (cannot cross)
+        const hardZones: { min: number; max: number }[] = []
+        // Soft Zones: Future threats (can cross but don't stop)
+        const softZones: { min: number; max: number }[] = []
 
-        // 1. Avoid Main Ball if Bomb
-        if (b.type === "orange") {
-          const currentPaddleCenterX = gameData.current.playerX + gameData.current.playerWidth / 2
-          const avoidDist = gameData.current.playerWidth / 2 + b.radius + 40
-          if (currentPaddleCenterX < predictedX) {
-            targetPaddleCenterX = predictedX - avoidDist
-          } else {
-            targetPaddleCenterX = predictedX + avoidDist
-          }
+        const addZone = (zones: any[], x: number, r: number) => {
+          const safeDist = pWidth / 2 + r + safetyMargin
+          zones.push({ min: x - safeDist, max: x + safeDist })
         }
 
-        // 2. Avoid Secondary Bombs
+        // Main ball is a threat if orange
+        if (b.type === "orange") {
+          const distY = isReverse ? (b.y - logicPaddleY) : (logicPaddleY - b.y)
+          // Orange ball is always treated as Hard Zone if it's falling towards us
+          if (distY < 400 && distY > -50) addZone(hardZones, predictedX, b.radius)
+          else addZone(softZones, predictedX, b.radius)
+        }
+
+        // Falling bombs
         gameData.current.bombs.forEach(bomb => {
-          if (bomb.y > 200) {
-            const bombX = bomb.x
-            const minDist = gameData.current.playerWidth / 2 + bomb.radius + 15
-            const dist = targetPaddleCenterX - bombX
-            if (Math.abs(dist) < minDist) {
-              if (dist > 0) targetPaddleCenterX += 25
-              else targetPaddleCenterX -= 25
-            }
+          const distY = isReverse ? (bomb.y - logicPaddleY) : (logicPaddleY - bomb.y)
+          // If bomb is close (e.g. < 250px), it's a Hard Zone
+          if (distY < 250 && distY > -50) {
+            addZone(hardZones, bomb.x, bomb.radius)
+          } else {
+            addZone(softZones, bomb.x, bomb.radius)
           }
         })
 
-        const targetX = targetPaddleCenterX - gameData.current.playerWidth / 2
+        // Merge Hard Zones
+        hardZones.sort((a, b) => a.min - b.min)
+        const mergedHardZones: { min: number; max: number }[] = []
+        if (hardZones.length > 0) {
+          let current = hardZones[0]
+          for (let i = 1; i < hardZones.length; i++) {
+            const next = hardZones[i]
+            if (current.max >= next.min) {
+              current.max = Math.max(current.max, next.max)
+            } else {
+              mergedHardZones.push(current)
+              current = next
+            }
+          }
+          mergedHardZones.push(current)
+        }
+
+        // Merge Soft Zones
+        softZones.sort((a, b) => a.min - b.min)
+        const mergedSoftZones: { min: number; max: number }[] = []
+        if (softZones.length > 0) {
+          let current = softZones[0]
+          for (let i = 1; i < softZones.length; i++) {
+            const next = softZones[i]
+            if (current.max >= next.min) {
+              current.max = Math.max(current.max, next.max)
+            } else {
+              mergedSoftZones.push(current)
+              current = next
+            }
+          }
+          mergedSoftZones.push(current)
+        }
+
+        // 3. Calculate Safe Intervals (from Hard Zones)
+        const validMin = pWidth / 2
+        const validMax = canvas.width - pWidth / 2
+        const safeIntervals: { min: number; max: number }[] = []
+
+        let cursor = validMin
+        mergedHardZones.forEach(z => {
+          if (z.min > cursor) {
+            safeIntervals.push({ min: cursor, max: z.min })
+          }
+          cursor = Math.max(cursor, z.max)
+        })
+        if (cursor < validMax) {
+          safeIntervals.push({ min: cursor, max: validMax })
+        }
+
+        // 4. Determine Target
+        const currentCenter = gameData.current.playerX + pWidth / 2
+        let targetCenter = currentCenter
+
+        // Find best interval (closest to current position to ensure reachability)
+        let bestInterval = null
+        let minDistToInterval = Infinity
+
+        if (safeIntervals.length > 0) {
+          for (const interval of safeIntervals) {
+            if (currentCenter >= interval.min && currentCenter <= interval.max) {
+              bestInterval = interval
+              break
+            }
+            const dist = currentCenter < interval.min ? interval.min - currentCenter : currentCenter - interval.max
+            if (dist < minDistToInterval) {
+              minDistToInterval = dist
+              bestInterval = interval
+            }
+          }
+        }
+
+        if (bestInterval) {
+          // Initial Target: Ball or Current
+          let desiredX = (b.type !== "orange") ? predictedX : currentCenter
+          
+          // Clamp to Hard Safe Interval
+          targetCenter = Math.max(bestInterval.min, Math.min(desiredX, bestInterval.max))
+          
+          // Avoid Soft Zones (Don't stop under a high bomb)
+          for (const sz of mergedSoftZones) {
+             if (targetCenter > sz.min && targetCenter < sz.max) {
+               // We are inside a soft zone.
+               const dLeft = Math.abs(targetCenter - sz.min)
+               const dRight = Math.abs(targetCenter - sz.max)
+               
+               // If ball is safe and outside this soft zone, try to move towards it
+               let escapeX = dLeft < dRight ? sz.min : sz.max
+               if (b.type !== "orange") {
+                  if (predictedX < sz.min) escapeX = sz.min
+                  else if (predictedX > sz.max) escapeX = sz.max
+               }
+               
+               // Clamp escapeX to bestInterval
+               escapeX = Math.max(bestInterval.min, Math.min(escapeX, bestInterval.max))
+               targetCenter = escapeX
+             }
+          }
+        }
+
+        // 5. Move
+        const targetX = targetCenter - pWidth / 2
 
         gameData.current.playerX += (targetX - gameData.current.playerX) * 0.5
       }
@@ -1338,8 +1599,8 @@ export default function App() {
           // Check collision with player
           const isInsideX = bomb.x >= gameData.current.playerX && bomb.x <= gameData.current.playerX + gameData.current.playerWidth
           const isHitY = isReverse
-            ? bomb.y - bomb.radius <= paddleY + 15 && bomb.y - bomb.radius > paddleY - 15
-            : bomb.y + bomb.radius >= paddleY && bomb.y + bomb.radius < paddleY + 30
+            ? bomb.y - bomb.radius <= logicPaddleY + 15 && bomb.y - bomb.radius > logicPaddleY - 15
+            : bomb.y + bomb.radius >= logicPaddleY && bomb.y + bomb.radius < logicPaddleY + 30
 
           if (isInsideX && isHitY) {
             handleBombHit(bomb.x, bomb.y)
@@ -1377,8 +1638,8 @@ export default function App() {
         const isInsideX =
           b.x >= gameData.current.playerX && b.x <= gameData.current.playerX + gameData.current.playerWidth
         const isHitY = isReverse
-          ? b.y - b.radius <= paddleY + 15 && prevBallY >= paddleY
-          : b.y + b.radius >= paddleY && prevBallY <= paddleY + 15
+          ? b.y - b.radius <= logicPaddleY + 15 && prevBallY >= logicPaddleY
+          : b.y + b.radius >= logicPaddleY && prevBallY <= logicPaddleY + 15
         if (isInsideX && isHitY) {
           const isCenter =
             Math.abs(b.x - (gameData.current.playerX + gameData.current.playerWidth / 2)) <
@@ -1466,11 +1727,7 @@ export default function App() {
           if (b.type === "purple") scoreAdd += 2
           if (b.type === "yellow") scoreAdd += 9
 
-          gameData.current.score += scoreAdd
-
-          // --- FIX LỖI RESET/SAI KEY TẠI ĐÂY ---
-
-          // 1. Tạo Key nhất quán (Không ép kiểu sudden_death về hardcode nữa)
+          // Apply Multiplier
           const currentDiff = gameData.current.gameMode;
           const currentType = gameData.current.isClassic ? "classic" : "default";
           const currentMods = {
@@ -1478,28 +1735,26 @@ export default function App() {
             isBlank: !!gameData.current.isBlank,
             isReverse: !!gameData.current.isReverse
           };
+          const isFunny = gameData.current.isReverseControl || gameData.current.isMirror || gameData.current.isInvisible;
+          
+          const multiplier = getScoreMultiplier(currentDiff, currentType, currentMods, isFunny);
+          
+          gameData.current.score += scoreAdd * multiplier
 
-          // Dùng hàm getScoreKey chuẩn từ ScoreManager
+          // --- FIX LỖI RESET/SAI KEY TẠI ĐÂY ---
+
+          // 1. Tạo Key nhất quán (Không ép kiểu sudden_death về hardcode nữa)
           const scoreKey = getScoreKey(currentDiff as any, currentType as any, currentMods);
 
           // 2. Lấy currentBest chuẩn từ state (đã load khi bắt đầu game)
           const currentBest = bestScoresRef.current[scoreKey] ?? 0;
 
           // 3. Kiểm tra điều kiện lưu (Không lưu nếu Auto hoặc Custom)
-          if (gameData.current.score > currentBest && !gameData.current.isAuto && !gameData.current.isCustom) {
+          const currentScoreInt = Math.floor(gameData.current.score);
 
-            // Hiển thị thông báo New Best (Chỉ chạy 1 lần mỗi trận)
-            if (!gameData.current.hasPlayedNewBest) {
-              playSound("newbest")
-              setShowNewBest(true)
-              gameData.current.hasPlayedNewBest = true
-              createParticles(canvas.width / 4, canvas.height / 3, "#facc15", "firework", true)
-              createParticles((3 * canvas.width) / 4, canvas.height / 3, "#facc15", "firework", true)
-              setTimeout(() => setShowNewBest(false), 2500)
-            }
-          }
+          // Removed in-game "New Best" notification as requested to focus on Top 5 at Game Over
 
-          setScore(gameData.current.score)
+          setScore(currentScoreInt)
           resetBall()
         }
 
@@ -1575,7 +1830,7 @@ export default function App() {
         ctx.shadowBlur = 20
         ctx.shadowColor = "rgba(148, 163, 184, 0.8)"
         ctx.fillStyle = "rgba(148, 163, 184, 0.6)";
-        ctx.fillRect(0, isReverse ? 0 : canvas.height - 12, canvas.width, 12) // Shield at top/bottom
+        ctx.fillRect(0, isReverse ? 0 : canvas.height - 12, canvas.width, 12)
         ctx.restore()
       }
 
@@ -1589,8 +1844,8 @@ export default function App() {
         particles.current.forEach((p, i) => {
           if (p.type === "absorb") {
             const tX = gameData.current.playerX + gameData.current.playerWidth / 2
-            p.x += (tX - p.x) * 0.15;
-            p.y += (paddleY - p.y) * 0.15
+            p.x += (tX - p.x) * 0.15
+            p.y += (visualPaddleY - p.y) * 0.15
           } else {
             p.x += p.vx
             p.y += p.vy
@@ -1670,6 +1925,7 @@ export default function App() {
         }
       }
 
+      if (!gameData.current.isInvisible) {
       ctx.save()
       if (shadowBlur > 0) {
         ctx.shadowColor = shadowColor
@@ -1678,20 +1934,21 @@ export default function App() {
 
       // Gradient for specific skins
       if (currentSkin === "inferno" && !gameData.current.isBoosted) {
-        const grad = ctx.createLinearGradient(gameData.current.playerX, paddleY, gameData.current.playerX, paddleY + 15)
+        const grad = ctx.createLinearGradient(gameData.current.playerX, visualPaddleY, gameData.current.playerX, visualPaddleY + 15)
         grad.addColorStop(0, "#f97316"); grad.addColorStop(1, "#9a3412")
         paddleColor = grad as any
       } else if (currentSkin === "galaxy" && !gameData.current.isBoosted) {
-        const grad = ctx.createLinearGradient(gameData.current.playerX, paddleY, gameData.current.playerX, paddleY + 15)
+        const grad = ctx.createLinearGradient(gameData.current.playerX, visualPaddleY, gameData.current.playerX, visualPaddleY + 15)
         grad.addColorStop(0, "#4338ca"); grad.addColorStop(1, "#1e1b4b")
         paddleColor = grad as any
       }
 
       ctx.fillStyle = paddleColor
       ctx.beginPath()
-      ctx.roundRect(gameData.current.playerX, paddleY, gameData.current.playerWidth, 15, 8)
+      ctx.roundRect(gameData.current.playerX, visualPaddleY, gameData.current.playerWidth, 15, 8)
       ctx.fill()
       ctx.restore()
+      }
 
       // --- HIDDEN & BLANK LOGIC ---
       // 1. Vẽ vệt bóng và quả bóng trước
@@ -1709,7 +1966,7 @@ export default function App() {
       //   })
       // }
 
-      const ballAlpha = getHiddenBallAlpha(b.y, paddleY, canvas.height, gameData.current.isHidden, isReverse)
+      const ballAlpha = getHiddenBallAlpha(b.y, logicPaddleY, canvas.height, gameData.current.isHidden, isReverse)
       if (ballAlpha > 0) {
         ctx.save()
         ctx.globalAlpha = ballAlpha
@@ -1718,7 +1975,7 @@ export default function App() {
       }
 
       // 2. Vẽ vật cản của chế độ "Blank" đè lên trên cùng
-      const obstacleProps = getBlankObstacleProps(paddleY, canvas.width, gameData.current.isBlank, isReverse)
+      const obstacleProps = getBlankObstacleProps(logicPaddleY, canvas.width, gameData.current.isBlank, isReverse)
       if (obstacleProps) {
         ctx.globalAlpha = 1 // Ensure obstacle is fully opaque
         ctx.fillStyle = 'rgb(10, 10, 20)'
@@ -1751,8 +2008,35 @@ export default function App() {
         ctx.shadowColor = "rgba(249,115,22,0.7)"
         ctx.shadowBlur = 10
         ctx.fillStyle = "#fff7ed"
-        const warnY = gameData.current.isReverse ? canvas.height - 100 : 100
+        const warnY = gameData.current.isReverse ? canvas.height - 180 : 180
         ctx.fillText("! BOMB !", canvas.width / 2, warnY)
+        ctx.restore()
+      }
+
+      // --- DEBUG HITBOXES ---
+      if (debugFlags.current.hitbox) {
+        ctx.save()
+        ctx.lineWidth = 1
+        ctx.strokeStyle = "#ef4444" // Red
+        ctx.fillStyle = "#ef4444"
+        ctx.font = "10px monospace"
+
+        // Paddle Hitbox (Logic)
+        ctx.strokeRect(gameData.current.playerX, logicPaddleY, gameData.current.playerWidth, 15)
+        ctx.fillText(`Paddle: ${gameData.current.playerX.toFixed(0)}`, gameData.current.playerX, logicPaddleY - 5)
+
+        // Ball Hitbox
+        ctx.beginPath()
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2)
+        ctx.stroke()
+        ctx.fillText(`B: ${b.x.toFixed(0)},${b.y.toFixed(0)}`, b.x + 12, b.y)
+
+        // Bombs Hitbox
+        gameData.current.bombs.forEach((bomb) => {
+          ctx.beginPath()
+          ctx.arc(bomb.x, bomb.y, bomb.radius, 0, Math.PI * 2)
+          ctx.stroke()
+        })
         ctx.restore()
       }
 
@@ -1815,6 +2099,26 @@ export default function App() {
           }
         `}</style>
       )}
+
+      <DevModeModal
+        devMode={devMode}
+        setDevMode={setDevMode}
+        showDevToast={showDevToast}
+        setShowDevToast={setShowDevToast}
+        showDevMenu={showDevMenu}
+        setShowDevMenu={setShowDevMenu}
+        debugHitboxPlay={debugHitboxPlay}
+        setDebugHitboxPlay={setDebugHitboxPlay}
+        debugUI={debugUI}
+        setDebugUI={setDebugUI}
+        gameState={gameState}
+        setGameState={setGameState}
+        score={score}
+        setScore={setScore}
+        gameData={gameData}
+        currentBgmRef={currentBgmRef}
+      />
+
       <AnimatePresence>
         {isFlashRed && (
           <motion.div
@@ -1892,10 +2196,49 @@ export default function App() {
             ? "bottom-0 bg-gradient-to-t from-black/60 to-transparent"
             : "top-0 bg-gradient-to-b from-black/60 to-transparent"
             }`}>
-            {/* Score */}
-            <div className="flex flex-col">
-              <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t.score}</span>
-              <span className="text-xl font-black text-yellow-400 italic tabular-nums leading-none">{score}</span>
+            <div className="flex items-center gap-6">
+              {/* Score */}
+              <div className="flex flex-col">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t.score}</span>
+                <span className="text-xl font-black text-yellow-400 italic tabular-nums leading-none">{score}</span>
+              </div>
+
+              {/* Best Score */}
+              {!isAuto && !gameData.current.isCustom && !isReverseControl && !isMirror && !isInvisible && (
+                <div className="flex flex-col items-end">
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-wider">{t.best}</span>
+                  {(() => {
+                    const entries = Object.entries(bestScores)
+                    const filtered = entries.filter(([k]) => {
+                      if (!k.startsWith("best_score_")) return false
+                      const s = k.replace(/^best_score_/, "")
+                      let type = "default"
+                      if (s.startsWith('sudden_death_')) {
+                         const parts = s.replace('sudden_death_', '').split('_')
+                         type = parts[0]
+                      } else {
+                         const parts = s.split('_')
+                         if (parts.length > 1) type = parts[1]
+                      }
+                      return isClassic ? type === "classic" : type !== "classic"
+                    })
+                    
+                    const top5 = filtered.sort((a, b) => b[1] - a[1]).slice(0, 5)
+                    
+                    if (top5.length === 0) return <span className="text-xl font-black text-slate-400 italic tabular-nums leading-none">0</span>
+
+                    const current = top5[bestScoreIndex % top5.length]
+                    const [key, value] = current
+                    const rank = (bestScoreIndex % top5.length) + 1
+                    
+                    return (
+                      <div className="flex flex-col items-end">
+                        <span className="text-xl font-black text-slate-400 italic tabular-nums leading-none">#{rank}: {value}</span>
+                      </div>
+                    )
+                  })()}
+                </div>
+              )}
             </div>
 
             {/* Lives */}
@@ -1972,43 +2315,86 @@ export default function App() {
         )}
 
         { /* Intro Modal overlay */}
+        <AnimatePresence>
         {showIntro && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[100] bg-black/90 flex items-center justify-center p-8">
-            <div className="max-w-md w-full text-center">
+          <motion.div 
+            key="intro-modal"
+            initial={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            transition={{ duration: 0.8 }}
+            className="absolute inset-0 z-[100] bg-slate-950 flex items-center justify-center p-8"
+          >
+            <div className="max-w-md w-full text-center h-64 flex flex-col items-center justify-center relative">
+              <AnimatePresence mode="wait">
               {introStep === 0 && (
-                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-white">
-                  <h3 className="text-4xl font-black">MeoTN Gaming</h3>
+                <motion.div 
+                  key="step0"
+                  initial={{ opacity: 0, scale: 0.8, y: 20 }} 
+                  animate={{ opacity: 1, scale: 1, y: 0 }} 
+                  exit={{ opacity: 0, scale: 1.1, y: -20, filter: "blur(10px)" }}
+                  transition={{ duration: 0.5, ease: "backOut" }}
+                  className="absolute"
+                >
+                  <h3 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-600 tracking-tighter">
+                    MeoTN Gaming
+                  </h3>
                 </motion.div>
               )}
               {introStep === 1 && (
-                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-white">
-                  <h3 className="text-3xl font-bold">Build by V0</h3>
+                <motion.div 
+                  key="step1"
+                  initial={{ opacity: 0, scale: 0.8, y: 20 }} 
+                  animate={{ opacity: 1, scale: 1, y: 0 }} 
+                  exit={{ opacity: 0, scale: 1.1, y: -20, filter: "blur(10px)" }}
+                  transition={{ duration: 0.5, ease: "backOut" }}
+                  className="absolute"
+                >
+                  <h3 className="text-3xl font-bold text-slate-400">
+                    Build by <span className="text-white font-black">V0</span>
+                  </h3>
                 </motion.div>
               )}
               {introStep === 2 && (
-                <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-white">
-                  <h1 className="text-5xl font-black mb-6">Catch Master</h1>
-                  <button onClick={() => {
-                    playClick();
-                    setShowIntro(false);
-                    // start menu music from the beginning when leaving intro
-                    const menu = audioRefs.current?.bg_menu
-                    if (menu && !gameData.current.isMuted) {
-                      try { menu.pause(); menu.currentTime = 0 } catch (e) { }
-                      currentBgmRef.current = menu
-                      fadeAudio(menu, musicVolume, 1000)
-                    }
-                  }}
-                    className="px-10 py-4 rounded-2xl font-black text-xl bg-gradient-to-r from-blue-600 to-cyan-600 shadow-lg">
-                    Start
-                  </button>
+                <motion.div 
+                  key="step2"
+                  initial={{ opacity: 0, scale: 0.5, filter: "blur(20px)" }} 
+                  animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }} 
+                  transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                  className="flex flex-col items-center gap-8 z-10"
+                >
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-blue-500/30 blur-3xl rounded-full animate-pulse" />
+                    <h1 className="text-6xl font-black italic tracking-tighter text-white drop-shadow-2xl relative">
+                      Catch Master
+                    </h1>
+                  </div>
+                  <motion.button 
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      playClick();
+                      setShowIntro(false);
+                      const menu = audioRefs.current?.bg_menu
+                      if (menu && !gameData.current.isMuted) {
+                        try { menu.pause(); menu.currentTime = 0 } catch (e) { }
+                        currentBgmRef.current = menu
+                        fadeAudio(menu, musicVolume, 1000)
+                      }
+                    }}
+                    className="px-12 py-4 rounded-2xl font-black text-xl bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all flex items-center gap-3"
+                  >
+                    <Play size={24} fill="currentColor" />
+                    START
+                  </motion.button>
                 </motion.div>
               )}
+              </AnimatePresence>
             </div>
           </motion.div>
         )}
+        </AnimatePresence>
 
-        {gameState !== "running" && gameState !== "countdown" && gameState !== "paused" && !openCustom && (
+        {gameState !== "running" && gameState !== "countdown" && gameState !== "paused" && (
           <motion.div
             variants={menuContainerVariants}
             initial="hidden"
@@ -2040,6 +2426,7 @@ export default function App() {
                   animationLevel={animationLevel}
                   playClick={playClick}
                   isNewBest={isNewBestRecord}
+                  newBestRank={newBestRank}
                   playSound={playSound}
                   stopSound={stopSound}
                   onHome={() => {
@@ -2070,15 +2457,19 @@ export default function App() {
                   bestScores={bestScores}
                   setBestScores={setBestScores}
                   playClick={playClick}
+                  recentScores={recentScores}
+                  setRecentScores={setRecentScores}
+                  animationLevel={animationLevel}
                 />
               )}
 
               {/* --- TAB CONTENT: SKINS --- */}
               {gameState === "start" && activeTab === "skins" && (
-                <motion.div key="skins" custom={direction} variants={tabVariants} initial="hidden" animate="visible" exit="exit" className="flex-1 overflow-y-auto custom-scrollbar p-6">
-                  <div className="flex justify-between items-center mb-6">
+                <motion.div key="skins" custom={direction} variants={tabVariants} initial="hidden" animate="visible" exit="exit" className="flex-1 flex flex-col overflow-hidden">
+                  <div className="flex justify-between items-center p-6 pb-4 shrink-0 z-10 border-b border-white/5">
                     <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.skins}</h3>
                   </div>
+                  <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-2">
                   <div className="grid grid-cols-2 gap-4 pb-4">
                     {[
                       { id: "default", name: "Default", class: "bg-blue-500" },
@@ -2117,6 +2508,7 @@ export default function App() {
                         )}
                       </button>
                     ))}
+                  </div>
                   </div>
                 </motion.div>
               )}
@@ -2187,7 +2579,7 @@ export default function App() {
       </div>
 
       {isAuto && gameState === "running" && (
-        <div className={`absolute left-1/2 -translate-x-1/2 bg-green-500/20 border border-green-500/50 px-4 py-2 rounded-full flex items-center gap-2 backdrop-blur-md transition-all duration-300 ${isReverse ? "bottom-24" : "top-24"}`}>
+        <div className={`absolute left-1/2 -translate-x-1/2 bg-green-500/20 border border-green-500/50 px-4 py-2 rounded-full flex items-center gap-2 backdrop-blur-md transition-all duration-300 z-30 ${isReverse ? "bottom-36" : "top-36"}`}>
           <Cpu size={14} className="text-green-500 animate-spin" />
           <span className="text-[10px] text-green-400 font-bold uppercase tracking-widest">{t.botActive}</span>
         </div>
@@ -2226,7 +2618,7 @@ export default function App() {
               startCountdown(mode, isClassic, isAuto)
             }}
             playClick={playClick}
-            animationsEnabled={animationLevel === 'full'}
+            animationLevel={animationLevel}
             gameMode={gameMode}
             setGameMode={setGameMode}
             isClassic={isClassic}
@@ -2239,6 +2631,14 @@ export default function App() {
             setIsBlank={setIsBlank}
             isReverse={isReverse}
             setIsReverse={setIsReverse}
+            isReverseControl={isReverseControl}
+            setIsReverseControl={setIsReverseControl}
+            isMirror={isMirror}
+            setIsMirror={setIsMirror}
+            isInvisible={isInvisible}
+            setIsInvisible={setIsInvisible}
+            bestScores={bestScores}
+            recentScores={recentScores}
           />
         )}
         {openCustom && (
@@ -2282,6 +2682,7 @@ export default function App() {
             setSfxVolume={changeSfxVolume}
             sensitivity={sensitivity}
             setSensitivity={changeSensitivity}
+            hideSystem={true}
           />
         )}
       </AnimatePresence>

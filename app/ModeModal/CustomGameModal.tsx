@@ -4,7 +4,8 @@ import React from "react"
 import { motion } from "framer-motion"
 import {
   X, Shield, Heart, Zap, Skull, Bot, EyeOff, Square, ArrowUpCircle,
-  Undo2, RotateCcw, RefreshCw, AlertCircle, Play
+  Undo2, RotateCcw, RefreshCw, AlertCircle, Play,
+  ArrowRightLeft, FlipVertical, Ghost
 } from "lucide-react"
 
 export interface CustomConfig {
@@ -14,6 +15,9 @@ export interface CustomConfig {
   isHidden: boolean
   isBlank: boolean
   isReverse: boolean
+  isReverseControl: boolean
+  isMirror: boolean
+  isInvisible: boolean
   balls: Record<string, { enabled: boolean; score: number; rate: number }>
 }
 
@@ -55,6 +59,9 @@ export default function CustomGameModal({
     saveHistory()
     setCustomConfig(prev => ({
       ...prev,
+      isReverseControl: false,
+      isMirror: false,
+      isInvisible: false,
       balls: {
         normal: { enabled: !prev.isClassic, score: 0, rate: 40 },
         purple: { enabled: !prev.isClassic, score: 50, rate: 30 },
@@ -192,6 +199,16 @@ export default function CustomGameModal({
             <button onClick={() => setCustomConfig(p => ({...p, isHidden: !p.isHidden}))} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isHidden ? "bg-indigo-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><EyeOff size={16} /> {t.miscHidden}</button>
             <button onClick={() => setCustomConfig(p => ({...p, isBlank: !p.isBlank}))} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isBlank ? "bg-slate-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><Square size={16} /> {t.miscBlank}</button>
             <button onClick={() => setCustomConfig(p => ({...p, isReverse: !p.isReverse}))} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isReverse ? "bg-teal-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><ArrowUpCircle size={16} /> {t.miscReverse}</button>
+          </div>
+        </section>
+
+        {/* Funny */}
+        <section>
+          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{t.funny || "Funny"}</h4>
+          <div className="bg-white/5 p-2 rounded-2xl border border-white/5 grid grid-cols-3 gap-2">
+            <button onClick={() => setCustomConfig(p => ({...p, isReverseControl: !p.isReverseControl}))} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isReverseControl ? "bg-lime-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><ArrowRightLeft size={16} /> {t.funnyReverseControl || "Rev. Ctrl"}</button>
+            <button onClick={() => setCustomConfig(p => ({...p, isMirror: !p.isMirror}))} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isMirror ? "bg-fuchsia-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><FlipVertical size={16} /> {t.funnyMirror || "Mirror"}</button>
+            <button onClick={() => setCustomConfig(p => ({...p, isInvisible: !p.isInvisible}))} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isInvisible ? "bg-stone-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><Ghost size={16} /> {t.funnyInvisible || "Invisible"}</button>
           </div>
         </section>
 

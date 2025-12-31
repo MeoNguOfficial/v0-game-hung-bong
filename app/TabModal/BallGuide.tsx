@@ -16,14 +16,15 @@ export default function BallGuide({ t, direction, variants }: BallGuideProps) {
       initial="hidden"
       animate="visible"
       exit="exit"
-      className="flex-1 overflow-y-auto custom-scrollbar p-6"
+      className="flex-1 flex flex-col overflow-hidden"
     >
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center p-6 pb-4 shrink-0 z-10 border-b border-white/5">
         <div>
           <h3 className="text-3xl font-black text-white italic tracking-tighter leading-none">{t.ballGuide}</h3>
           <p className="text-purple-500 text-[10px] font-bold tracking-[0.2em] uppercase mt-1">{t.manualDatabase}</p>
         </div>
       </div>
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-2">
       <div className="space-y-4 pb-4">
         {/* NORMAL BALL */}
         <div className="bg-slate-900/60 border border-slate-800 rounded-[2rem] p-5 flex gap-5 items-center group">
@@ -188,6 +189,7 @@ export default function BallGuide({ t, direction, variants }: BallGuideProps) {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </motion.div>
   )

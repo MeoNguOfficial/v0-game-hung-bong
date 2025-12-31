@@ -57,3 +57,71 @@ export const initializeScores = (): Record<string, number> => {
   });
   return scores;
 };
+
+// Explicit multiplier tables for clarity and easy adjustments
+export const GAME_TYPE_MULTIPLIER: Record<GameType, number> = {
+  default: 1.0,
+  classic: 1.0,
+};
+
+export const DIFFICULTY_MULTIPLIER: Record<Difficulty, number> = {
+  normal: 1.0,
+  hardcode: 1.5,
+  sudden_death: 2.0,
+};
+
+const MODIFIER_MULTIPLIERS: Record<string, number> = {
+  '': 1.0,
+  'h': 1.1,
+  'b': 1.2,
+  'r': 1.3,
+  'h_b': 1.4,
+  'h_r': 1.5,
+  'b_r': 1.6,
+  'h_b_r': 1.7,
+};
+
+export const getScoreMultiplier = (
+  difficulty: Difficulty,
+  gameType: GameType,
+  modifiers: Modifiers,
+  isFunny: boolean
+): number => {
+  // Score = Base * GameTypeMultiplier * DifficultyMultiplier * ModifiersMultiplier * (Funny ? 1.1 : 1)
+
+  let multiplier = 1.0;
+
+  // Game Type
+  multiplier *= GAME_TYPE_MULTIPLIER[gameType] ?? 1.0;
+
+  // Difficulty
+  multiplier *= DIFFICULTY_MULTIPLIER[difficulty] ?? 1.0;
+
+  // Modifiers (build a consistent key from h/b/r in that order)
+  const parts: string[] = [];
+  if (modifiers.isHidden) parts.push('h');
+  if (modifiers.isBlank) parts.push('b');
+  if (modifiers.isReverse) parts.push('r');
+  const modifierKey = parts.join('_');
+  multiplier *= MODIFIER_MULTIPLIERS[modifierKey] ?? 1.0;
+
+  // Funny modes increase score
+  if (isFunny) multiplier *= 1.1;
+
+  return multiplier;
+};
+
+export interface FunnyModes {
+  isReverseControl: boolean;
+  isMirror: boolean;
+  isInvisible: boolean;
+}
+
+export interface HistoryEntry {
+  score: number;
+  timestamp: number;
+  difficulty: Difficulty;
+  gameType: GameType;
+  modifiers: Modifiers;
+  funny: FunnyModes;
+}

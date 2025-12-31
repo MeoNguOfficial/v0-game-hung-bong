@@ -67,17 +67,8 @@ export default function HomeModal({
           <Edit3 size={20} /> {t.custom || "Custom"}
         </motion.button>
 
-        <motion.button
-          variants={menuItemVariants}
-          disabled
-          className="w-full py-3 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg transition-all mb-6 bg-slate-800 text-slate-600 border border-white/5 cursor-not-allowed relative"
-        >
-          <Gamepad2 size={20} /> {t.moreGameModes || "More Game Modes"}
-          <span className="absolute -top-1.5 -right-1.5 text-[8px] bg-gray-500 text-white px-1.5 py-0.5 rounded-full font-black tracking-wider">SOON</span>
-        </motion.button>
-
         <motion.div variants={menuItemVariants} className="text-slate-600 text-[10px] font-bold uppercase tracking-widest opacity-40 mt-8">
-          v1.0.3 Hotfix 1
+          v1.0.4
         </motion.div>
       </motion.div>
     </motion.div>

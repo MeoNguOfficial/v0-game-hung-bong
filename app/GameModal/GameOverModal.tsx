@@ -11,6 +11,7 @@ interface GameOverModalProps {
   animationLevel: "full" | "min" | "none"
   playClick: () => void
   isNewBest: boolean
+  newBestRank?: number | null
   playSound: (name: string) => void
   stopSound: (name: string) => void
   onHome: () => void
@@ -26,6 +27,7 @@ export default function GameOverModal({
   animationLevel,
   playClick,
   isNewBest,
+  newBestRank,
   playSound,
   stopSound,
   onHome,
@@ -35,10 +37,15 @@ export default function GameOverModal({
   const [showNewBestLabel, setShowNewBestLabel] = useState(false)
   const [showButtons, setShowButtons] = useState(false)
   const isNewBestRef = useRef(isNewBest)
+  const newBestRankRef = useRef(newBestRank)
 
   useEffect(() => {
     isNewBestRef.current = isNewBest
   }, [isNewBest])
+
+  useEffect(() => {
+    newBestRankRef.current = newBestRank
+  }, [newBestRank])
 
   useEffect(() => {
     // 1. Wait for "Game Over" text to appear
@@ -54,7 +61,7 @@ export default function GameOverModal({
           stopSound("score_count")
           setDisplayScore(score)
           
-          if (isNewBestRef.current) {
+          if (isNewBestRef.current || (newBestRankRef.current && newBestRankRef.current <= 5)) {
             playSound("game_over_new_best")
             setShowNewBestLabel(true)
           }
@@ -120,7 +127,9 @@ export default function GameOverModal({
             className="flex items-center gap-2 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-900 px-6 py-2 rounded-xl shadow-lg z-10 mb-8"
           >
             <Star size={20} className="fill-slate-900 animate-spin-slow" />
-            <span className="font-black italic text-xl uppercase tracking-tighter">New Best!</span>
+            <span className="font-black italic text-xl uppercase tracking-tighter">
+              {newBestRank ? `New Top #${newBestRank}` : (t.newBest || "New Best!")}
+            </span>
             <Star size={20} className="fill-slate-900 animate-spin-slow" />
           </motion.div>
         )}

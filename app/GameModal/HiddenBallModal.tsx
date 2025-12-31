@@ -8,7 +8,7 @@ export const getHiddenBallAlpha = (ballY: number, paddleY: number, canvasHeight:
   const progress = totalPath > 0 ? pathTraveled / totalPath : 0
 
   const startFadeProgress = 0.2
-  const endFadeProgress = 0.4
+  const endFadeProgress = 0.5
 
   if (progress <= startFadeProgress) return 1.0
   if (progress >= endFadeProgress) return 0.0

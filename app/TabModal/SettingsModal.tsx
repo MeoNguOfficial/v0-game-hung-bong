@@ -1,5 +1,5 @@
 import React from "react"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import {
   X,
   Volume2,
@@ -39,6 +39,7 @@ interface SettingsModalProps {
   sensitivity: number
   setSensitivity: (e: React.ChangeEvent<HTMLInputElement>) => void
   embed?: boolean
+  hideSystem?: boolean
 }
 
 export default function SettingsModal({
@@ -64,12 +65,13 @@ export default function SettingsModal({
   sensitivity,
   setSensitivity,
   embed = false,
+  hideSystem = false,
 }: SettingsModalProps) {
   const Container = embed ? "div" : motion.div
   const wrapperClass = embed ? "w-full h-full" : "fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
   const contentClass = embed 
-    ? "w-full h-full overflow-y-auto custom-scrollbar p-1" 
-    : "bg-slate-900 border border-slate-700 w-full max-w-md rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar"
+    ? "w-full h-full flex flex-col overflow-hidden" 
+    : "bg-slate-900 border border-slate-700 w-full max-w-md rounded-[2rem] shadow-2xl max-h-[90vh] flex flex-col overflow-hidden"
 
   const [showResetConfirm, setShowResetConfirm] = React.useState(false)
   const [resetComplete, setResetComplete] = React.useState(false)
@@ -86,12 +88,14 @@ export default function SettingsModal({
           initial: { scale: 0.9, opacity: 0, y: 20 },
           animate: { scale: 1, opacity: 1, y: 0 },
           exit: { scale: 0.9, opacity: 0, y: 20 },
-          transition: { duration: animationLevel !== 'none' ? 0.2 : 0 }
+          transition: animationLevel === "full" 
+            ? { type: "spring", stiffness: 300, damping: 25 }
+            : { duration: animationLevel === "min" ? 0.2 : 0 }
         } : {})}
         className={contentClass}
       >
         {!embed && (
-          <div className="flex justify-between items-center mb-8">
+          <div className="flex justify-between items-center p-6 pb-4 shrink-0 bg-slate-900 z-10 border-b border-white/5">
             <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">{t.settings}</h2>
             <button
               onClick={() => {
@@ -105,6 +109,13 @@ export default function SettingsModal({
           </div>
         )}
 
+        {embed && !hideSystem && (
+          <div className="flex justify-between items-center mb-6 shrink-0 pt-1 px-1">
+            <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.settings}</h3>
+          </div>
+        )}
+
+        <div className={`flex-1 overflow-y-auto custom-scrollbar ${embed ? "p-1" : "p-6 pt-2"}`}>
         <div className="space-y-6">
           {/* Language */}
           <div className="space-y-3">
@@ -216,7 +227,7 @@ export default function SettingsModal({
               >
                 <motion.div
                   layout
-                  transition={{ duration: animationLevel !== 'none' ? 0.2 : 0 }}
+                  transition={animationLevel === "full" ? { type: "spring", stiffness: 500, damping: 30 } : { duration: animationLevel === "min" ? 0.2 : 0 }}
                   className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!bgMenuEnabled ? "left-1" : "left-7" }`}
                 />
               </button>
@@ -236,7 +247,7 @@ export default function SettingsModal({
               >
                 <motion.div
                   layout
-                  transition={{ duration: animationLevel !== 'none' ? 0.2 : 0 }}
+                  transition={animationLevel === "full" ? { type: "spring", stiffness: 500, damping: 30 } : { duration: animationLevel === "min" ? 0.2 : 0 }}
                   className={`absolute top-1 w-4 h-4 bg-white rounded-full ${isMuted ? "left-1" : "left-7" }`}
                 />
               </button>
@@ -263,7 +274,7 @@ export default function SettingsModal({
               >
                 <motion.div
                   layout
-                  transition={{ duration: animationLevel !== 'none' ? 0.2 : 0 }}
+                  transition={animationLevel === "full" ? { type: "spring", stiffness: 500, damping: 30 } : { duration: animationLevel === "min" ? 0.2 : 0 }}
                   className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!particlesEnabled ? "left-1" : "left-7" }`}
                 />
               </button>
@@ -283,7 +294,7 @@ export default function SettingsModal({
               >
                 <motion.div
                   layout
-                  transition={{ duration: animationLevel !== 'none' ? 0.2 : 0 }}
+                  transition={animationLevel === "full" ? { type: "spring", stiffness: 500, damping: 30 } : { duration: animationLevel === "min" ? 0.2 : 0 }}
                   className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!trailsEnabled ? "left-1" : "left-7" }`}
                 />
               </button>
@@ -313,6 +324,7 @@ export default function SettingsModal({
           </div>
 
           {/* System / Data */}
+          {!hideSystem && (
           <div className="space-y-3">
             <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
               <AlertTriangle size={14} /> {t.system || "System"}
@@ -333,8 +345,14 @@ export default function SettingsModal({
 
             {/* Reset Data */}
             <div className="bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+              <AnimatePresence mode="wait">
               {!showResetConfirm && !resetComplete && (
-                <button
+                <motion.button
+                  key="reset-btn"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={animationLevel === "none" ? { duration: 0 } : { duration: 0.2 }}
                   onClick={() => setShowResetConfirm(true)}
                   className="w-full flex items-center justify-between"
                 >
@@ -344,11 +362,18 @@ export default function SettingsModal({
                     </div>
                     <span className="text-sm font-bold text-slate-300 uppercase">{t.resetData || "Reset Data"}</span>
                   </div>
-                </button>
+                </motion.button>
               )}
 
               {showResetConfirm && !resetComplete && (
-                <div className="space-y-3">
+                <motion.div
+                  key="reset-confirm"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={animationLevel === "none" ? { duration: 0 } : { duration: 0.2 }}
+                  className="space-y-3"
+                >
                   <p className="text-sm text-red-400 font-bold text-center">
                     {t.resetConfirmText || "Delete all data? This cannot be undone."}
                   </p>
@@ -366,11 +391,17 @@ export default function SettingsModal({
                       {t.confirm || "Confirm"}
                     </button>
                   </div>
-                </div>
+                </motion.div>
               )}
 
               {resetComplete && (
-                <div className="text-center py-2">
+                <motion.div
+                  key="reset-complete"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={animationLevel === "none" ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 25 }}
+                  className="text-center py-2"
+                >
                   <p className="text-sm text-green-400 font-bold mb-1">
                     {t.resetComplete || "Data cleared!"}
                   </p>
@@ -383,10 +414,13 @@ export default function SettingsModal({
                   >
                     {t.restartNow || "Restart Now"}
                   </button>
-                </div>
+                </motion.div>
               )}
+              </AnimatePresence>
             </div>
           </div>
+          )}
+        </div>
         </div>
       </Container>
     </div>

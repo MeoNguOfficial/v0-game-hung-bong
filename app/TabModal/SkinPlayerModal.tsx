@@ -46,9 +46,9 @@ export default function SkinPlayerModal({
       animate={{ y: 0 }}
       exit={{ y: "100%" }}
       transition={animationsEnabled ? { type: "spring", damping: 25 } : { duration: 0 }}
-      className="absolute inset-0 z-[80] bg-slate-900 p-8 flex flex-col border-t-4 border-pink-500 rounded-t-[3rem]"
+      className="absolute inset-0 z-[80] bg-slate-900 flex flex-col border-t-4 border-pink-500 rounded-t-[3rem] overflow-hidden"
     >
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center p-8 pb-4 shrink-0 border-b border-white/5">
         <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.skins || "SKINS"}</h3>
         <button onClick={() => {
           playClick()
@@ -58,7 +58,7 @@ export default function SkinPlayerModal({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-4 content-start">
+      <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-4 content-start p-8 pt-4 custom-scrollbar">
         {SKINS.map((skin) => (
           <button
             key={skin.id}
