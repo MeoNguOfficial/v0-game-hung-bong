@@ -282,9 +282,6 @@ export default function App() {
     if (gameState === "over") {
       const { score, isAuto, isCustom, gameMode, isClassic, isHidden, isBlank, isReverse, isReverseControl, isMirror, isInvisible } = gameData.current
 
-      // Funny modes do not count for records
-      const isFunny = isReverseControl || isMirror || isInvisible
-
       let newEntry: HistoryEntry | undefined
 
       // Save History for Quick Play (Non-Auto, Non-Custom)
@@ -322,7 +319,7 @@ export default function App() {
         })
       }
 
-      if (!isAuto && !isCustom && !isFunny && newEntry) {
+      if (!isAuto && !isCustom && newEntry) {
         const currentDiff = gameMode
         const currentType = isClassic ? "classic" : "default"
         const currentMods = {
@@ -1222,6 +1219,18 @@ export default function App() {
 
     let boostInterval: any
 
+    const clearSnow = () => {
+      gameData.current.timeScale = 1
+      gameData.current.isSnowSlowed = false
+      gameData.current.snowTimeLeft = 0
+      if (snowIntervalRef.current) {
+        clearInterval(snowIntervalRef.current)
+        snowIntervalRef.current = null
+      }
+      setSnowActive(false)
+      setSnowLeft(0)
+    }
+
     const createParticles = (
       x: number,
       y: number,
@@ -1324,6 +1333,7 @@ export default function App() {
             setIsFlashWhite(true)
             setTimeout(() => setIsFlashWhite(false), 800)
             setGameState("over")
+            clearSnow()
             playSound("gameover")
 
             // Stop Game Music (Fade Out)
@@ -1343,6 +1353,7 @@ export default function App() {
 
           if (gameData.current.lives <= 0) {
             setGameState("over")
+            clearSnow()
             stopSound("bomb_fall")
             playSound("gameover")
 
@@ -1774,6 +1785,7 @@ export default function App() {
               createParticles(b.x, isReverse ? 6 : canvas.height - 6, "#ef4444", "miss", true)
 
               setGameState("over")
+              clearSnow()
               stopSound("bomb_fall")
               playSound("gameover")
               fadeAudio(currentBgmRef.current, 0, 1500)
@@ -1803,15 +1815,7 @@ export default function App() {
               if (gameData.current.lives <= 0) {
                 setGameState("over")
                 // Ensure snow effect cleaned up on game over
-                if (gameData.current.isSnowSlowed) {
-                  gameData.current.timeScale = 1
-                  gameData.current.isSnowSlowed = false
-                  gameData.current.snowTimeLeft = 0
-                  if (snowIntervalRef.current) {
-                    clearInterval(snowIntervalRef.current)
-                    snowIntervalRef.current = null
-                  }
-                }
+                clearSnow()
                 stopSound("bomb_fall")
                 playSound("gameover")
 
@@ -2433,11 +2437,15 @@ export default function App() {
                     setGameState("start")
                     setActiveTab("home")
                     setDirection(-1)
+                    setSnowActive(false)
+                    setSnowLeft(0)
                   }}
                   onSettings={() => {
                     setGameState("start")
                     setActiveTab("settings")
                     setDirection(1)
+                    setSnowActive(false)
+                    setSnowLeft(0)
                   }}
                 />
               )}
