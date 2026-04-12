@@ -29,35 +29,11 @@ This repository stays **automatically in sync** with deployments created on **v0
 
 ## 🛠 Changelogs and Updates
 
-### 🚀 Catch Master v1.0.4
+### 🚀 Catch Master v1.0.5
 
 #### 🌟 Improvements
-- **Remastered Intro:** Enhanced opening sequence for a more polished experience.
-- **Score Mechanic Restructure:** Introduced a new multiplier system to reward high-risk gameplay.
-- **Data Persistence Update:** The system now tracks the **Top 20** best scores per combination instead of just a single high score.
-
-#### 📈 New Multiplier System
-Your final score is now calculated using the following formula:
-`Final Score = Base Score × Difficulty Multiplier × Modifier Multiplier × Funny Bonus`
-
-**1. Base Multipliers**
-| Category | Type | Multiplier |
-| :--- | :--- | :--- |
-| **Difficulty** | Normal | 1.0x |
-| | Hardcode | 1.5x |
-| | Sudden Death | 2.0x |
-| **Game Type** | Default / Classic | 1.0x |
-
-**2. Modifier Multipliers (Stackable)**
-Adding gameplay modifiers increases your score potential:
-* **None:** 1.0x
-* **Hidden (h):** 1.1x
-* **Blank (b):** 1.2x
-* **Reverse (r):** 1.3x
-* **Combo (h + b + r):** Up to **1.7x**
-
-**3. Funny Mode Bonus**
-* Enabling **Funny Modes** (Reverse Control, Mirror, or Invisible) now grants a **1.1x** global bonus to the final score.
+- **Settings:** Enhanced audio setting.
+- **SFX for Custom Mode:** Add click SFX.
 
 ---
 
