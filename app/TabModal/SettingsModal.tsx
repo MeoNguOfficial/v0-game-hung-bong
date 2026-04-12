@@ -69,8 +69,8 @@ export default function SettingsModal({
 }: SettingsModalProps) {
   const Container = embed ? "div" : motion.div
   const wrapperClass = embed ? "w-full h-full" : "fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-  const contentClass = embed 
-    ? "w-full h-full flex flex-col overflow-hidden" 
+  const contentClass = embed
+    ? "w-full h-full flex flex-col overflow-hidden"
     : "bg-slate-900 border border-slate-700 w-full max-w-md rounded-[2rem] shadow-2xl max-h-[90vh] flex flex-col overflow-hidden"
 
   const [showResetConfirm, setShowResetConfirm] = React.useState(false)
@@ -81,6 +81,10 @@ export default function SettingsModal({
     setResetComplete(true)
   }
 
+  // Logic xác định trạng thái disable của Music và SFX
+  const isMusicDisabled = isMuted || !bgMenuEnabled
+  const isSfxDisabled = isMuted
+
   return (
     <div className={wrapperClass}>
       <Container
@@ -88,7 +92,7 @@ export default function SettingsModal({
           initial: { scale: 0.9, opacity: 0, y: 20 },
           animate: { scale: 1, opacity: 1, y: 0 },
           exit: { scale: 0.9, opacity: 0, y: 20 },
-          transition: animationLevel === "full" 
+          transition: animationLevel === "full"
             ? { type: "spring", stiffness: 300, damping: 25 }
             : { duration: animationLevel === "min" ? 0.2 : 0 }
         } : {})}
@@ -116,311 +120,307 @@ export default function SettingsModal({
         )}
 
         <div className={`flex-1 overflow-y-auto custom-scrollbar ${embed ? "p-1" : "p-6 pt-2"}`}>
-        <div className="space-y-6">
-          {/* Language */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-              <Globe size={14} /> {t.language}
-            </h3>
-            <div className="grid grid-cols-4 gap-2">
-              {(["en", "vi", "es", "ru"] as const).map((lang) => (
-                <button
-                  key={lang}
-                  onClick={() => setLanguage(lang)}
-                  className={`py-2 rounded-xl font-bold text-sm uppercase transition-all border ${
-                    language === lang
-                      ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20"
-                      : "bg-slate-800 text-slate-400 border-transparent hover:bg-slate-700"
-                  }`}
-                >
-                  {lang}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Controls */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-              <Activity size={14} /> {t.controls}
-            </h3>
-            <div className="bg-slate-800/50 p-4 rounded-2xl border border-white/5">
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-sm font-bold uppercase tracking-wide text-slate-300">{t.sensitivity}</span>
-                <span className="text-xs font-mono font-bold text-slate-400 bg-slate-900 px-2 py-1 rounded-lg">{sensitivity}</span>
-              </div>
-              <input
-                type="range"
-                min="-10"
-                max="10"
-                step="1"
-                value={sensitivity}
-                onChange={setSensitivity}
-                className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
-            </div>
-          </div>
-
-          {/* Volume Controls */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-              <Volume2 size={14} /> {t.audio}
-            </h3>
-            
-            {/* Music Volume */}
-            <div className="bg-slate-800/50 p-4 rounded-2xl border border-white/5">
-              <div className="flex justify-between items-center mb-3">
-                <div className="flex items-center gap-2 text-purple-400">
-                  <Music size={18} />
-                  <span className="text-sm font-bold uppercase tracking-wide">{t.music}</span>
-                </div>
-                <span className="text-xs font-mono font-bold text-slate-400 bg-slate-900 px-2 py-1 rounded-lg">
-                  {Math.round(musicVolume * 100)}%
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={musicVolume}
-                onChange={setMusicVolume}
-                className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
-              />
-            </div>
-
-            {/* SFX Volume */}
-            <div className="bg-slate-800/50 p-4 rounded-2xl border border-white/5">
-              <div className="flex justify-between items-center mb-3">
-                <div className="flex items-center gap-2 text-green-400">
-                  <Volume2 size={18} />
-                  <span className="text-sm font-bold uppercase tracking-wide">{t.sfx}</span>
-                </div>
-                <span className="text-xs font-mono font-bold text-slate-400 bg-slate-900 px-2 py-1 rounded-lg">
-                  {Math.round(sfxVolume * 100)}%
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={sfxVolume}
-                onChange={setSfxVolume}
-                className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-green-500"
-              />
-            </div>
-
-            {/* Menu Music Toggle */}
-            <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-white/5">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${bgMenuEnabled ? "bg-pink-500/20 text-pink-400" : "bg-slate-700 text-slate-400"}`}>
-                  <Disc size={18} className={bgMenuEnabled ? "animate-spin" : ""} style={{ animationDuration: "3s" }} />
-                </div>
-                <span className="text-sm font-bold text-slate-300 uppercase">
-                  {t.menuMusic}
-                </span>
-              </div>
-              <button
-                onClick={toggleBgMenu}
-                className={`w-12 h-6 rounded-full relative transition-colors ${!bgMenuEnabled ? "bg-slate-600" : "bg-pink-600"}`}
-              >
-                <motion.div
-                  layout
-                  transition={animationLevel === "full" ? { type: "spring", stiffness: 500, damping: 30 } : { duration: animationLevel === "min" ? 0.2 : 0 }}
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!bgMenuEnabled ? "left-1" : "left-7" }`}
-                />
-              </button>
-            </div>
-
-            {/* Mute Toggle */}
-            <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-white/5">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${isMuted ? "bg-red-500/20 text-red-400" : "bg-green-500/20 text-green-400"}`}>
-                  {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                </div>
-                <span className="text-sm font-bold text-slate-300 uppercase">{t.mute}</span>
-              </div>
-              <button
-                onClick={toggleMute}
-                className={`w-12 h-6 rounded-full relative transition-colors ${isMuted ? "bg-slate-600" : "bg-green-600"}`}
-              >
-                <motion.div
-                  layout
-                  transition={animationLevel === "full" ? { type: "spring", stiffness: 500, damping: 30 } : { duration: animationLevel === "min" ? 0.2 : 0 }}
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full ${isMuted ? "left-1" : "left-7" }`}
-                />
-              </button>
-            </div>
-          </div>
-
-          {/* Toggles */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-              <Sparkles size={14} /> {t.visuals}
-            </h3>
-
-            {/* Particles Toggle */}
-            <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-white/5">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${particlesEnabled ? "bg-yellow-500/20 text-yellow-400" : "bg-slate-700 text-slate-400"}`}>
-                  <Sparkles size={18} />
-                </div>
-                <span className="text-sm font-bold text-slate-300 uppercase">{t.particles}</span>
-              </div>
-              <button
-                onClick={toggleParticles}
-                className={`w-12 h-6 rounded-full relative transition-colors ${!particlesEnabled ? "bg-slate-600" : "bg-blue-600"}`}
-              >
-                <motion.div
-                  layout
-                  transition={animationLevel === "full" ? { type: "spring", stiffness: 500, damping: 30 } : { duration: animationLevel === "min" ? 0.2 : 0 }}
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!particlesEnabled ? "left-1" : "left-7" }`}
-                />
-              </button>
-            </div>
-
-            {/* Trails Toggle */}
-            <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-white/5">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${trailsEnabled ? "bg-blue-500/20 text-blue-400" : "bg-slate-700 text-slate-400"}`}>
-                  <Wind size={18} />
-                </div>
-                <span className="text-sm font-bold text-slate-300 uppercase">{t.trails}</span>
-              </div>
-              <button
-                onClick={toggleTrails}
-                className={`w-12 h-6 rounded-full relative transition-colors ${!trailsEnabled ? "bg-slate-600" : "bg-blue-600"}`}
-              >
-                <motion.div
-                  layout
-                  transition={animationLevel === "full" ? { type: "spring", stiffness: 500, damping: 30 } : { duration: animationLevel === "min" ? 0.2 : 0 }}
-                  className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!trailsEnabled ? "left-1" : "left-7" }`}
-                />
-              </button>
-            </div>
-
-            {/* Animations Toggle */}
+          <div className="space-y-6">
+            {/* Language */}
             <div className="space-y-3">
               <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <Film size={14} /> {t.animationLevel || "Animation Level"}
+                <Globe size={14} /> {t.language}
               </h3>
-              <div className="grid grid-cols-3 gap-2">
-                {(["full", "min", "none"] as const).map((level) => (
+              <div className="grid grid-cols-4 gap-2">
+                {(["en", "vi", "es", "ru"] as const).map((lang) => (
                   <button
-                    key={level}
-                    onClick={() => setAnimationLevel(level)}
-                    className={`py-2 rounded-xl font-bold text-sm uppercase transition-all border ${
-                      animationLevel === level
-                        ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20"
-                        : "bg-slate-800 text-slate-400 border-transparent hover:bg-slate-700"
-                    }`}
+                    key={lang}
+                    onClick={() => setLanguage(lang)}
+                    className={`py-2 rounded-xl font-bold text-sm uppercase transition-all border ${language === lang
+                      ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20"
+                      : "bg-slate-800 text-slate-400 border-transparent hover:bg-slate-700"
+                      }`}
                   >
-                    {t[`anim${level.charAt(0).toUpperCase() + level.slice(1)}`] || level}
+                    {lang}
                   </button>
                 ))}
               </div>
             </div>
-          </div>
 
-          {/* System / Data */}
-          {!hideSystem && (
-          <div className="space-y-3">
-            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-              <AlertTriangle size={14} /> {t.system || "System"}
-            </h3>
-
-            {/* Report Bug */}
-            <button
-              onClick={() => window.open("https://github.com/MeoNguOfficial/v0-game-hung-bong/issues", "_blank")}
-              className="w-full flex items-center justify-between bg-slate-800/50 p-4 rounded-2xl border border-white/5 hover:bg-slate-700 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-orange-500/20 text-orange-400">
-                  <Bug size={18} />
+            {/* Controls */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <Activity size={14} /> {t.controls}
+              </h3>
+              <div className="bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-sm font-bold uppercase tracking-wide text-slate-300">{t.sensitivity}</span>
+                  <span className="text-xs font-mono font-bold text-slate-400 bg-slate-900 px-2 py-1 rounded-lg">{sensitivity}</span>
                 </div>
-                <span className="text-sm font-bold text-slate-300 uppercase">{t.reportBug || "Report Bug"}</span>
+                <input
+                  type="range"
+                  min="-10"
+                  max="10"
+                  step="1"
+                  value={sensitivity}
+                  onChange={setSensitivity}
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
               </div>
-            </button>
+            </div>
 
-            {/* Reset Data */}
-            <div className="bg-slate-800/50 p-4 rounded-2xl border border-white/5">
-              <AnimatePresence mode="wait">
-              {!showResetConfirm && !resetComplete && (
-                <motion.button
-                  key="reset-btn"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={animationLevel === "none" ? { duration: 0 } : { duration: 0.2 }}
-                  onClick={() => setShowResetConfirm(true)}
-                  className="w-full flex items-center justify-between"
+            {/* Volume Controls */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <Volume2 size={14} /> {t.audio}
+              </h3>
+
+              {/* Music Volume */}
+              <div className={`bg-slate-800/50 p-4 rounded-2xl border border-white/5 transition-opacity ${isMusicDisabled ? "opacity-40 grayscale-[0.5]" : "opacity-100"}`}>
+                <div className="flex justify-between items-center mb-3">
+                  <div className="flex items-center gap-2 text-purple-400">
+                    <Music size={18} />
+                    <span className="text-sm font-bold uppercase tracking-wide">{t.music}</span>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-slate-400 bg-slate-900 px-2 py-1 rounded-lg">
+                    {Math.round(musicVolume * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  disabled={isMusicDisabled}
+                  value={musicVolume}
+                  onChange={setMusicVolume}
+                  className={`w-full h-2 bg-slate-700 rounded-lg appearance-none accent-purple-500 ${isMusicDisabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+                />
+              </div>
+
+              {/* SFX Volume */}
+              <div className={`bg-slate-800/50 p-4 rounded-2xl border border-white/5 transition-opacity ${isSfxDisabled ? "opacity-40 grayscale-[0.5]" : "opacity-100"}`}>
+                <div className="flex justify-between items-center mb-3">
+                  <div className="flex items-center gap-2 text-green-400">
+                    <Volume2 size={18} />
+                    <span className="text-sm font-bold uppercase tracking-wide">{t.sfx}</span>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-slate-400 bg-slate-900 px-2 py-1 rounded-lg">
+                    {Math.round(sfxVolume * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  disabled={isSfxDisabled}
+                  value={sfxVolume}
+                  onChange={setSfxVolume}
+                  className={`w-full h-2 bg-slate-700 rounded-lg appearance-none accent-green-500 ${isSfxDisabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+                />
+              </div>
+
+              {/* Menu Music Toggle */}
+              <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${bgMenuEnabled ? "bg-pink-500/20 text-pink-400" : "bg-slate-700 text-slate-400"}`}>
+                    <Disc size={18} className={bgMenuEnabled ? "animate-spin" : ""} style={{ animationDuration: "3s" }} />
+                  </div>
+                  <span className="text-sm font-bold text-slate-300 uppercase">
+                    {t.menuMusic}
+                  </span>
+                </div>
+                <button
+                  onClick={toggleBgMenu}
+                  className={`w-12 h-6 rounded-full relative transition-colors ${!bgMenuEnabled ? "bg-slate-600" : "bg-pink-600"}`}
+                >
+                  <motion.div
+                    layout
+                    transition={animationLevel === "full" ? { type: "spring", stiffness: 500, damping: 30 } : { duration: animationLevel === "min" ? 0.2 : 0 }}
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!bgMenuEnabled ? "left-1" : "left-7"}`}
+                  />
+                </button>
+              </div>
+
+              {/* Mute Toggle */}
+              <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${isMuted ? "bg-red-500/20 text-red-400" : "bg-green-500/20 text-green-400"}`}>
+                    {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                  </div>
+                  <span className="text-sm font-bold text-slate-300 uppercase">{t.mute}</span>
+                </div>
+                <button
+                  onClick={toggleMute}
+                  className={`w-12 h-6 rounded-full relative transition-colors ${isMuted ? "bg-slate-600" : "bg-green-600"}`}
+                >
+                  <motion.div
+                    layout
+                    transition={animationLevel === "full" ? { type: "spring", stiffness: 500, damping: 30 } : { duration: animationLevel === "min" ? 0.2 : 0 }}
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full ${isMuted ? "left-1" : "left-7"}`}
+                  />
+                </button>
+              </div>
+            </div>
+            {/* ... Phần Visuals và System giữ nguyên ... */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <Sparkles size={14} /> {t.visuals}
+              </h3>
+
+              {/* Particles Toggle */}
+              <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${particlesEnabled ? "bg-yellow-500/20 text-yellow-400" : "bg-slate-700 text-slate-400"}`}>
+                    <Sparkles size={18} />
+                  </div>
+                  <span className="text-sm font-bold text-slate-300 uppercase">{t.particles}</span>
+                </div>
+                <button
+                  onClick={toggleParticles}
+                  className={`w-12 h-6 rounded-full relative transition-colors ${!particlesEnabled ? "bg-slate-600" : "bg-blue-600"}`}
+                >
+                  <motion.div
+                    layout
+                    transition={animationLevel === "full" ? { type: "spring", stiffness: 500, damping: 30 } : { duration: animationLevel === "min" ? 0.2 : 0 }}
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!particlesEnabled ? "left-1" : "left-7"}`}
+                  />
+                </button>
+              </div>
+
+              {/* Trails Toggle */}
+              <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${trailsEnabled ? "bg-blue-500/20 text-blue-400" : "bg-slate-700 text-slate-400"}`}>
+                    <Wind size={18} />
+                  </div>
+                  <span className="text-sm font-bold text-slate-300 uppercase">{t.trails}</span>
+                </div>
+                <button
+                  onClick={toggleTrails}
+                  className={`w-12 h-6 rounded-full relative transition-colors ${!trailsEnabled ? "bg-slate-600" : "bg-blue-600"}`}
+                >
+                  <motion.div
+                    layout
+                    transition={animationLevel === "full" ? { type: "spring", stiffness: 500, damping: 30 } : { duration: animationLevel === "min" ? 0.2 : 0 }}
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!trailsEnabled ? "left-1" : "left-7"}`}
+                  />
+                </button>
+              </div>
+
+              {/* Animations Toggle */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                  <Film size={14} /> {t.animationLevel || "Animation Level"}
+                </h3>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["full", "min", "none"] as const).map((level) => (
+                    <button
+                      key={level}
+                      onClick={() => setAnimationLevel(level)}
+                      className={`py-2 rounded-xl font-bold text-sm uppercase transition-all border ${animationLevel === level
+                        ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20"
+                        : "bg-slate-800 text-slate-400 border-transparent hover:bg-slate-700"
+                        }`}
+                    >
+                      {t[`anim${level.charAt(0).toUpperCase() + level.slice(1)}`] || level}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {!hideSystem && (
+              <div className="space-y-3">
+                <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                  <AlertTriangle size={14} /> {t.system || "System"}
+                </h3>
+
+                <button
+                  onClick={() => window.open("https://github.com/MeoNguOfficial/v0-game-hung-bong/issues", "_blank")}
+                  className="w-full flex items-center justify-between bg-slate-800/50 p-4 rounded-2xl border border-white/5 hover:bg-slate-700 transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-red-500/20 text-red-400">
-                      <Trash2 size={18} />
+                    <div className="p-2 rounded-lg bg-orange-500/20 text-orange-400">
+                      <Bug size={18} />
                     </div>
-                    <span className="text-sm font-bold text-slate-300 uppercase">{t.resetData || "Reset Data"}</span>
+                    <span className="text-sm font-bold text-slate-300 uppercase">{t.reportBug || "Report Bug"}</span>
                   </div>
-                </motion.button>
-              )}
+                </button>
 
-              {showResetConfirm && !resetComplete && (
-                <motion.div
-                  key="reset-confirm"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={animationLevel === "none" ? { duration: 0 } : { duration: 0.2 }}
-                  className="space-y-3"
-                >
-                  <p className="text-sm text-red-400 font-bold text-center">
-                    {t.resetConfirmText || "Delete all data? This cannot be undone."}
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setShowResetConfirm(false)}
-                      className="flex-1 py-2 rounded-xl bg-slate-700 text-white font-bold text-sm hover:bg-slate-600"
-                    >
-                      {t.cancel || "Cancel"}
-                    </button>
-                    <button
-                      onClick={handleResetData}
-                      className="flex-1 py-2 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-500"
-                    >
-                      {t.confirm || "Confirm"}
-                    </button>
-                  </div>
-                </motion.div>
-              )}
+                <div className="bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+                  <AnimatePresence mode="wait">
+                    {!showResetConfirm && !resetComplete && (
+                      <motion.button
+                        key="reset-btn"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        transition={animationLevel === "none" ? { duration: 0 } : { duration: 0.2 }}
+                        onClick={() => setShowResetConfirm(true)}
+                        className="w-full flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-red-500/20 text-red-400">
+                            <Trash2 size={18} />
+                          </div>
+                          <span className="text-sm font-bold text-slate-300 uppercase">{t.resetData || "Reset Data"}</span>
+                        </div>
+                      </motion.button>
+                    )}
 
-              {resetComplete && (
-                <motion.div
-                  key="reset-complete"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={animationLevel === "none" ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 25 }}
-                  className="text-center py-2"
-                >
-                  <p className="text-sm text-green-400 font-bold mb-1">
-                    {t.resetComplete || "Data cleared!"}
-                  </p>
-                  <p className="text-xs text-slate-400 mb-3">
-                    {t.restartRequired || "Please restart the game."}
-                  </p>
-                  <button
-                    onClick={() => window.location.reload()}
-                    className="w-full py-2 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-500 transition-colors"
-                  >
-                    {t.restartNow || "Restart Now"}
-                  </button>
-                </motion.div>
-              )}
-              </AnimatePresence>
-            </div>
+                    {showResetConfirm && !resetComplete && (
+                      <motion.div
+                        key="reset-confirm"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={animationLevel === "none" ? { duration: 0 } : { duration: 0.2 }}
+                        className="space-y-3"
+                      >
+                        <p className="text-sm text-red-400 font-bold text-center">
+                          {t.resetConfirmText || "Delete all data? This cannot be undone."}
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setShowResetConfirm(false)}
+                            className="flex-1 py-2 rounded-xl bg-slate-700 text-white font-bold text-sm hover:bg-slate-600"
+                          >
+                            {t.cancel || "Cancel"}
+                          </button>
+                          <button
+                            onClick={handleResetData}
+                            className="flex-1 py-2 rounded-xl bg-red-600 text-white font-bold text-sm hover:bg-red-500"
+                          >
+                            {t.confirm || "Confirm"}
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {resetComplete && (
+                      <motion.div
+                        key="reset-complete"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={animationLevel === "none" ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 25 }}
+                        className="text-center py-2"
+                      >
+                        <p className="text-sm text-green-400 font-bold mb-1">
+                          {t.resetComplete || "Data cleared!"}
+                        </p>
+                        <p className="text-xs text-slate-400 mb-3">
+                          {t.restartRequired || "Please restart the game."}
+                        </p>
+                        <button
+                          onClick={() => window.location.reload()}
+                          className="w-full py-2 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-500 transition-colors"
+                        >
+                          {t.restartNow || "Restart Now"}
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+            )}
           </div>
-          )}
-        </div>
         </div>
       </Container>
     </div>
