@@ -48,14 +48,14 @@ export default function CustomGameModal({
 
   const handleUndo = () => {
     if (configHistory.length === 0) return
-    playClick()
+    playClick() // Thêm SFX
     const previous = configHistory[configHistory.length - 1]
     setCustomConfig(previous)
     setConfigHistory(prev => prev.slice(0, -1))
   }
 
   const handleReset = () => {
-    playClick()
+    playClick() // Thêm SFX
     saveHistory()
     setCustomConfig(prev => ({
       ...prev,
@@ -76,6 +76,7 @@ export default function CustomGameModal({
   }
 
   const autoBalanceRates = () => {
+    playClick() // Thêm SFX
     saveHistory()
     const enabledKeys = Object.keys(customConfig.balls).filter(k => customConfig.balls[k as keyof typeof customConfig.balls].enabled)
     const count = enabledKeys.length
@@ -83,7 +84,7 @@ export default function CustomGameModal({
 
     const share = Math.floor(100 / count)
     let remainder = 100 - (share * count)
-    
+
     setCustomConfig(prev => {
       const newBalls = { ...prev.balls }
       enabledKeys.forEach(k => {
@@ -96,15 +97,15 @@ export default function CustomGameModal({
   }
 
   const toggleBall = (id: string) => {
-    playClick()
+    playClick() // SFX đã có
     saveHistory()
     setCustomConfig(prev => {
       const isEnabled = !prev.balls[id as keyof typeof prev.balls].enabled
-      const newBalls = { 
-        ...prev.balls, 
-        [id]: { ...prev.balls[id as keyof typeof prev.balls], enabled: isEnabled } 
+      const newBalls = {
+        ...prev.balls,
+        [id]: { ...prev.balls[id as keyof typeof prev.balls], enabled: isEnabled }
       }
-      
+
       const enabledKeys = Object.keys(newBalls).filter(k => newBalls[k as keyof typeof newBalls].enabled)
       const count = enabledKeys.length
       if (count > 0) {
@@ -116,14 +117,14 @@ export default function CustomGameModal({
           if (remainder > 0) remainder--
         })
       }
-      
+
       return { ...prev, balls: newBalls }
     })
     setCustomError(null)
   }
 
   const handleClassicToggle = (isClassic: boolean) => {
-    playClick()
+    playClick() // SFX đã có
     saveHistory()
     setCustomConfig(prev => {
       const newBalls = { ...prev.balls }
@@ -131,7 +132,7 @@ export default function CustomGameModal({
         const isClassicBall = ['normal', 'heal', 'grey'].includes(key)
         newBalls[key as keyof typeof newBalls].enabled = isClassic ? isClassicBall : true
       })
-      
+
       const newConfig = { ...prev, isClassic, balls: newBalls }
 
       const enabledKeys = Object.keys(newBalls).filter(k => newBalls[k as keyof typeof newBalls].enabled)
@@ -147,6 +148,17 @@ export default function CustomGameModal({
       }
       return newConfig
     })
+  }
+
+  // Các hàm tiện ích để handle input thay đổi có kèm SFX
+  const handleConfigToggle = (key: keyof CustomConfig) => {
+    playClick()
+    setCustomConfig(p => ({ ...p, [key]: !p[key] }))
+  }
+
+  const handleDifficultyChange = (diff: CustomConfig["difficulty"]) => {
+    playClick()
+    setCustomConfig(p => ({ ...p, difficulty: diff }))
   }
 
   return (
@@ -178,9 +190,9 @@ export default function CustomGameModal({
         <section>
           <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{t.difficulty}</h4>
           <div className="bg-white/5 p-2 rounded-2xl border border-white/5 grid grid-cols-3 gap-2">
-            <button onClick={() => setCustomConfig(p => ({...p, difficulty: 'normal'}))} className={`py-2 rounded-xl font-bold text-sm uppercase transition-all ${customConfig.difficulty === 'normal' ? "bg-emerald-600 text-white shadow-lg" : "bg-slate-800 text-slate-400"}`}>{t.diffNormal}</button>
-            <button onClick={() => setCustomConfig(p => ({...p, difficulty: 'hardcode'}))} className={`py-2 rounded-xl font-bold text-sm uppercase transition-all ${customConfig.difficulty === 'hardcode' ? "bg-orange-600 text-white shadow-lg" : "bg-slate-800 text-slate-400"}`}>{t.diffHardcore}</button>
-            <button onClick={() => setCustomConfig(p => ({...p, difficulty: 'sudden_death'}))} className={`py-2 rounded-xl font-bold text-sm uppercase transition-all ${customConfig.difficulty === 'sudden_death' ? "bg-red-600 text-white shadow-lg" : "bg-slate-800 text-slate-400"}`}>{t.diffSuddenDeath}</button>
+            <button onClick={() => handleDifficultyChange('normal')} className={`py-2 rounded-xl font-bold text-sm uppercase transition-all ${customConfig.difficulty === 'normal' ? "bg-emerald-600 text-white shadow-lg" : "bg-slate-800 text-slate-400"}`}>{t.diffNormal}</button>
+            <button onClick={() => handleDifficultyChange('hardcode')} className={`py-2 rounded-xl font-bold text-sm uppercase transition-all ${customConfig.difficulty === 'hardcode' ? "bg-orange-600 text-white shadow-lg" : "bg-slate-800 text-slate-400"}`}>{t.diffHardcore}</button>
+            <button onClick={() => handleDifficultyChange('sudden_death')} className={`py-2 rounded-xl font-bold text-sm uppercase transition-all ${customConfig.difficulty === 'sudden_death' ? "bg-red-600 text-white shadow-lg" : "bg-slate-800 text-slate-400"}`}>{t.diffSuddenDeath}</button>
           </div>
         </section>
 
@@ -188,7 +200,7 @@ export default function CustomGameModal({
         <section>
           <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{t.assists || "Assists"}</h4>
           <div className="bg-white/5 p-2 rounded-2xl border border-white/5 grid grid-cols-1 gap-2">
-            <button onClick={() => setCustomConfig(p => ({...p, isAuto: !p.isAuto}))} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isAuto ? "bg-purple-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><Bot size={16} /> {t.miscAutoplay}</button>
+            <button onClick={() => handleConfigToggle('isAuto')} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isAuto ? "bg-purple-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><Bot size={16} /> {t.miscAutoplay}</button>
           </div>
         </section>
 
@@ -196,9 +208,9 @@ export default function CustomGameModal({
         <section>
           <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{t.modifiers || "Modifiers"}</h4>
           <div className="bg-white/5 p-2 rounded-2xl border border-white/5 grid grid-cols-2 gap-2">
-            <button onClick={() => setCustomConfig(p => ({...p, isHidden: !p.isHidden}))} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isHidden ? "bg-indigo-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><EyeOff size={16} /> {t.miscHidden}</button>
-            <button onClick={() => setCustomConfig(p => ({...p, isBlank: !p.isBlank}))} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isBlank ? "bg-slate-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><Square size={16} /> {t.miscBlank}</button>
-            <button onClick={() => setCustomConfig(p => ({...p, isReverse: !p.isReverse}))} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isReverse ? "bg-teal-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><ArrowUpCircle size={16} /> {t.miscReverse}</button>
+            <button onClick={() => handleConfigToggle('isHidden')} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isHidden ? "bg-indigo-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><EyeOff size={16} /> {t.miscHidden}</button>
+            <button onClick={() => handleConfigToggle('isBlank')} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isBlank ? "bg-slate-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><Square size={16} /> {t.miscBlank}</button>
+            <button onClick={() => handleConfigToggle('isReverse')} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isReverse ? "bg-teal-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><ArrowUpCircle size={16} /> {t.miscReverse}</button>
           </div>
         </section>
 
@@ -206,9 +218,9 @@ export default function CustomGameModal({
         <section>
           <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{t.funny || "Funny"}</h4>
           <div className="bg-white/5 p-2 rounded-2xl border border-white/5 grid grid-cols-3 gap-2">
-            <button onClick={() => setCustomConfig(p => ({...p, isReverseControl: !p.isReverseControl}))} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isReverseControl ? "bg-lime-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><ArrowRightLeft size={16} /> {t.funnyReverseControl || "Rev. Ctrl"}</button>
-            <button onClick={() => setCustomConfig(p => ({...p, isMirror: !p.isMirror}))} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isMirror ? "bg-fuchsia-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><FlipVertical size={16} /> {t.funnyMirror || "Mirror"}</button>
-            <button onClick={() => setCustomConfig(p => ({...p, isInvisible: !p.isInvisible}))} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isInvisible ? "bg-stone-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><Ghost size={16} /> {t.funnyInvisible || "Invisible"}</button>
+            <button onClick={() => handleConfigToggle('isReverseControl')} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isReverseControl ? "bg-lime-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><ArrowRightLeft size={16} /> {t.funnyReverseControl || "Rev. Ctrl"}</button>
+            <button onClick={() => handleConfigToggle('isMirror')} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isMirror ? "bg-fuchsia-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><FlipVertical size={16} /> {t.funnyMirror || "Mirror"}</button>
+            <button onClick={() => handleConfigToggle('isInvisible')} className={`py-3 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-2 transition-all ${customConfig.isInvisible ? "bg-stone-600 text-white shadow-lg" : "bg-slate-800 text-slate-500"}`}><Ghost size={16} /> {t.funnyInvisible || "Invisible"}</button>
           </div>
         </section>
 
@@ -220,7 +232,7 @@ export default function CustomGameModal({
           <div className="grid grid-cols-3 gap-2 mb-4">
             <button onClick={handleUndo} disabled={configHistory.length === 0} className={`flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${configHistory.length === 0 ? "bg-slate-800 text-slate-600 border-transparent" : "bg-slate-800 text-slate-300 border-white/10 hover:bg-slate-700"}`}><Undo2 size={14} /> {t.undo}</button>
             <button onClick={handleReset} className="flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-slate-800 text-slate-300 border border-white/10 hover:bg-slate-700 transition-all"><RotateCcw size={14} /> {t.reset}</button>
-            <button onClick={() => { playClick(); autoBalanceRates(); }} className="flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all"><RefreshCw size={14} /> {t.autoBalance}</button>
+            <button onClick={autoBalanceRates} className="flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all"><RefreshCw size={14} /> {t.autoBalance}</button>
           </div>
           <div className="space-y-2">
             {[
@@ -243,14 +255,24 @@ export default function CustomGameModal({
                     <div className="flex flex-col items-end">
                       <label className="text-[8px] text-slate-500 font-bold uppercase">{t.score}</label>
                       <input type="number" min="0" max="1000" value={customConfig.balls[ball.id as keyof typeof customConfig.balls].score}
-                        onChange={(e) => { saveHistory(); const val = Math.min(1000, Math.max(0, parseInt(e.target.value) || 0)); setCustomConfig(prev => ({ ...prev, balls: { ...prev.balls, [ball.id]: { ...prev.balls[ball.id as keyof typeof prev.balls], score: val } } })) }}
+                        onChange={(e) => {
+                          playClick(); // SFX khi thay đổi số
+                          saveHistory();
+                          const val = Math.min(1000, Math.max(0, parseInt(e.target.value) || 0));
+                          setCustomConfig(prev => ({ ...prev, balls: { ...prev.balls, [ball.id]: { ...prev.balls[ball.id as keyof typeof prev.balls], score: val } } }))
+                        }}
                         className="w-14 bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-xs font-mono text-right text-white focus:border-blue-500 outline-none"
                       />
                     </div>
                     <div className="flex flex-col items-end">
                       <label className="text-[8px] text-slate-500 font-bold uppercase">{t.rate}</label>
                       <input type="number" min="0" max="100" value={customConfig.balls[ball.id as keyof typeof customConfig.balls].rate}
-                        onChange={(e) => { saveHistory(); const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0)); setCustomConfig(prev => ({ ...prev, balls: { ...prev.balls, [ball.id]: { ...prev.balls[ball.id as keyof typeof prev.balls], rate: val } } })) }}
+                        onChange={(e) => {
+                          playClick(); // SFX khi thay đổi số
+                          saveHistory();
+                          const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                          setCustomConfig(prev => ({ ...prev, balls: { ...prev.balls, [ball.id]: { ...prev.balls[ball.id as keyof typeof prev.balls], rate: val } } }))
+                        }}
                         className="w-12 bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-xs font-mono text-right text-yellow-400 focus:border-yellow-500 outline-none"
                       />
                     </div>
