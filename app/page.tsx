@@ -2111,6 +2111,7 @@ export default function App() {
       }
       clearCountdownTimeouts()
       if (requestRef.current) cancelAnimationFrame(requestRef.current)
+      cleanupPixiJS()
     }
   }, [])
 

@@ -36,9 +36,17 @@ export async function initializePixiJS(canvasElement: HTMLCanvasElement): Promis
       app.canvas.style.left = canvasElement.style.left || "0"
       app.canvas.style.pointerEvents = "none" // Don't intercept mouse events
       app.canvas.style.zIndex = "10"
+      app.canvas.style.opacity = "1"
 
-      // Insert PixiJS canvas right after the game canvas
-      canvasElement.parentElement?.insertBefore(app.canvas, canvasElement.nextSibling)
+      // Insert PixiJS canvas as sibling in same parent
+      const parent = canvasElement.parentElement
+      if (parent) {
+        // Create a container if needed
+        if (parent.style.position === "" || parent.style.position === "static") {
+          parent.style.position = "relative"
+        }
+        parent.insertBefore(app.canvas, canvasElement.nextSibling)
+      }
     }
 
     // Store in window for global access
