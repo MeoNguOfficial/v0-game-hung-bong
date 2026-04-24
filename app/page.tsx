@@ -31,6 +31,8 @@ import {
   ArrowUpCircle,
 } from "lucide-react"
 import { TRANSLATIONS } from "./translations"
+import { PixiParticleSystem } from "../lib/pixiParticleSystem"
+import { initializePixiJS, cleanupPixiJS } from "../lib/pixiSetup"
 import SettingsModal from "./TabModal/SettingsModal"
 import BallGuide from "./TabModal/BallGuide"
 import StatsModal from "./TabModal/StatsModal"
@@ -280,6 +282,7 @@ export default function App() {
     deathX: 0,
     deathY: 0,
     skin: "default",
+    pixiParticleSystem: null as any,
   })
 
   const debugFlags = useRef({ hitbox: false })
@@ -1244,6 +1247,9 @@ export default function App() {
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
+    // Initialize PixiJS for enhanced particles
+    initializePixiJS(canvas)
+
     let boostInterval: any
 
     const clearSnow = () => {
@@ -1258,31 +1264,45 @@ export default function App() {
       setSnowLeft(0)
     }
 
+    // Initialize PixiJS particle system if not already done
+    if (!gameData.current.pixiParticleSystem && (window as any).pixiApp) {
+      gameData.current.pixiParticleSystem = new PixiParticleSystem((window as any).pixiApp)
+    }
+
     const createParticles = (
       x: number,
       y: number,
       color: string,
       type: "explode" | "absorb" | "firework" | "shard" | "miss",
       intense: boolean,
+      targetX?: number,
+      targetY?: number,
     ) => {
       if (!gameData.current.particlesEnabled) return
-      const count = intense ? 40 : 15
-      for (let i = 0; i < count; i++) {
-        const angle = Math.random() * Math.PI * 2
-        const velocity = Math.random() * 5 + 2
-        particles.current.push({
-          x,
-          y,
-          vx: ["explode", "firework", "shard", "miss"].includes(type)
-            ? Math.cos(angle) * velocity
-            : (Math.random() - 0.5) * 5,
-          vy: ["explode", "firework", "shard", "miss"].includes(type) ? Math.sin(angle) * velocity : -velocity,
-          radius: type === "shard" ? Math.random() * 5 + 1 : Math.random() * 3 + 1,
-          color,
-          alpha: 1,
-          decay: type === "firework" ? 0.01 : 0.02,
-          type,
-        })
+      
+      // Use PixiJS particle system if available, otherwise fall back to canvas
+      if (gameData.current.pixiParticleSystem) {
+        gameData.current.pixiParticleSystem.createParticles(x, y, color, type, intense, targetX, targetY)
+      } else {
+        // Fallback to original canvas-based particles
+        const count = intense ? 40 : 15
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2
+          const velocity = Math.random() * 5 + 2
+          particles.current.push({
+            x,
+            y,
+            vx: ["explode", "firework", "shard", "miss"].includes(type)
+              ? Math.cos(angle) * velocity
+              : (Math.random() - 0.5) * 5,
+            vy: ["explode", "firework", "shard", "miss"].includes(type) ? Math.sin(angle) * velocity : -velocity,
+            radius: type === "shard" ? Math.random() * 5 + 1 : Math.random() * 3 + 1,
+            color,
+            alpha: 1,
+            decay: type === "firework" ? 0.01 : 0.02,
+            type,
+          })
+        }
       }
     }
 
@@ -1872,6 +1892,12 @@ export default function App() {
       }
 
       if (gameData.current.particlesEnabled) {
+        // Update PixiJS particles if system exists
+        if (gameData.current.pixiParticleSystem) {
+          gameData.current.pixiParticleSystem.update()
+        }
+        
+        // Update canvas-based particles (fallback)
         particles.current.forEach((p, i) => {
           if (p.type === "absorb") {
             const tX = gameData.current.playerX + gameData.current.playerWidth / 2
@@ -2085,6 +2111,7 @@ export default function App() {
       }
       clearCountdownTimeouts()
       if (requestRef.current) cancelAnimationFrame(requestRef.current)
+      cleanupPixiJS()
     }
   }, [])
 
