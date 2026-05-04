@@ -178,6 +178,7 @@ export default function App() {
   // Intro modal: show on first page load / reload until user hits Start
   const [showIntro, setShowIntro] = useState(true)
   const [introStep, setIntroStep] = useState(0)
+  const [introLoadingProgress, setIntroLoadingProgress] = useState(0)
 
   const isMobile = useIsMobile()
 
@@ -1246,9 +1247,25 @@ export default function App() {
       }
 
       setIntroStep(0)
-      const t1 = window.setTimeout(() => setIntroStep(1), 1000)
+      setIntroLoadingProgress(0)
+
+      // Smooth loading bar animation
+      const startTime = Date.now()
+      const duration = 1800 // 1.8 seconds for smooth progression
+      const loadingInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime
+        const progress = Math.min((elapsed / duration) * 100, 90) // Cap at 90% until full load
+        setIntroLoadingProgress(progress)
+      }, 16) // ~60fps
+
+      const t1 = window.setTimeout(() => {
+        setIntroStep(1)
+        setIntroLoadingProgress(100) // Full progress when step changes
+      }, 1000)
       const t2 = window.setTimeout(() => setIntroStep(2), 2000)
+      
       return () => {
+        clearInterval(loadingInterval)
         clearTimeout(t1)
         clearTimeout(t2)
       }
@@ -2444,8 +2461,26 @@ export default function App() {
             transition={{ duration: 0.8 }}
             className="absolute inset-0 z-[100] bg-slate-950 flex items-center justify-center p-8"
           >
-            <div className="max-w-md w-full text-center h-64 flex flex-col items-center justify-center relative">
-              <AnimatePresence mode="wait">
+            <div className="max-w-md w-full text-center flex flex-col items-center justify-center relative">
+              {/* Loading bar */}
+              <div className="absolute top-8 left-0 right-0 px-8">
+                <div className="bg-slate-800/50 h-1 rounded-full overflow-hidden border border-slate-700/50">
+                  <motion.div
+                    initial={{ width: "0%" }}
+                    animate={{ width: `${introLoadingProgress}%` }}
+                    transition={{ duration: 0.1, ease: "easeOut" }}
+                    className="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-purple-500 shadow-lg shadow-blue-500/50"
+                  />
+                </div>
+                {introStep < 2 && (
+                  <div className="mt-3 text-xs text-slate-400 font-mono">
+                    {Math.round(introLoadingProgress)}%
+                  </div>
+                )}
+              </div>
+
+              <div className="h-80 flex flex-col items-center justify-center relative">
+                <AnimatePresence mode="wait">
               {introStep === 0 && (
                 <motion.div 
                   key="step0"
@@ -2509,6 +2544,7 @@ export default function App() {
                 </motion.div>
               )}
               </AnimatePresence>
+              </div>
             </div>
           </motion.div>
         )}
