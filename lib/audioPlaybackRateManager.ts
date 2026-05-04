@@ -1,21 +1,22 @@
 /**
  * Audio Playback Rate Manager
- * Manages music playback rate based on game speed with chipmunk effect
+ * Manages music playback rate based on game speed with chipmunk (nightcore) effect
  * 
  * Game Speed Progression:
  * - baseSpeed = 1.5 + score * 0.02
  * - gameSpeed = Math.min(baseSpeed, 80)
  * 
- * Music Playback Rate Calculation:
- * - Every 2x increase in game speed → +0.01x music speed (chipmunk effect)
+ * Music Playback Rate Calculation (Nightcore Mode):
+ * - Every 2x increase in game speed → +0.05x music speed (chipmunk effect)
+ * - Preserves pitch is disabled to create chipmunk voice effect
  * - Max game speed: 80
- * - Max music speed: ~1.27x (base 1.0x + increments)
+ * - Max music speed: ~1.35x (base 1.0x + increments)
  * 
  * Formula:
  * - gameSpeedMultiplier = (actualGameSpeed - 1.5) / 1.5  // Normalize to 0-based
  * - increments = Math.floor(gameSpeedMultiplier / 2)
- * - musicPlaybackRate = 1.0 + (increments * 0.01)
- * - musicPlaybackRate = Math.min(musicPlaybackRate, 1.27) // Cap at ~1.27x
+ * - musicPlaybackRate = 1.0 + (increments * 0.05)
+ * - musicPlaybackRate = Math.min(musicPlaybackRate, 1.35) // Cap at ~1.35x
  */
 
 export class AudioPlaybackRateManager {
@@ -23,6 +24,7 @@ export class AudioPlaybackRateManager {
   private updateInterval: NodeJS.Timeout | null = null
   private lastGameSpeed = 1.5
   private lastMusicRate = 1.0
+  private isNightcoreMode = true // Enable chipmunk effect by default
 
   constructor() {}
 
@@ -50,7 +52,7 @@ export class AudioPlaybackRateManager {
 
   /**
    * Calculate music playback rate based on game speed
-   * Every 2x game speed increase = +0.01x music rate (chipmunk effect)
+   * Every 2x game speed increase = +0.05x music rate (nightcore chipmunk effect)
    */
   private calculateMusicRate(gameSpeed: number): number {
     // Normalize game speed (subtract base speed of 1.5)
@@ -60,17 +62,18 @@ export class AudioPlaybackRateManager {
     // Calculate how many "2x increments" we've gone through
     const incrementCount = Math.floor(speedAboveBase / 2)
     
-    // Base music rate is 1.0x, each increment adds 0.01x
-    let musicRate = 1.0 + (incrementCount * 0.01)
+    // Base music rate is 1.0x, each increment adds 0.05x (nightcore effect)
+    let musicRate = 1.0 + (incrementCount * 0.05)
     
-    // Cap at 1.27x (approximately 27% speed increase max)
-    musicRate = Math.min(musicRate, 1.27)
+    // Cap at 1.35x (approximately 35% speed increase max)
+    musicRate = Math.min(musicRate, 1.35)
     
     return Math.round(musicRate * 1000) / 1000 // Round to 3 decimals
   }
 
   /**
    * Update playback rate for all registered audio elements
+   * Disables pitch preservation for chipmunk (nightcore) effect
    */
   public updatePlaybackRate(gameSpeed: number) {
     if (gameSpeed === this.lastGameSpeed) {
@@ -90,6 +93,29 @@ export class AudioPlaybackRateManager {
     this.currentAudioElements.forEach((audioElement) => {
       if (audioElement && !audioElement.paused) {
         try {
+          // Apply nightcore effect: disable pitch preservation for chipmunk voice
+          if (this.isNightcoreMode && newMusicRate > 1.0) {
+            // Disable pitch preservation to get the chipmunk effect
+            audioElement.preservesPitch = false
+            // Webkit variant
+            if ((audioElement as any).webkitPreservesPitch !== undefined) {
+              (audioElement as any).webkitPreservesPitch = false
+            }
+            // Mozilla variant
+            if ((audioElement as any).mozPreservesPitch !== undefined) {
+              (audioElement as any).mozPreservesPitch = false
+            }
+          } else {
+            // Normal mode: preserve pitch
+            audioElement.preservesPitch = true
+            if ((audioElement as any).webkitPreservesPitch !== undefined) {
+              (audioElement as any).webkitPreservesPitch = true
+            }
+            if ((audioElement as any).mozPreservesPitch !== undefined) {
+              (audioElement as any).mozPreservesPitch = true
+            }
+          }
+          
           audioElement.playbackRate = newMusicRate
         } catch (e) {
           // Some browsers might not support playbackRate
@@ -104,6 +130,22 @@ export class AudioPlaybackRateManager {
    */
   public getCurrentMusicRate(): number {
     return this.lastMusicRate
+  }
+
+  /**
+   * Toggle nightcore mode on/off
+   */
+  public setNightcoreMode(enabled: boolean) {
+    this.isNightcoreMode = enabled
+    // Reapply current playback rate with new settings
+    this.updatePlaybackRate(this.lastGameSpeed)
+  }
+
+  /**
+   * Get current nightcore mode status
+   */
+  public getNightcoreMode(): boolean {
+    return this.isNightcoreMode
   }
 
   /**
@@ -145,6 +187,14 @@ export class AudioPlaybackRateManager {
     this.lastMusicRate = 1.0
     this.currentAudioElements.forEach((audioElement) => {
       try {
+        // Reset to normal pitch preservation
+        audioElement.preservesPitch = true
+        if ((audioElement as any).webkitPreservesPitch !== undefined) {
+          (audioElement as any).webkitPreservesPitch = true
+        }
+        if ((audioElement as any).mozPreservesPitch !== undefined) {
+          (audioElement as any).mozPreservesPitch = true
+        }
         audioElement.playbackRate = 1.0
       } catch (e) {
         // Ignore
