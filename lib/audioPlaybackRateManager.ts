@@ -25,6 +25,8 @@ export class AudioPlaybackRateManager {
   private lastGameSpeed = 1.5
   private lastMusicRate = 1.0
   private isNightcoreMode = true // Enable chipmunk effect by default
+  private slowModeActive = false // Track slow mode state
+  private normalMusicRate = 1.0 // Store normal rate when slow mode activates
 
   constructor() {}
 
@@ -146,6 +148,39 @@ export class AudioPlaybackRateManager {
    */
   public getNightcoreMode(): boolean {
     return this.isNightcoreMode
+  }
+
+  /**
+   * Set slow mode (reduce music rate to half)
+   * Used when snow ball is caught
+   */
+  public setSlowMode(active: boolean) {
+    this.slowModeActive = active
+    
+    if (active) {
+      // Store current music rate before slowing down
+      this.normalMusicRate = this.lastMusicRate
+    }
+    
+    // Apply slow mode: reduce music rate to half
+    const targetRate = active ? this.normalMusicRate / 2 : this.normalMusicRate
+    
+    this.currentAudioElements.forEach((audioElement) => {
+      if (audioElement && !audioElement.paused) {
+        try {
+          audioElement.playbackRate = targetRate
+        } catch (e) {
+          console.warn("[v0] Failed to set playbackRate in slow mode:", e)
+        }
+      }
+    })
+  }
+
+  /**
+   * Get current slow mode status
+   */
+  public isSlowMode(): boolean {
+    return this.slowModeActive
   }
 
   /**

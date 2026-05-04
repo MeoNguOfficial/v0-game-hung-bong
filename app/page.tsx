@@ -1761,6 +1761,10 @@ export default function App() {
               setSnowActive(true)
               playSound("snow")
               createParticles(b.x, b.y, "#ffffff", "explode", true)
+              
+              // Reduce music playback rate to half when slow is active
+              audioRateManager.setSlowMode(true)
+              
               if (snowIntervalRef.current) {
                 clearInterval(snowIntervalRef.current)
                 snowIntervalRef.current = null
@@ -1775,6 +1779,10 @@ export default function App() {
                   setSnowActive(false)
                   setSnowLeft(0)
                   playSound("snow_end")
+                  
+                  // Restore music playback rate to normal
+                  audioRateManager.setSlowMode(false)
+                  
                   if (snowIntervalRef.current) {
                     clearInterval(snowIntervalRef.current)
                     snowIntervalRef.current = null
