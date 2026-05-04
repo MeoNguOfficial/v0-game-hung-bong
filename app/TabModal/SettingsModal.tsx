@@ -40,6 +40,7 @@ interface SettingsModalProps {
   setSensitivity: (e: React.ChangeEvent<HTMLInputElement>) => void
   baseGameSpeed: number
   setBaseGameSpeed: (e: React.ChangeEvent<HTMLInputElement>) => void
+  gameState?: "start" | "countdown" | "running" | "paused" | "over" | "dev_paused"
   embed?: boolean
   hideSystem?: boolean
 }
@@ -68,6 +69,7 @@ export default function SettingsModal({
   setSensitivity,
   baseGameSpeed,
   setBaseGameSpeed,
+  gameState = "start",
   embed = false,
   hideSystem = false,
 }: SettingsModalProps) {
@@ -168,7 +170,7 @@ export default function SettingsModal({
                 
                 <div className="border-t border-white/5 pt-4">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-bold uppercase tracking-wide text-slate-300">{t.baseGameSpeed}</span>
+                    <span className={`text-sm font-bold uppercase tracking-wide ${gameState === "running" ? "text-slate-500" : "text-slate-300"}`}>{t.baseGameSpeed}</span>
                     <span className="text-xs font-mono font-bold text-slate-400 bg-slate-900 px-2 py-1 rounded-lg">{(baseGameSpeed / 100).toFixed(2)}x</span>
                   </div>
                   <input
@@ -178,9 +180,10 @@ export default function SettingsModal({
                     step="10"
                     value={baseGameSpeed}
                     onChange={setBaseGameSpeed}
-                    className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                    disabled={gameState === "running"}
+                    className={`w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500 ${gameState === "running" ? "opacity-50 cursor-not-allowed" : ""}`}
                   />
-                  <div className="text-xs text-slate-500 mt-2 text-center">0.5x - 3.0x</div>
+                  <div className="text-xs text-slate-500 mt-2 text-center">0.5x - 3.0x{gameState === "running" && " (disabled during game)"}</div>
                 </div>
               </div>
             </div>

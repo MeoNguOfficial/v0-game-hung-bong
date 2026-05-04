@@ -2665,6 +2665,7 @@ export default function App() {
                     setSensitivity={changeSensitivity}
                     baseGameSpeed={baseGameSpeed}
                     setBaseGameSpeed={changeBaseGameSpeed}
+                    gameState={gameState}
                     embed={true}
                   />
                 </motion.div>
@@ -2808,6 +2809,7 @@ export default function App() {
             setSensitivity={changeSensitivity}
             baseGameSpeed={baseGameSpeed}
             setBaseGameSpeed={changeBaseGameSpeed}
+            gameState={gameState}
             hideSystem={true}
           />
         )}
