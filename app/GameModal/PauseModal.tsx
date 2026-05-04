@@ -11,6 +11,7 @@ interface PauseModalProps {
   toggleAutoMode: () => void
   playClick: () => void
   setOpenSettings: (open: boolean) => void
+  setOpenSettingsFromPause: (open: boolean) => void
   resumeGame: () => void
   handleExitRequest: () => void
 }
@@ -24,6 +25,7 @@ export default function PauseModal({
   toggleAutoMode,
   playClick,
   setOpenSettings,
+  setOpenSettingsFromPause,
   resumeGame,
   handleExitRequest,
 }: PauseModalProps) {
@@ -64,6 +66,7 @@ export default function PauseModal({
             onClick={() => {
               playClick()
               setOpenSettings(true)
+              setOpenSettingsFromPause(true)
             }}
             className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 border border-white/10 transition-all"
           >

@@ -38,6 +38,10 @@ interface SettingsModalProps {
   setSfxVolume: (e: React.ChangeEvent<HTMLInputElement>) => void
   sensitivity: number
   setSensitivity: (e: React.ChangeEvent<HTMLInputElement>) => void
+  baseGameSpeed: number
+  setBaseGameSpeed: (e: React.ChangeEvent<HTMLInputElement>) => void
+  gameState?: "start" | "countdown" | "running" | "paused" | "over" | "dev_paused"
+  openSettingsFromPause?: boolean
   embed?: boolean
   hideSystem?: boolean
 }
@@ -64,6 +68,10 @@ export default function SettingsModal({
   setSfxVolume,
   sensitivity,
   setSensitivity,
+  baseGameSpeed,
+  setBaseGameSpeed,
+  gameState = "start",
+  openSettingsFromPause = false,
   embed = false,
   hideSystem = false,
 }: SettingsModalProps) {
@@ -147,8 +155,8 @@ export default function SettingsModal({
               <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                 <Activity size={14} /> {t.controls}
               </h3>
-              <div className="bg-slate-800/50 p-4 rounded-2xl border border-white/5">
-                <div className="flex justify-between items-center mb-3">
+              <div className="bg-slate-800/50 p-4 rounded-2xl border border-white/5 space-y-4">
+                <div className="flex justify-between items-center">
                   <span className="text-sm font-bold uppercase tracking-wide text-slate-300">{t.sensitivity}</span>
                   <span className="text-xs font-mono font-bold text-slate-400 bg-slate-900 px-2 py-1 rounded-lg">{sensitivity}</span>
                 </div>
@@ -161,6 +169,26 @@ export default function SettingsModal({
                   onChange={setSensitivity}
                   className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
                 />
+                
+                {!openSettingsFromPause && (
+                  <div className="border-t border-white/5 pt-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className={`text-sm font-bold uppercase tracking-wide ${gameState === "running" ? "text-slate-500" : "text-slate-300"}`}>{t.baseGameSpeed}</span>
+                      <span className="text-xs font-mono font-bold text-slate-400 bg-slate-900 px-2 py-1 rounded-lg">{(baseGameSpeed / 100).toFixed(2)}x</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="50"
+                      max="300"
+                      step="10"
+                      value={baseGameSpeed}
+                      onChange={setBaseGameSpeed}
+                      disabled={gameState === "running"}
+                      className={`w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500 ${gameState === "running" ? "opacity-50 cursor-not-allowed" : ""}`}
+                    />
+                    <div className="text-xs text-slate-500 mt-2 text-center">0.5x - 3.0x{gameState === "running" && " (disabled during game)"}</div>
+                  </div>
+                )}
               </div>
             </div>
 

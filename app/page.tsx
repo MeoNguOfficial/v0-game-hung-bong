@@ -33,6 +33,7 @@ import {
 import { TRANSLATIONS } from "./translations"
 import { PixiParticleSystem } from "../lib/pixiParticleSystem"
 import { initializePixiJS, cleanupPixiJS } from "../lib/pixiSetup"
+import { audioRateManager } from "../lib/audioPlaybackRateManager"
 import SettingsModal from "./TabModal/SettingsModal"
 import BallGuide from "./TabModal/BallGuide"
 import StatsModal from "./TabModal/StatsModal"
@@ -117,6 +118,7 @@ export default function App() {
   const [trailsEnabled, setTrailsEnabled] = useState(true)
   const [animationLevel, setAnimationLevel] = useState<"full" | "min" | "none">("full")
   const [openSettings, setOpenSettings] = useState(false)
+  const [openSettingsFromPause, setOpenSettingsFromPause] = useState(false)
   const [openStats, setOpenStats] = useState(false)
   const [confirmExit, setConfirmExit] = useState(false)
   const [isFlashRed, setIsFlashRed] = useState(false)
@@ -165,6 +167,7 @@ export default function App() {
   const [sfxVolume, setSfxVolume] = useState(0.5)
   const [bgMenuEnabled, setBgMenuEnabled] = useState(true)
   const [sensitivity, setSensitivity] = useState(0)
+  const [baseGameSpeed, setBaseGameSpeed] = useState(100) // 1.0x speed (50-300 = 0.5x-3.0x)
   const [isConfigLoaded, setIsConfigLoaded] = useState(false)
   const [devMode, setDevMode] = useState(false)
   const [showDevToast, setShowDevToast] = useState(false)
@@ -262,6 +265,7 @@ export default function App() {
     playerX: 210,
     targetPlayerX: 210,
     sensitivity: 0,
+    baseGameSpeed: 1.0,
     playerWidth: 80,
     targetWidth: 80,
     isBoosted: false,
@@ -505,6 +509,13 @@ export default function App() {
     setSensitivity(v)
     gameData.current.sensitivity = v
     localStorage.setItem("game_sensitivity", String(v))
+  }
+
+  const changeBaseGameSpeed = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseFloat(e.target.value)
+    setBaseGameSpeed(v)
+    gameData.current.baseGameSpeed = v / 100 // Convert from 50-300 to 0.5-3.0
+    localStorage.setItem("game_baseGameSpeed", String(v))
   }
 
   // --- Keyboard Shortcuts (PC) ---
@@ -881,6 +892,13 @@ export default function App() {
       else if (mode === "hardcode" || mode === "sudden_death") bgm = audioRefs.current?.bg_game_hardcode
       currentBgmRef.current = bgm
       if (bgm) bgm.volume = 0
+      
+      // Register BGM for playback rate management
+      if (bgm) {
+        audioRateManager.registerAudioElement("bgm", bgm)
+        audioRateManager.reset() // Reset to 1.0x at game start
+      }
+      
       fadeAudio(bgm, musicVolume, 2000)
     })
   }
@@ -978,6 +996,13 @@ export default function App() {
       const bgm = audioRefs.current?.bg_game_custom
       currentBgmRef.current = bgm
       if (bgm) bgm.volume = 0
+      
+      // Register BGM for playback rate management
+      if (bgm) {
+        audioRateManager.registerAudioElement("bgm", bgm)
+        audioRateManager.reset() // Reset to 1.0x at game start
+      }
+      
       fadeAudio(bgm, musicVolume, 2000)
     })
   }
@@ -1121,6 +1146,13 @@ export default function App() {
       gameData.current.sensitivity = s
     }
 
+    const savedBaseGameSpeed = localStorage.getItem("game_baseGameSpeed")
+    if (savedBaseGameSpeed) {
+      const bgs = parseFloat(savedBaseGameSpeed)
+      setBaseGameSpeed(bgs)
+      gameData.current.baseGameSpeed = bgs / 100
+    }
+
     // Load Custom Config
     const savedCustomConfig = localStorage.getItem("game_custom_config")
     if (savedCustomConfig) {
@@ -1249,6 +1281,18 @@ export default function App() {
 
     // Initialize PixiJS for enhanced particles
     initializePixiJS(canvas)
+
+    // Initialize audio playback rate manager
+    audioRateManager.reset()
+    if (currentBgmRef.current) {
+      audioRateManager.registerAudioElement("bgm", currentBgmRef.current)
+    }
+    if (audioRefs.current?.bg_menu) {
+      audioRateManager.registerAudioElement("bg_menu", audioRefs.current.bg_menu)
+    }
+    if (audioRefs.current?.pause_bg) {
+      audioRateManager.registerAudioElement("pause_bg", audioRefs.current.pause_bg)
+    }
 
     let boostInterval: any
 
@@ -1734,6 +1778,10 @@ export default function App() {
               setSnowActive(true)
               playSound("snow")
               createParticles(b.x, b.y, "#ffffff", "explode", true)
+              
+              // Reduce music playback rate to half when slow is active
+              audioRateManager.setSlowMode(true)
+              
               if (snowIntervalRef.current) {
                 clearInterval(snowIntervalRef.current)
                 snowIntervalRef.current = null
@@ -1748,6 +1796,10 @@ export default function App() {
                   setSnowActive(false)
                   setSnowLeft(0)
                   playSound("snow_end")
+                  
+                  // Restore music playback rate to normal
+                  audioRateManager.setSlowMode(false)
+                  
                   if (snowIntervalRef.current) {
                     clearInterval(snowIntervalRef.current)
                     snowIntervalRef.current = null
@@ -1813,6 +1865,12 @@ export default function App() {
           // Removed in-game "New Best" notification as requested to focus on Top 5 at Game Over
 
           setScore(currentScoreInt)
+          
+          // Update music playback rate based on game speed (chipmunk effect)
+          // baseSpeed = 1.5 + score * 0.02
+          const baseSpeed = Math.min(1.5 + currentScoreInt * 0.02, 80)
+          audioRateManager.updatePlaybackRate(baseSpeed)
+          
           resetBall()
         }
 
@@ -2112,6 +2170,7 @@ export default function App() {
       clearCountdownTimeouts()
       if (requestRef.current) cancelAnimationFrame(requestRef.current)
       cleanupPixiJS()
+      audioRateManager.reset()
     }
   }, [])
 
@@ -2355,6 +2414,7 @@ export default function App() {
             toggleAutoMode={toggleAutoMode}
             playClick={playClick}
             setOpenSettings={setOpenSettings}
+            setOpenSettingsFromPause={setOpenSettingsFromPause}
             resumeGame={resumeGame}
             handleExitRequest={handleExitRequest}
           />
@@ -2605,6 +2665,10 @@ export default function App() {
                     setSfxVolume={changeSfxVolume}
                     sensitivity={sensitivity}
                     setSensitivity={changeSensitivity}
+                    baseGameSpeed={baseGameSpeed}
+                    setBaseGameSpeed={changeBaseGameSpeed}
+                    gameState={gameState}
+                    openSettingsFromPause={openSettingsFromPause}
                     embed={true}
                   />
                 </motion.div>
@@ -2737,7 +2801,10 @@ export default function App() {
             animationLevel={animationLevel}
             setAnimationLevel={changeAnimationLevel}
             playClick={playClick}
-            onClose={() => setOpenSettings(false)}
+            onClose={() => {
+              setOpenSettings(false)
+              setOpenSettingsFromPause(false)
+            }}
             bgMenuEnabled={bgMenuEnabled}
             toggleBgMenu={toggleBgMenu}
             musicVolume={musicVolume}
@@ -2746,6 +2813,10 @@ export default function App() {
             setSfxVolume={changeSfxVolume}
             sensitivity={sensitivity}
             setSensitivity={changeSensitivity}
+            baseGameSpeed={baseGameSpeed}
+            setBaseGameSpeed={changeBaseGameSpeed}
+            gameState={gameState}
+            openSettingsFromPause={openSettingsFromPause}
             hideSystem={true}
           />
         )}

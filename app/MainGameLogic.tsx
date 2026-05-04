@@ -34,6 +34,7 @@ export interface GameData {
   customBallConfig?: Record<string, { enabled: boolean; score: number; rate: number }>
   allowedBalls?: string[]
   isReverse?: boolean
+  baseGameSpeed?: number
 }
 
 export const spawnBall = (
@@ -61,8 +62,9 @@ export const spawnBall = (
   // Position
   b.x = Math.random() * (canvasWidth - 40) + 20
 
-  // Base Speed
-  const baseSpeed = Math.min(1.5 + score * 0.02, 80)
+  // Base Speed with customizable base multiplier
+  const baseGameSpeed = gameData.baseGameSpeed || 1.0
+  const baseSpeed = Math.min((1.5 * baseGameSpeed) + score * 0.02, 80)
 
   // Horizontal Movement (DX)
   const straightChance = Math.max(0.98 - score / 250, 0.02)

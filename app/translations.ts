@@ -108,6 +108,7 @@ export const TRANSLATIONS = {
     reset: "Reset",
     controls: "Controls",
     sensitivity: "Sensitivity",
+    baseGameSpeed: "Base Game Speed",
     close: "Close",
     holdForDetails: "Hold a button for details",
     // Quick Play Descriptions
@@ -261,6 +262,7 @@ export const TRANSLATIONS = {
     reset: "Đặt lại",
     controls: "Điều khiển",
     sensitivity: "Độ nhạy",
+    baseGameSpeed: "Tốc độ cơ bản",
     close: "Đóng",
     holdForDetails: "Giữ một nút để xem chi tiết",
     // Quick Play Descriptions
@@ -414,6 +416,7 @@ export const TRANSLATIONS = {
     reset: "Reiniciar",
     controls: "Controles",
     sensitivity: "Sensibilidad",
+    baseGameSpeed: "Velocidad Base del Juego",
     close: "Cerrar",
     holdForDetails: "Mantén presionado un botón para ver detalles",
     // Quick Play Descriptions
@@ -567,6 +570,7 @@ export const TRANSLATIONS = {
     reset: "Сброс",
     controls: "Управление",
     sensitivity: "Чувствительность",
+    baseGameSpeed: "Базовая скорость игры",
     close: "Закрыть",
     holdForDetails: "Удерживайте кнопку для подробностей",
     // Quick Play Descriptions

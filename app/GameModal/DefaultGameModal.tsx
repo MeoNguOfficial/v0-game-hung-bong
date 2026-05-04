@@ -11,7 +11,7 @@ export const getDefaultBallType = (score: number, gameMode: string): BallType =>
     grey: score >= 300 ? 0.02 * 0.7 : 0, // Shield (grey) available from 300
     heal: gameMode !== "hardcode" && score >= 150 ? 0.05 : 0, // Heal (green) from 150
     boost: score >= 200 ? 0.05 * 0.7 : 0, // Boost (blue) from 200
-    snow: score >= 500 ? 0.05 * 0.7 : 0, // Snow (white) from 500
+    snow: score >= 500 ? 0.01 : 0, // Snow (white) from 500 - reduced to 1%
     yellow: score >= 100 ? 0.20 : 0, // Yellow from 100
     purple: score >= 50 ? 0.40 : 0, // Purple from 50
   }
