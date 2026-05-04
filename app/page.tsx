@@ -118,6 +118,7 @@ export default function App() {
   const [trailsEnabled, setTrailsEnabled] = useState(true)
   const [animationLevel, setAnimationLevel] = useState<"full" | "min" | "none">("full")
   const [openSettings, setOpenSettings] = useState(false)
+  const [openSettingsFromPause, setOpenSettingsFromPause] = useState(false)
   const [openStats, setOpenStats] = useState(false)
   const [confirmExit, setConfirmExit] = useState(false)
   const [isFlashRed, setIsFlashRed] = useState(false)
@@ -2413,6 +2414,7 @@ export default function App() {
             toggleAutoMode={toggleAutoMode}
             playClick={playClick}
             setOpenSettings={setOpenSettings}
+            setOpenSettingsFromPause={setOpenSettingsFromPause}
             resumeGame={resumeGame}
             handleExitRequest={handleExitRequest}
           />
@@ -2666,6 +2668,7 @@ export default function App() {
                     baseGameSpeed={baseGameSpeed}
                     setBaseGameSpeed={changeBaseGameSpeed}
                     gameState={gameState}
+                    openSettingsFromPause={openSettingsFromPause}
                     embed={true}
                   />
                 </motion.div>
@@ -2798,7 +2801,10 @@ export default function App() {
             animationLevel={animationLevel}
             setAnimationLevel={changeAnimationLevel}
             playClick={playClick}
-            onClose={() => setOpenSettings(false)}
+            onClose={() => {
+              setOpenSettings(false)
+              setOpenSettingsFromPause(false)
+            }}
             bgMenuEnabled={bgMenuEnabled}
             toggleBgMenu={toggleBgMenu}
             musicVolume={musicVolume}
@@ -2810,6 +2816,7 @@ export default function App() {
             baseGameSpeed={baseGameSpeed}
             setBaseGameSpeed={changeBaseGameSpeed}
             gameState={gameState}
+            openSettingsFromPause={openSettingsFromPause}
             hideSystem={true}
           />
         )}
