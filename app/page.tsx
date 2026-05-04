@@ -166,6 +166,7 @@ export default function App() {
   const [sfxVolume, setSfxVolume] = useState(0.5)
   const [bgMenuEnabled, setBgMenuEnabled] = useState(true)
   const [sensitivity, setSensitivity] = useState(0)
+  const [baseGameSpeed, setBaseGameSpeed] = useState(100) // 1.0x speed (50-300 = 0.5x-3.0x)
   const [isConfigLoaded, setIsConfigLoaded] = useState(false)
   const [devMode, setDevMode] = useState(false)
   const [showDevToast, setShowDevToast] = useState(false)
@@ -263,6 +264,7 @@ export default function App() {
     playerX: 210,
     targetPlayerX: 210,
     sensitivity: 0,
+    baseGameSpeed: 1.0,
     playerWidth: 80,
     targetWidth: 80,
     isBoosted: false,
@@ -506,6 +508,13 @@ export default function App() {
     setSensitivity(v)
     gameData.current.sensitivity = v
     localStorage.setItem("game_sensitivity", String(v))
+  }
+
+  const changeBaseGameSpeed = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseFloat(e.target.value)
+    setBaseGameSpeed(v)
+    gameData.current.baseGameSpeed = v / 100 // Convert from 50-300 to 0.5-3.0
+    localStorage.setItem("game_baseGameSpeed", String(v))
   }
 
   // --- Keyboard Shortcuts (PC) ---
@@ -1134,6 +1143,13 @@ export default function App() {
       const s = parseFloat(savedSensitivity)
       setSensitivity(s)
       gameData.current.sensitivity = s
+    }
+
+    const savedBaseGameSpeed = localStorage.getItem("game_baseGameSpeed")
+    if (savedBaseGameSpeed) {
+      const bgs = parseFloat(savedBaseGameSpeed)
+      setBaseGameSpeed(bgs)
+      gameData.current.baseGameSpeed = bgs / 100
     }
 
     // Load Custom Config
@@ -2647,6 +2663,8 @@ export default function App() {
                     setSfxVolume={changeSfxVolume}
                     sensitivity={sensitivity}
                     setSensitivity={changeSensitivity}
+                    baseGameSpeed={baseGameSpeed}
+                    setBaseGameSpeed={changeBaseGameSpeed}
                     embed={true}
                   />
                 </motion.div>
@@ -2788,6 +2806,8 @@ export default function App() {
             setSfxVolume={changeSfxVolume}
             sensitivity={sensitivity}
             setSensitivity={changeSensitivity}
+            baseGameSpeed={baseGameSpeed}
+            setBaseGameSpeed={changeBaseGameSpeed}
             hideSystem={true}
           />
         )}

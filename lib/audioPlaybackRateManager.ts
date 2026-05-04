@@ -24,9 +24,11 @@ export class AudioPlaybackRateManager {
   private updateInterval: NodeJS.Timeout | null = null
   private lastGameSpeed = 1.5
   private lastMusicRate = 1.0
+  private targetMusicRate = 1.0
   private isNightcoreMode = true // Enable chipmunk effect by default
   private slowModeActive = false // Track slow mode state
   private normalMusicRate = 1.0 // Store normal rate when slow mode activates
+  private smoothInterpolationSpeed = 0.15 // Lower = smoother, 0.15 is sweet spot
 
   constructor() {}
 
@@ -75,6 +77,7 @@ export class AudioPlaybackRateManager {
 
   /**
    * Update playback rate for all registered audio elements
+   * Uses smooth interpolation for linear speed transitions
    * Disables pitch preservation for chipmunk (nightcore) effect
    */
   public updatePlaybackRate(gameSpeed: number) {
@@ -84,19 +87,57 @@ export class AudioPlaybackRateManager {
 
     const newMusicRate = this.calculateMusicRate(gameSpeed)
 
-    if (newMusicRate === this.lastMusicRate) {
+    if (newMusicRate === this.targetMusicRate) {
       return // No change needed
     }
 
     this.lastGameSpeed = gameSpeed
-    this.lastMusicRate = newMusicRate
+    this.targetMusicRate = newMusicRate
 
-    // Update all registered audio elements
+    // Start smooth interpolation
+    this.startSmoothInterpolation()
+  }
+
+  /**
+   * Start smooth linear interpolation to target music rate
+   */
+  private startSmoothInterpolation() {
+    if (this.updateInterval) {
+      return // Already interpolating
+    }
+
+    const interpolationFrames = 10 // Number of frames to interpolate over
+    let currentFrame = 0
+
+    this.updateInterval = window.setInterval(() => {
+      currentFrame++
+      
+      // Linear interpolation: current = start + (end - start) * (frame / totalFrames)
+      const progress = Math.min(currentFrame / interpolationFrames, 1)
+      this.lastMusicRate = this.lastMusicRate + (this.targetMusicRate - this.lastMusicRate) * progress
+
+      this.applyPlaybackRate(this.lastMusicRate)
+
+      if (progress >= 1) {
+        // Done interpolating
+        this.lastMusicRate = this.targetMusicRate
+        if (this.updateInterval) {
+          clearInterval(this.updateInterval)
+          this.updateInterval = null
+        }
+      }
+    }, 16) // ~60fps
+  }
+
+  /**
+   * Apply playback rate to all registered audio elements
+   */
+  private applyPlaybackRate(musicRate: number) {
     this.currentAudioElements.forEach((audioElement) => {
       if (audioElement && !audioElement.paused) {
         try {
           // Apply nightcore effect: disable pitch preservation for chipmunk voice
-          if (this.isNightcoreMode && newMusicRate > 1.0) {
+          if (this.isNightcoreMode && musicRate > 1.0) {
             // Disable pitch preservation to get the chipmunk effect
             audioElement.preservesPitch = false
             // Webkit variant
@@ -118,7 +159,7 @@ export class AudioPlaybackRateManager {
             }
           }
           
-          audioElement.playbackRate = newMusicRate
+          audioElement.playbackRate = musicRate
         } catch (e) {
           // Some browsers might not support playbackRate
           console.warn("[v0] Failed to set playbackRate:", e)
