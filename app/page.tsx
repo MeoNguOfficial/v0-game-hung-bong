@@ -33,6 +33,7 @@ import {
 import { TRANSLATIONS } from "./translations"
 import { PixiParticleSystem } from "../lib/pixiParticleSystem"
 import { initializePixiJS, cleanupPixiJS } from "../lib/pixiSetup"
+import { audioRateManager } from "../lib/audioPlaybackRateManager"
 import SettingsModal from "./TabModal/SettingsModal"
 import BallGuide from "./TabModal/BallGuide"
 import StatsModal from "./TabModal/StatsModal"
@@ -881,6 +882,13 @@ export default function App() {
       else if (mode === "hardcode" || mode === "sudden_death") bgm = audioRefs.current?.bg_game_hardcode
       currentBgmRef.current = bgm
       if (bgm) bgm.volume = 0
+      
+      // Register BGM for playback rate management
+      if (bgm) {
+        audioRateManager.registerAudioElement("bgm", bgm)
+        audioRateManager.reset() // Reset to 1.0x at game start
+      }
+      
       fadeAudio(bgm, musicVolume, 2000)
     })
   }
@@ -978,6 +986,13 @@ export default function App() {
       const bgm = audioRefs.current?.bg_game_custom
       currentBgmRef.current = bgm
       if (bgm) bgm.volume = 0
+      
+      // Register BGM for playback rate management
+      if (bgm) {
+        audioRateManager.registerAudioElement("bgm", bgm)
+        audioRateManager.reset() // Reset to 1.0x at game start
+      }
+      
       fadeAudio(bgm, musicVolume, 2000)
     })
   }
@@ -1249,6 +1264,18 @@ export default function App() {
 
     // Initialize PixiJS for enhanced particles
     initializePixiJS(canvas)
+
+    // Initialize audio playback rate manager
+    audioRateManager.reset()
+    if (currentBgmRef.current) {
+      audioRateManager.registerAudioElement("bgm", currentBgmRef.current)
+    }
+    if (audioRefs.current?.bg_menu) {
+      audioRateManager.registerAudioElement("bg_menu", audioRefs.current.bg_menu)
+    }
+    if (audioRefs.current?.pause_bg) {
+      audioRateManager.registerAudioElement("pause_bg", audioRefs.current.pause_bg)
+    }
 
     let boostInterval: any
 
@@ -1813,6 +1840,12 @@ export default function App() {
           // Removed in-game "New Best" notification as requested to focus on Top 5 at Game Over
 
           setScore(currentScoreInt)
+          
+          // Update music playback rate based on game speed (chipmunk effect)
+          // baseSpeed = 1.5 + score * 0.02
+          const baseSpeed = Math.min(1.5 + currentScoreInt * 0.02, 80)
+          audioRateManager.updatePlaybackRate(baseSpeed)
+          
           resetBall()
         }
 
@@ -2112,6 +2145,7 @@ export default function App() {
       clearCountdownTimeouts()
       if (requestRef.current) cancelAnimationFrame(requestRef.current)
       cleanupPixiJS()
+      audioRateManager.reset()
     }
   }, [])
 
