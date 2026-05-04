@@ -29,11 +29,13 @@ This repository stays **automatically in sync** with deployments created on **v0
 
 ## 🛠 Changelogs and Updates
 
-### 🚀 Catch Master v1.0.5
+### 🚀 Catch Master v1.0.6
 
 #### 🌟 Improvements
-- **Settings:** Enhanced audio setting.
-- **SFX for Custom Mode:** Add click SFX.
+- **Settings:** Add Base Game Speed
+- **Particles Enhancement:** Improvement render
+- **Speed increment on game:** Add speed increment due to playing.
+- **Speed slow when active Snowball:** Music Speed when playing is decrease 50% when playing.
 
 ---
 
