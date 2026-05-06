@@ -32,8 +32,10 @@ interface SettingsModalProps {
   onClose: () => void
   bgMenuEnabled: boolean
   toggleBgMenu: () => void
-  musicVolume: number
-  setMusicVolume: (e: React.ChangeEvent<HTMLInputElement>) => void
+  menuMusicVolume: number
+  setMenuMusicVolume: (e: React.ChangeEvent<HTMLInputElement>) => void
+  gameMusicVolume: number
+  setGameMusicVolume: (e: React.ChangeEvent<HTMLInputElement>) => void
   sfxVolume: number
   setSfxVolume: (e: React.ChangeEvent<HTMLInputElement>) => void
   sensitivity: number
@@ -62,8 +64,10 @@ export default function SettingsModal({
   onClose,
   bgMenuEnabled,
   toggleBgMenu,
-  musicVolume,
-  setMusicVolume,
+  menuMusicVolume,
+  setMenuMusicVolume,
+  gameMusicVolume,
+  setGameMusicVolume,
   sfxVolume,
   setSfxVolume,
   sensitivity,
@@ -90,7 +94,8 @@ export default function SettingsModal({
   }
 
   // Logic xác định trạng thái disable của Music và SFX
-  const isMusicDisabled = isMuted || !bgMenuEnabled
+  const isMenuMusicDisabled = isMuted || !bgMenuEnabled
+  const isGameMusicDisabled = isMuted
   const isSfxDisabled = isMuted
 
   return (
@@ -198,15 +203,15 @@ export default function SettingsModal({
                 <Volume2 size={14} /> {t.audio}
               </h3>
 
-              {/* Music Volume */}
-              <div className={`bg-slate-800/50 p-4 rounded-2xl border border-white/5 transition-opacity ${isMusicDisabled ? "opacity-40 grayscale-[0.5]" : "opacity-100"}`}>
+              {/* Menu Music Volume */}
+              <div className={`bg-slate-800/50 p-4 rounded-2xl border border-white/5 transition-opacity ${isMenuMusicDisabled ? "opacity-40 grayscale-[0.5]" : "opacity-100"}`}>
                 <div className="flex justify-between items-center mb-3">
                   <div className="flex items-center gap-2 text-purple-400">
                     <Music size={18} />
-                    <span className="text-sm font-bold uppercase tracking-wide">{t.music}</span>
+                    <span className="text-sm font-bold uppercase tracking-wide">{t.menuMusic}</span>
                   </div>
                   <span className="text-xs font-mono font-bold text-slate-400 bg-slate-900 px-2 py-1 rounded-lg">
-                    {Math.round(musicVolume * 100)}%
+                    {Math.round(menuMusicVolume * 100)}%
                   </span>
                 </div>
                 <input
@@ -214,10 +219,33 @@ export default function SettingsModal({
                   min="0"
                   max="1"
                   step="0.01"
-                  disabled={isMusicDisabled}
-                  value={musicVolume}
-                  onChange={setMusicVolume}
-                  className={`w-full h-2 bg-slate-700 rounded-lg appearance-none accent-purple-500 ${isMusicDisabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+                  disabled={isMenuMusicDisabled}
+                  value={menuMusicVolume}
+                  onChange={setMenuMusicVolume}
+                  className={`w-full h-2 bg-slate-700 rounded-lg appearance-none accent-purple-500 ${isMenuMusicDisabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+                />
+              </div>
+
+              {/* Game Music Volume */}
+              <div className={`bg-slate-800/50 p-4 rounded-2xl border border-white/5 transition-opacity ${isGameMusicDisabled ? "opacity-40 grayscale-[0.5]" : "opacity-100"}`}>
+                <div className="flex justify-between items-center mb-3">
+                  <div className="flex items-center gap-2 text-indigo-400">
+                    <Music size={18} />
+                    <span className="text-sm font-bold uppercase tracking-wide">{t.gameMusic || "Game Music"}</span>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-slate-400 bg-slate-900 px-2 py-1 rounded-lg">
+                    {Math.round(gameMusicVolume * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  disabled={isGameMusicDisabled}
+                  value={gameMusicVolume}
+                  onChange={setGameMusicVolume}
+                  className={`w-full h-2 bg-slate-700 rounded-lg appearance-none accent-indigo-500 ${isGameMusicDisabled ? "cursor-not-allowed" : "cursor-pointer"}`}
                 />
               </div>
 
