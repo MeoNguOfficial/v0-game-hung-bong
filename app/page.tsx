@@ -163,7 +163,8 @@ export default function App() {
   const [direction, setDirection] = useState(0)
 
   const [configHistory, setConfigHistory] = useState<CustomConfig[]>([])
-  const [musicVolume, setMusicVolume] = useState(0.5)
+  const [menuMusicVolume, setMenuMusicVolume] = useState(0.5)
+  const [gameMusicVolume, setGameMusicVolume] = useState(0.5)
   const [sfxVolume, setSfxVolume] = useState(0.5)
   const [bgMenuEnabled, setBgMenuEnabled] = useState(true)
   const [sensitivity, setSensitivity] = useState(0)
@@ -467,28 +468,39 @@ export default function App() {
     localStorage.setItem("game_skin", newSkin)
   }
 
-  const changeMusicVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const changeMenuMusicVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value)
-    setMusicVolume(v)
-    if (currentBgmRef.current) {
-      currentBgmRef.current.volume = v
-    }
-    if (audioRefs.current?.pause_bg) {
-      audioRefs.current.pause_bg.volume = v
-    }
+    setMenuMusicVolume(v)
 
     const menu = audioRefs.current?.bg_menu
-    // If menu BGM is currently playing, fade it to the new volume (do not restart)
-    if (menu && currentBgmRef.current === menu && !gameData.current.isMuted) {
+    // If menu BGM is currently playing, fade it to the new volume
+    if (menu && currentBgmRef.current === menu && !gameData.current.isMuted && bgMenuEnabled) {
       fadeAudio(menu, v, 300)
-    } else if (menu && gameState === "start" && !showIntro && !gameData.current.isMuted) {
-      // If menu exists but isn't playing (e.g., first time or previously stopped), start it from the beginning
+    } else if (menu && gameState === "start" && !showIntro && !gameData.current.isMuted && bgMenuEnabled) {
+      // If menu exists but isn't playing, start it from the beginning
       try { menu.pause(); menu.currentTime = 0 } catch (e) { }
       currentBgmRef.current = menu
       fadeAudio(menu, v, 300)
     }
 
-    localStorage.setItem("game_music_volume", String(v))
+    localStorage.setItem("game_menu_music_volume", String(v))
+  }
+
+  const changeGameMusicVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseFloat(e.target.value)
+    setGameMusicVolume(v)
+    
+    // Update game BGM volume
+    if (currentBgmRef.current && currentBgmRef.current !== audioRefs.current?.bg_menu) {
+      currentBgmRef.current.volume = v
+    }
+    
+    // Update pause BGM volume
+    if (audioRefs.current?.pause_bg) {
+      audioRefs.current.pause_bg.volume = v
+    }
+
+    localStorage.setItem("game_game_music_volume", String(v))
   }
 
   const changeSfxVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -659,7 +671,7 @@ export default function App() {
     }
     // Play Pause Music
     if (audioRefs.current?.pause_bg && !gameData.current.isMuted) {
-      audioRefs.current.pause_bg.volume = musicVolume
+      audioRefs.current.pause_bg.volume = gameMusicVolume
       audioRefs.current.pause_bg.play().catch(() => { })
     }
   }
@@ -668,7 +680,7 @@ export default function App() {
     playClick()
     // Resume Game Music
     if (currentBgmRef.current && !gameData.current.isMuted) {
-      currentBgmRef.current.volume = musicVolume
+      currentBgmRef.current.volume = gameMusicVolume
       currentBgmRef.current.play().catch(() => { })
     }
     // Stop Pause Music
@@ -756,13 +768,13 @@ export default function App() {
     } else {
       // Unmute
       if (gameState === "running" && currentBgmRef.current) {
-        currentBgmRef.current.volume = musicVolume
+        currentBgmRef.current.volume = gameMusicVolume
         currentBgmRef.current.play().catch(() => { })
       } else if (gameState === "paused" && audioRefs.current?.pause_bg) {
-        audioRefs.current.pause_bg.volume = musicVolume
+        audioRefs.current.pause_bg.volume = gameMusicVolume
         audioRefs.current.pause_bg.play().catch(() => { })
       } else if (gameState === "start" && audioRefs.current?.bg_menu && bgMenuEnabled) {
-        audioRefs.current.bg_menu.volume = musicVolume
+        audioRefs.current.bg_menu.volume = menuMusicVolume
         audioRefs.current.bg_menu.play().catch(() => { })
       }
     }
@@ -900,7 +912,7 @@ export default function App() {
         audioRateManager.reset() // Reset to 1.0x at game start
       }
       
-      fadeAudio(bgm, musicVolume, 2000)
+      fadeAudio(bgm, gameMusicVolume, 2000)
     })
   }
 
@@ -1004,7 +1016,7 @@ export default function App() {
         audioRateManager.reset() // Reset to 1.0x at game start
       }
       
-      fadeAudio(bgm, musicVolume, 2000)
+      fadeAudio(bgm, gameMusicVolume, 2000)
     })
   }
 
@@ -1122,10 +1134,16 @@ export default function App() {
     setIsMuted(savedMute)
     gameData.current.isMuted = savedMute
 
-    const savedMusicVol = localStorage.getItem("game_music_volume")
-    if (savedMusicVol) {
-      const v = parseFloat(savedMusicVol)
-      setMusicVolume(v)
+    const savedMenuMusicVol = localStorage.getItem("game_menu_music_volume")
+    if (savedMenuMusicVol) {
+      const v = parseFloat(savedMenuMusicVol)
+      setMenuMusicVolume(v)
+    }
+
+    const savedGameMusicVol = localStorage.getItem("game_game_music_volume")
+    if (savedGameMusicVol) {
+      const v = parseFloat(savedGameMusicVol)
+      setGameMusicVolume(v)
     }
 
     const savedSfxVol = localStorage.getItem("game_sfx_volume")
@@ -1226,7 +1244,7 @@ export default function App() {
       // Ensure music plays from beginning each time we enter menu
       try { menuBgm.currentTime = 0 } catch (e) { }
       currentBgmRef.current = menuBgm
-      if (!gameData.current.isMuted) fadeAudio(menuBgm, musicVolume, 1000)
+      if (!gameData.current.isMuted) fadeAudio(menuBgm, menuMusicVolume, 1000)
     } else {
       if (currentBgmRef.current === menuBgm) {
         // Fade out then fully stop & reset so next menu entry starts from the beginning
@@ -2533,7 +2551,7 @@ export default function App() {
                       if (menu && !gameData.current.isMuted) {
                         try { menu.pause(); menu.currentTime = 0 } catch (e) { }
                         currentBgmRef.current = menu
-                        fadeAudio(menu, musicVolume, 1000)
+                        fadeAudio(menu, menuMusicVolume, 1000)
                       }
                     }}
                     className="px-12 py-4 rounded-2xl font-black text-xl bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all flex items-center gap-3"
@@ -2695,8 +2713,10 @@ export default function App() {
                     }}
                     bgMenuEnabled={bgMenuEnabled}
                     toggleBgMenu={toggleBgMenu}
-                    musicVolume={musicVolume}
-                    setMusicVolume={changeMusicVolume}
+                    menuMusicVolume={menuMusicVolume}
+                    setMenuMusicVolume={changeMenuMusicVolume}
+                    gameMusicVolume={gameMusicVolume}
+                    setGameMusicVolume={changeGameMusicVolume}
                     sfxVolume={sfxVolume}
                     setSfxVolume={changeSfxVolume}
                     sensitivity={sensitivity}
@@ -2843,8 +2863,10 @@ export default function App() {
             }}
             bgMenuEnabled={bgMenuEnabled}
             toggleBgMenu={toggleBgMenu}
-            musicVolume={musicVolume}
-            setMusicVolume={changeMusicVolume}
+            menuMusicVolume={menuMusicVolume}
+            setMenuMusicVolume={changeMenuMusicVolume}
+            gameMusicVolume={gameMusicVolume}
+            setGameMusicVolume={changeGameMusicVolume}
             sfxVolume={sfxVolume}
             setSfxVolume={changeSfxVolume}
             sensitivity={sensitivity}
