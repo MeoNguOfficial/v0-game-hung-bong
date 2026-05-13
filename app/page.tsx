@@ -330,7 +330,7 @@ export default function App() {
           // 2. Lấy 20 trận gần nhất
           const recent20 = all.slice(0, 20)
 
-          // 3. Gộp: Giữ lại nếu nằm trong 20 trận gần nhất HOẶC nằm trong Top 5
+          // 3. Gộp: Gi�� lại nếu nằm trong 20 trận gần nhất HOẶC nằm trong Top 5
           const result = all.filter(x => recent20.includes(x) || protectedSet.has(x))
           result.sort((a, b) => b.timestamp - a.timestamp)
 
@@ -2330,7 +2330,7 @@ export default function App() {
 
       {/* --- NEW HUD (Heads-Up Display) --- */}
       <div
-        className={`relative w-full md:max-w-[500px] md:max-h-[90vh] h-[calc(100vh-80px)] md:h-auto md:aspect-[5/7] rounded-none md:rounded-[2.5rem] overflow-auto md:overflow-hidden shadow-2xl border-0 md:border-[10px] transition-all duration-300 ${isFlashRed ? "md:border-red-600" : "md:border-slate-800"} bg-slate-900 flex items-center justify-center`}
+        className={`relative w-full md:max-w-[500px] md:max-h-[90vh] h-[calc(100vh-80px)] md:h-auto md:aspect-[5/7] rounded-none md:rounded-[1.5rem] overflow-auto md:overflow-hidden shadow-2xl border-0 md:border-[5px] transition-all duration-300 ${isFlashRed ? "md:border-red-600" : "md:border-slate-800"} bg-slate-900 flex items-center justify-center`}
       >
         <canvas
           ref={canvasRef}
