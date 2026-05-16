@@ -2092,8 +2092,11 @@ export default function App() {
           const musicRate = currentScoreInt < 200 
             ? 1.0 + Math.floor(currentScoreInt / 40) * 0.01 
             : 1.05 + Math.floor((currentScoreInt - 200) / 50) * 0.01
-          
-          audioRateManager.updatePlaybackRate(musicRate)
+
+          // Chỉ cập nhật tốc độ nhạc theo điểm số nếu KHÔNG trong trạng thái đóng băng (Snow Slowed)
+          if (!gameData.current.isSnowSlowed) {
+            audioRateManager.updatePlaybackRate(musicRate)
+          }
           
           resetBall()
         }

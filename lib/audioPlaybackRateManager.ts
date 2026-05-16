@@ -1,33 +1,17 @@
 /**
  * Audio Playback Rate Manager
- * Manages music playback rate based on game speed with chipmunk (nightcore) effect
- * 
- * Game Speed Progression:
- * - baseSpeed = 1.5 + score * 0.02
- * - gameSpeed = Math.min(baseSpeed, 80)
- * 
- * Music Playback Rate Calculation (Nightcore Mode):
- * - Every 2x increase in game speed → +0.05x music speed (chipmunk effect)
- * - Preserves pitch is disabled to create chipmunk voice effect
- * - Max game speed: 80
- * - Max music speed: ~1.35x (base 1.0x + increments)
- * 
- * Formula:
- * - gameSpeedMultiplier = (actualGameSpeed - 1.5) / 1.5  // Normalize to 0-based
- * - increments = Math.floor(gameSpeedMultiplier / 2)
- * - musicPlaybackRate = 1.0 + (increments * 0.05)
- * - musicPlaybackRate = Math.min(musicPlaybackRate, 1.35) // Cap at ~1.35x
+ * Manages music playback rate and applies the chipmunk (nightcore) effect
+ * by disabling pitch preservation when the rate is changed.
  */
 
 export class AudioPlaybackRateManager {
   private currentAudioElements: Map<string, HTMLAudioElement> = new Map()
   private updateInterval: NodeJS.Timeout | null = null
-  private lastGameSpeed = 1.5
   private lastMusicRate = 1.0
   private targetMusicRate = 1.0
   private isNightcoreMode = true // Enable chipmunk effect by default
   private slowModeActive = false // Track slow mode state
-  private normalMusicRate = 1.0 // Store normal rate when slow mode activates
+  private preservesPitchSetting = false // User preference
   private smoothInterpolationSpeed = 0.15 // Lower = smoother, 0.15 is sweet spot
 
   constructor() {}
@@ -55,80 +39,75 @@ export class AudioPlaybackRateManager {
   }
 
   /**
-   * Calculate music playback rate based on game speed (derived from score)
-   * Every 20 points score = +0.01x music rate (nightcore chipmunk effect)
-   * Formula: gameSpeed = 1.5 + score * 0.02, so score = (gameSpeed - 1.5) / 0.02
-   */
-  private calculateMusicRate(gameSpeed: number): number {
-    // Calculate score from game speed
-    // baseSpeed = 1.5 + score * 0.02
-    // score = (baseSpeed - 1.5) / 0.02
-    const baseGameSpeed = 1.5
-    const scoreEquivalent = (gameSpeed - baseGameSpeed) / 0.02
-    
-    // Every 20 points = +0.01x music rate
-    const musicIncrement = Math.floor(scoreEquivalent / 20) * 0.01
-    
-    // Base music rate is 1.0x
-    let musicRate = 1.0 + musicIncrement
-    
-    // Cap at 3.0x (maximum speed increase)
-    musicRate = Math.min(musicRate, 3.0)
-    
-    return Math.round(musicRate * 1000) / 1000 // Round to 3 decimals
-  }
-
-  /**
-   * Update playback rate for all registered audio elements
+   * Update playback rate directly.
    * Uses smooth interpolation for linear speed transitions
    * Disables pitch preservation for chipmunk (nightcore) effect
    */
-  public updatePlaybackRate(gameSpeed: number) {
-    if (gameSpeed === this.lastGameSpeed) {
+  public updatePlaybackRate(musicRate: number) {
+    if (musicRate === this.targetMusicRate) {
       return // No change needed
     }
 
-    const newMusicRate = this.calculateMusicRate(gameSpeed)
-
-    if (newMusicRate === this.targetMusicRate) {
-      return // No change needed
-    }
-
-    this.lastGameSpeed = gameSpeed
-    this.targetMusicRate = newMusicRate
+    this.targetMusicRate = musicRate
 
     // Start smooth interpolation
     this.startSmoothInterpolation()
   }
 
   /**
+   * Smoothly animate playback rate to a target value over a duration (ms)
+   * Used for death sequences (OSU style) - Now pitch drops correctly
+   */
+  public animatePlaybackRate(targetRate: number, duration: number) {
+    this.slowModeActive = false; // Disable slow mode during death animation
+    
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval)
+      this.updateInterval = null
+    }
+
+    const startRate = this.lastMusicRate
+    const startTime = performance.now()
+    this.targetMusicRate = targetRate
+
+    const step = () => {
+      const elapsed = performance.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      
+      this.lastMusicRate = startRate + (targetRate - startRate) * progress
+      this.applyPlaybackRate(this.lastMusicRate)
+
+      if (progress < 1) {
+        this.updateInterval = setTimeout(step, 16) as any
+      } else {
+        this.updateInterval = null
+      }
+    }
+    
+    step()
+  }
+
+  /**
    * Start smooth linear interpolation to target music rate
    */
   private startSmoothInterpolation() {
-    if (this.updateInterval) {
-      return // Already interpolating
-    }
-
-    const interpolationFrames = 10 // Number of frames to interpolate over
-    let currentFrame = 0
+    if (this.updateInterval) return
 
     this.updateInterval = window.setInterval(() => {
-      currentFrame++
+      // Smoother exponential interpolation (LERP)
+      const diff = this.targetMusicRate - this.lastMusicRate
       
-      // Linear interpolation: current = start + (end - start) * (frame / totalFrames)
-      const progress = Math.min(currentFrame / interpolationFrames, 1)
-      this.lastMusicRate = this.lastMusicRate + (this.targetMusicRate - this.lastMusicRate) * progress
-
-      this.applyPlaybackRate(this.lastMusicRate)
-
-      if (progress >= 1) {
-        // Done interpolating
+      if (Math.abs(diff) < 0.001) {
         this.lastMusicRate = this.targetMusicRate
         if (this.updateInterval) {
           clearInterval(this.updateInterval)
           this.updateInterval = null
         }
+      } else {
+        this.lastMusicRate += diff * this.smoothInterpolationSpeed
       }
+      
+      this.applyPlaybackRate(this.lastMusicRate)
     }, 16) // ~60fps
   }
 
@@ -136,11 +115,13 @@ export class AudioPlaybackRateManager {
    * Apply playback rate to all registered audio elements
    */
   private applyPlaybackRate(musicRate: number) {
+    // Calculate effective rate: Apply 0.5x multiplier if slow mode is active
+    const effectiveRate = this.slowModeActive ? musicRate * 0.5 : musicRate;
+
     this.currentAudioElements.forEach((audioElement) => {
       if (audioElement && !audioElement.paused) {
         try {
-          // Apply nightcore effect: disable pitch preservation for chipmunk voice
-          if (this.isNightcoreMode && musicRate > 1.0) {
+          if (this.isNightcoreMode && effectiveRate !== 1.0 && !this.preservesPitchSetting) {
             // Disable pitch preservation to get the chipmunk effect
             audioElement.preservesPitch = false
             // Webkit variant
@@ -162,7 +143,7 @@ export class AudioPlaybackRateManager {
             }
           }
           
-          audioElement.playbackRate = musicRate
+          audioElement.playbackRate = effectiveRate
         } catch (e) {
           // Some browsers might not support playbackRate
           console.warn("[v0] Failed to set playbackRate:", e)
@@ -184,7 +165,15 @@ export class AudioPlaybackRateManager {
   public setNightcoreMode(enabled: boolean) {
     this.isNightcoreMode = enabled
     // Reapply current playback rate with new settings
-    this.updatePlaybackRate(this.lastGameSpeed)
+    this.applyPlaybackRate(this.lastMusicRate)
+  }
+
+  /**
+   * Update user preference for pitch preservation
+   */
+  public setPreservesPitch(enabled: boolean) {
+    this.preservesPitchSetting = enabled
+    this.applyPlaybackRate(this.lastMusicRate)
   }
 
   /**
@@ -200,24 +189,8 @@ export class AudioPlaybackRateManager {
    */
   public setSlowMode(active: boolean) {
     this.slowModeActive = active
-    
-    if (active) {
-      // Store current music rate before slowing down
-      this.normalMusicRate = this.lastMusicRate
-    }
-    
-    // Apply slow mode: reduce music rate to half
-    const targetRate = active ? this.normalMusicRate / 2 : this.normalMusicRate
-    
-    this.currentAudioElements.forEach((audioElement) => {
-      if (audioElement && !audioElement.paused) {
-        try {
-          audioElement.playbackRate = targetRate
-        } catch (e) {
-          console.warn("[v0] Failed to set playbackRate in slow mode:", e)
-        }
-      }
-    })
+    // Re-apply immediately based on current interpolated rate
+    this.applyPlaybackRate(this.lastMusicRate)
   }
 
   /**
@@ -225,14 +198,6 @@ export class AudioPlaybackRateManager {
    */
   public isSlowMode(): boolean {
     return this.slowModeActive
-  }
-
-  /**
-   * Get current game speed multiplier (for display purposes)
-   */
-  public getGameSpeedMultiplier(gameSpeed: number): string {
-    const multiplier = (gameSpeed / 1.5).toFixed(2)
-    return `${multiplier}x`
   }
 
   /**
@@ -262,7 +227,7 @@ export class AudioPlaybackRateManager {
    * Reset to default values
    */
   public reset() {
-    this.lastGameSpeed = 1.5
+    this.slowModeActive = false
     this.lastMusicRate = 1.0
     this.currentAudioElements.forEach((audioElement) => {
       try {
