@@ -100,7 +100,12 @@ export const spawnBall = (
   const canSpawnSimultaneousBombs = !isClassic && (!isCustom || (gameData.allowedBalls && gameData.allowedBalls.includes("orange")))
   
   if (canSpawnSimultaneousBombs && score > 50 && Math.random() < 0.2) {
-    const bombCount = Math.floor(Math.random() * 5) + 1 // Sinh ra từ 1 đến 5 quả bom
+    let maxBombs = 2
+    if (score > 1000) maxBombs = 5
+    else if (score > 500) maxBombs = 4
+    else if (score > 200) maxBombs = 3
+
+    const bombCount = Math.floor(Math.random() * maxBombs) + 1
     const bombSpeed = baseSpeed * 1.1
 
     for (let i = 0; i < bombCount; i++) {
