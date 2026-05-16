@@ -22,7 +22,7 @@ export interface BombState {
 
 export interface SpawnResult {
   ball: BallState
-  newBomb?: BombState
+  newBombs?: BombState[]
   soundToPlay?: string
 }
 
@@ -96,18 +96,27 @@ export const spawnBall = (
   b.radius = b.type === "orange" ? 12 : 10
 
   // --- BOMB SPAWN LOGIC ---
-  let newBomb: BombState | undefined
+  let newBombs: BombState[] = []
   const canSpawnSimultaneousBombs = !isClassic && (!isCustom || (gameData.allowedBalls && gameData.allowedBalls.includes("orange")))
   
   if (canSpawnSimultaneousBombs && score > 50 && Math.random() < 0.2) {
-    const delayY = Math.random() * 150
-    newBomb = {
-      x: Math.random() * (canvasWidth - 40) + 20,
-      y: -50 - delayY,
-      radius: 12,
-      speed: baseSpeed * 1.1,
+    const bombCount = Math.floor(Math.random() * 5) + 1 // Sinh ra từ 1 đến 5 quả bom
+    const bombSpeed = baseSpeed * 1.1
+
+    for (let i = 0; i < bombCount; i++) {
+      // Độ lệch tối đa 1s (tương đương 60 frames). 
+      // Tính toán khoảng cách y dựa trên tốc độ để tạo độ trễ rơi.
+      const delayDistance = Math.random() * (bombSpeed * 60)
+      const offset = (gameData.isReverse ? 1 : -1) * delayDistance
+
+      newBombs.push({
+        x: Math.random() * (canvasWidth - 40) + 20,
+        y: startY + offset,
+        radius: 12,
+        speed: bombSpeed,
+      })
     }
   }
 
-  return { ball: b, newBomb, soundToPlay: b.type === "orange" ? "bomb_fall" : undefined }
+  return { ball: b, newBombs: newBombs.length > 0 ? newBombs : undefined, soundToPlay: b.type === "orange" ? "bomb_fall" : undefined }
 }

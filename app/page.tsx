@@ -894,9 +894,9 @@ export default function App() {
     // Cập nhật trạng thái bóng hiện tại
     Object.assign(gameData.current.ball, result.ball)
 
-    // Thêm bom nếu có
-    if (result.newBomb) {
-      gameData.current.bombs.push(result.newBomb)
+    // Thêm mảng bom nếu có
+    if (result.newBombs && result.newBombs.length > 0) {
+      gameData.current.bombs.push(...result.newBombs)
       playSound("bomb_fall")
     }
 
@@ -1713,8 +1713,8 @@ export default function App() {
 
         // 2. Identify Danger Zones
         const pWidth = gameData.current.playerWidth
-        const hardMargin = 20 // Khoảng cách an toàn tối thiểu khi bom sát nút
-        const softMargin = 10 // Khoảng cách dự phòng cho bom ở xa
+        const hardMargin = 8 // Thu hẹp lề để lách bom (Logic: gap ~30px giữa bom và bóng là đớp được)
+        const softMargin = 4 // Giảm lề dự phòng cho di chuyển linh hoạt hơn
         
         // Hard Zones: Immediate threats (cannot cross)
         const hardZones: { min: number; max: number }[] = []
@@ -1819,10 +1819,42 @@ export default function App() {
         if (bestInterval) {
           // Initial Target: Ball or Current
           const isGoodBall = b.type !== "orange"
-          let desiredX = isGoodBall ? predictedX : currentCenter
-          
-          // Clamp to Hard Safe Interval
-          targetCenter = Math.max(bestInterval.min, Math.min(desiredX, bestInterval.max))
+
+          if (isGoodBall) {
+            // Tối ưu ăn bóng thông minh: Tìm vị trí trong Safe Interval cho phép đớp bóng bằng cạnh thanh hứng
+            // Catch Range: Khoảng giá trị mà tâm thanh hứng có thể đứng để bóng chạm vào bề mặt thanh
+            const catchRangeMin = predictedX - pWidth / 2 + b.radius + 2
+            const catchRangeMax = predictedX + pWidth / 2 - b.radius - 2
+            
+            let bestCatchingPoint = null
+            let minCenterDist = Infinity
+            
+            // Duyệt qua các khoảng an toàn để tìm điểm đớp bóng gần với tâm bóng nhất
+            for (const interval of safeIntervals) {
+              const intersectMin = Math.max(interval.min, catchRangeMin)
+              const intersectMax = Math.min(interval.max, catchRangeMax)
+              
+              if (intersectMin <= intersectMax) {
+                // Ưu tiên đớp chính diện (predictedX), nếu không được thì lấy điểm gần nhất trong vùng giao
+                const candidate = Math.max(intersectMin, Math.min(predictedX, intersectMax))
+                const dist = Math.abs(candidate - predictedX)
+                if (dist < minCenterDist) {
+                  minCenterDist = dist
+                  bestCatchingPoint = candidate
+                }
+              }
+            }
+            
+            if (bestCatchingPoint !== null) {
+              targetCenter = bestCatchingPoint
+            } else {
+              // Nếu không thể đớp bóng an toàn, ưu tiên giữ vị trí an toàn gần nhất
+              targetCenter = Math.max(bestInterval.min, Math.min(currentCenter, bestInterval.max))
+            }
+          } else {
+            // Đang né bóng cam hoặc bom -> Di chuyển về điểm an toàn
+            targetCenter = Math.max(bestInterval.min, Math.min(currentCenter, bestInterval.max))
+          }
           
           // Avoid Soft Zones (Future threats)
           for (const sz of mergedSoftZones) {
@@ -2021,7 +2053,7 @@ export default function App() {
                   const currentScoreInt = Math.floor(gameData.current.score)
                   const musicRate = Math.min(currentScoreInt < 200 
                     ? 1.0 + Math.floor(currentScoreInt / 40) * 0.01 
-                    : 1.05 + Math.floor((currentScoreInt - 200) / 50) * 0.01, 3.0)
+                    : 1.05 + Math.floor((currentScoreInt - 200) / 50) * 0.01, 2.5)
                   audioRateManager.animatePlaybackRate(musicRate, 1000)
                   
                   if (snowIntervalRef.current) {
