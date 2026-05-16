@@ -55,22 +55,25 @@ export class AudioPlaybackRateManager {
   }
 
   /**
-   * Calculate music playback rate based on game speed
-   * Every 2x game speed increase = +0.05x music rate (nightcore chipmunk effect)
+   * Calculate music playback rate based on game speed (derived from score)
+   * Every 20 points score = +0.01x music rate (nightcore chipmunk effect)
+   * Formula: gameSpeed = 1.5 + score * 0.02, so score = (gameSpeed - 1.5) / 0.02
    */
   private calculateMusicRate(gameSpeed: number): number {
-    // Normalize game speed (subtract base speed of 1.5)
+    // Calculate score from game speed
+    // baseSpeed = 1.5 + score * 0.02
+    // score = (baseSpeed - 1.5) / 0.02
     const baseGameSpeed = 1.5
-    const speedAboveBase = Math.max(0, gameSpeed - baseGameSpeed)
+    const scoreEquivalent = (gameSpeed - baseGameSpeed) / 0.02
     
-    // Calculate how many "2x increments" we've gone through
-    const incrementCount = Math.floor(speedAboveBase / 2)
+    // Every 20 points = +0.01x music rate
+    const musicIncrement = Math.floor(scoreEquivalent / 20) * 0.01
     
-    // Base music rate is 1.0x, each increment adds 0.05x (nightcore effect)
-    let musicRate = 1.0 + (incrementCount * 0.05)
+    // Base music rate is 1.0x
+    let musicRate = 1.0 + musicIncrement
     
-    // Cap at 1.35x (approximately 35% speed increase max)
-    musicRate = Math.min(musicRate, 1.35)
+    // Cap at 3.0x (maximum speed increase)
+    musicRate = Math.min(musicRate, 3.0)
     
     return Math.round(musicRate * 1000) / 1000 // Round to 3 decimals
   }
