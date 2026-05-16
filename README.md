@@ -33,7 +33,7 @@ This repository stays **automatically in sync** with deployments created on **v0
 
 #### ⚡ Performance & Visuals
 - **FPS Control:** Added adjustable frame rate settings to the UI, allowing players better control over performance based on their hardware.
-- **Visual Improvements:** Enhanced game visuals and refined FPS calculation logic to ensure much smoother gameplay across different devices.
+- **Visual Improvements:** Enhanced game visuals and refined FPS calculation logic and show FPS to ensure much smoother gameplay across different devices.
 
 #### 🎵 Gameplay & Audio
 - **Dynamic Music Speed:** Updated music playback behavior to dynamically scale its playback rate/speed based on the player's current score, raising the tension as the game progresses!

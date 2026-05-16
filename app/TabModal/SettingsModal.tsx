@@ -22,6 +22,8 @@ interface SettingsModalProps {
   setLanguage: (lang: "en" | "vi" | "es" | "ru") => void
   isMuted: boolean
   toggleMute: () => void
+  showFPS: boolean
+  toggleFPS: () => void
   particlesEnabled: boolean
   toggleParticles: () => void
   trailsEnabled: boolean
@@ -57,6 +59,8 @@ export default function SettingsModal({
   setLanguage,
   isMuted,
   toggleMute,
+  showFPS,
+  toggleFPS,
   particlesEnabled,
   toggleParticles,
   trailsEnabled,
@@ -346,6 +350,26 @@ export default function SettingsModal({
               <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                 <Sparkles size={14} /> {t.visuals}
               </h3>
+
+                {/* Show FPS Toggle */}
+                <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${showFPS ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-700 text-slate-400"}`}>
+                      <Activity size={18} />
+                    </div>
+                    <span className="text-sm font-bold text-slate-300 uppercase">{t.showFPS}</span>
+                  </div>
+                  <button
+                    onClick={toggleFPS}
+                    className={`w-12 h-6 rounded-full relative transition-colors ${!showFPS ? "bg-slate-600" : "bg-emerald-600"}`}
+                  >
+                    <motion.div
+                      layout
+                      transition={animationLevel === "full" ? { type: "spring", stiffness: 500, damping: 30 } : { duration: animationLevel === "min" ? 0.2 : 0 }}
+                      className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!showFPS ? "left-1" : "left-7"}`}
+                    />
+                  </button>
+                </div>
 
               {/* Particles Toggle */}
               <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-white/5">

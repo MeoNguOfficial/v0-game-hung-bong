@@ -133,6 +133,7 @@ export default function App() {
   const [isMuted, setIsMuted] = useState(false)
   const [isClassic, setIsClassic] = useState(false)
   const [particlesEnabled, setParticlesEnabled] = useState(true)
+  const [showFPS, setShowFPS] = useState(false)
   const [trailsEnabled, setTrailsEnabled] = useState(true)
   const [animationLevel, setAnimationLevel] = useState<"full" | "min" | "none">("full")
   const [openSettings, setOpenSettings] = useState(false)
@@ -192,6 +193,10 @@ export default function App() {
   const [maxFPS, setMaxFPS] = useState(60) // 60 default, -1 = unlimited
   const [isConfigLoaded, setIsConfigLoaded] = useState(false)
   const [devMode, setDevMode] = useState(false)
+  const fpsRef = useRef(0)
+  const logicTimeRef = useRef(0)
+  const [fpsDisplay, setFpsDisplay] = useState(0)
+  const [logicDisplay, setLogicDisplay] = useState(0)
   const [showDevToast, setShowDevToast] = useState(false)
   const [showDevMenu, setShowDevMenu] = useState(false)
   const [debugUI, setDebugUI] = useState(false)
@@ -317,6 +322,12 @@ export default function App() {
     deathY: 0,
     skin: "default",
     background: "default",
+    aiDebug: {
+      predictedX: 0,
+      targetCenter: 0,
+      hardZones: [] as { min: number; max: number }[],
+      softZones: [] as { min: number; max: number }[],
+    },
     pixiParticleSystem: null as any,
   })
 
@@ -869,6 +880,13 @@ export default function App() {
     localStorage.setItem("game_particles", String(newState))
   }
 
+  const toggleFPS = () => {
+    const newState = !showFPS
+    playClick()
+    setShowFPS(newState)
+    localStorage.setItem("game_show_fps", String(newState))
+  }
+
   const toggleTrails = () => {
     playClick()
     const newState = !trailsEnabled
@@ -1324,6 +1342,8 @@ export default function App() {
     setParticlesEnabled(savedParticles)
     gameData.current.particlesEnabled = savedParticles
     const savedTrails = localStorage.getItem("game_trails") !== "false";
+    const savedShowFPS = localStorage.getItem("game_show_fps") === "true";
+    setShowFPS(savedShowFPS);
     const savedAnimLevel = localStorage.getItem("game_animation_level");
     if (savedAnimLevel === "full" || savedAnimLevel === "min" || savedAnimLevel === "none") {
       setAnimationLevel(savedAnimLevel);
@@ -1523,6 +1543,7 @@ export default function App() {
     // Universal FPS timing
     let lastFrameTime = performance.now()
     let lastLogicTime = performance.now()
+    let lastStatsUpdate = 0
 
     const getFrameDelay = () => {
       const maxFpsValue = gameData.current.maxFPS
@@ -1537,6 +1558,9 @@ export default function App() {
         requestRef.current = requestAnimationFrame(update)
         return // Skip this frame to maintain target FPS
       }
+
+      const logicStartTime = performance.now()
+      fpsRef.current = 1000 / (currentTime - lastFrameTime)
       
       const deltaTime = (currentTime - lastLogicTime) / (1000 / 60) // Normalize to 60 FPS (1.0 = 16.6ms)
       lastLogicTime = currentTime
@@ -1678,8 +1702,11 @@ export default function App() {
       const widthDiff = gameData.current.targetWidth - gameData.current.playerWidth
       gameData.current.playerWidth += widthDiff * 0.1 * deltaTime
 
-      // --- Bot Logic ---
-      if (gameData.current.isAuto && canvas.getAttribute("data-state") === "running" && !gameData.current.isDying) {
+      // --- Bot / Prediction Logic ---
+      const isAuto = gameData.current.isAuto
+      const isDebug = debugFlags.current.hitbox
+
+      if ((isAuto || isDebug) && canvas.getAttribute("data-state") === "running" && !gameData.current.isDying) {
         const ts = (gameData.current.timeScale || 1)
 
         // 1. Predict Ball Position
@@ -1878,10 +1905,19 @@ export default function App() {
           }
         }
 
-        // 5. Move
-        const targetX = targetCenter - pWidth / 2
+        // Save for debug rendering
+        gameData.current.aiDebug = {
+          predictedX,
+          targetCenter,
+          hardZones: [...mergedHardZones],
+          softZones: [...mergedSoftZones],
+        }
 
-        gameData.current.playerX += (targetX - gameData.current.playerX) * (1 - Math.pow(1 - 0.5, deltaTime))
+        // 5. Move
+        if (isAuto) {
+          const targetX = targetCenter - pWidth / 2
+          gameData.current.playerX += (targetX - gameData.current.playerX) * (1 - Math.pow(1 - 0.5, deltaTime))
+        }
       }
 
       // --- Manual Movement Smoothing ---
@@ -2372,6 +2408,33 @@ export default function App() {
       // --- DEBUG HITBOXES ---
       if (debugFlags.current.hitbox) {
         ctx.save()
+
+        // AI Prediction Visualization
+        const ad = gameData.current.aiDebug
+        if (ad) {
+          // 1. Hard Zones (Danger)
+          ctx.globalAlpha = 0.2
+          ctx.fillStyle = "#ef4444"
+          ad.hardZones.forEach((z) => ctx.fillRect(z.min, logicPaddleY - 10, z.max - z.min, 35))
+
+          // 2. Soft Zones (Caution)
+          ctx.fillStyle = "#f59e0b"
+          ad.softZones.forEach((z) => ctx.fillRect(z.min, logicPaddleY - 5, z.max - z.min, 25))
+
+          // 3. Predicted Landing
+          ctx.globalAlpha = 0.8
+          ctx.strokeStyle = "#ffffff"
+          ctx.setLineDash([4, 4])
+          ctx.beginPath(); ctx.moveTo(ad.predictedX, logicPaddleY - 100); ctx.lineTo(ad.predictedX, logicPaddleY + 20); ctx.stroke()
+          ctx.setLineDash([])
+
+          // 4. Target Point
+          ctx.strokeStyle = "#a855f7"
+          ctx.lineWidth = 2
+          ctx.beginPath(); ctx.arc(ad.targetCenter, logicPaddleY + 7.5, 6, 0, Math.PI * 2); ctx.stroke()
+        }
+
+        ctx.globalAlpha = 1
         ctx.lineWidth = 1
         ctx.strokeStyle = "#ef4444" // Red
         ctx.fillStyle = "#ef4444"
@@ -2394,6 +2457,15 @@ export default function App() {
           ctx.stroke()
         })
         ctx.restore()
+      }
+
+      // --- PERFORMANCE OVERLAY ---
+      logicTimeRef.current = performance.now() - logicStartTime
+
+      if (currentTime - lastStatsUpdate > 500) {
+        setFpsDisplay(Math.round(fpsRef.current))
+        setLogicDisplay(logicTimeRef.current)
+        lastStatsUpdate = currentTime
       }
 
       requestRef.current = requestAnimationFrame(update)
@@ -2563,6 +2635,16 @@ export default function App() {
               <div className="flex flex-col">
                 <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t.score}</span>
                 <span className="text-xl font-black text-yellow-400 italic tabular-nums leading-none">{score}</span>
+                {(showFPS || debugHitboxPlay) && (
+                  <div className="flex flex-col mt-0.5">
+                    {showFPS && (
+                      <span className="text-[9px] font-bold text-emerald-500 leading-none">FPS: {fpsDisplay}</span>
+                    )}
+                    {debugHitboxPlay && (
+                      <span className="text-[9px] font-bold text-yellow-500 leading-none mt-0.5">LOGIC: {logicDisplay.toFixed(2)}ms</span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Best Score */}
@@ -2989,6 +3071,8 @@ export default function App() {
                     setLanguage={changeLanguage}
                     isMuted={isMuted}
                     toggleMute={toggleMute}
+                    showFPS={showFPS}
+                    toggleFPS={toggleFPS}
                     particlesEnabled={particlesEnabled}
                     toggleParticles={toggleParticles}
                     trailsEnabled={trailsEnabled}
@@ -3135,6 +3219,8 @@ export default function App() {
             setLanguage={changeLanguage}
             isMuted={isMuted}
             toggleMute={toggleMute}
+            showFPS={showFPS}
+            toggleFPS={toggleFPS}
             particlesEnabled={particlesEnabled}
             toggleParticles={toggleParticles}
             trailsEnabled={trailsEnabled}
