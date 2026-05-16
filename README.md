@@ -29,7 +29,7 @@ This repository stays **automatically in sync** with deployments created on **v0
 
 ## 🛠 Changelogs and Updates
 
-### 🚀 Catch Master v1.0.6
+### 🚀 Catch Master v1.0.7
 
 #### ⚡ Performance & Visuals
 - **FPS Control:** Added adjustable frame rate settings to the UI, allowing players better control over performance based on their hardware.
@@ -42,8 +42,6 @@ This repository stays **automatically in sync** with deployments created on **v0
 - **PWA Ready (Service Worker):** Implemented a Service Worker with a **network-first strategy** to enable seamless asset caching.
 - **Offline Experience:** Added the `<OfflineGame />` component to manage and enhance the user experience smoothly when disconnected from the internet.
 - **Cache Control:** Included a manual **"Clear Cache"** button within the Settings menu, allowing players to instantly refresh assets and fetch the latest version of the game.
-
-#### Upcoming update: Rain mode
 
 ---
 
