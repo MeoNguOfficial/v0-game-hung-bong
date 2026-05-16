@@ -169,6 +169,7 @@ export default function App() {
   const [bgMenuEnabled, setBgMenuEnabled] = useState(true)
   const [sensitivity, setSensitivity] = useState(0)
   const [baseGameSpeed, setBaseGameSpeed] = useState(100) // 1.0x speed (50-300 = 0.5x-3.0x)
+  const [maxFPS, setMaxFPS] = useState(60) // 60 default, -1 = unlimited
   const [isConfigLoaded, setIsConfigLoaded] = useState(false)
   const [devMode, setDevMode] = useState(false)
   const [showDevToast, setShowDevToast] = useState(false)
@@ -268,6 +269,7 @@ export default function App() {
     targetPlayerX: 210,
     sensitivity: 0,
     baseGameSpeed: 1.0,
+    maxFPS: 60,
     playerWidth: 80,
     targetWidth: 80,
     isBoosted: false,
@@ -330,7 +332,7 @@ export default function App() {
           // 2. Lấy 20 trận gần nhất
           const recent20 = all.slice(0, 20)
 
-          // 3. Gộp: Gi�� lại nếu nằm trong 20 trận gần nhất HOẶC nằm trong Top 5
+          // 3. Gộp: Gi��� lại nếu nằm trong 20 trận gần nhất HOẶC nằm trong Top 5
           const result = all.filter(x => recent20.includes(x) || protectedSet.has(x))
           result.sort((a, b) => b.timestamp - a.timestamp)
 
@@ -529,6 +531,12 @@ export default function App() {
     setBaseGameSpeed(v)
     gameData.current.baseGameSpeed = v / 100 // Convert from 50-300 to 0.5-3.0
     localStorage.setItem("game_baseGameSpeed", String(v))
+  }
+
+  const changeMaxFPS = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseFloat(e.target.value)
+    setMaxFPS(v)
+    localStorage.setItem("game_maxFPS", String(v))
   }
 
   // --- Keyboard Shortcuts (PC) ---
@@ -1172,6 +1180,13 @@ export default function App() {
       gameData.current.baseGameSpeed = bgs / 100
     }
 
+    const savedMaxFPS = localStorage.getItem("game_maxFPS")
+    if (savedMaxFPS) {
+      const mfps = parseFloat(savedMaxFPS)
+      setMaxFPS(mfps)
+      gameData.current.maxFPS = mfps
+    }
+
     // Load Custom Config
     const savedCustomConfig = localStorage.getItem("game_custom_config")
     if (savedCustomConfig) {
@@ -1405,7 +1420,24 @@ export default function App() {
     window.addEventListener("mousemove", handleMove)
     window.addEventListener("touchmove", handleMove, { passive: false })
 
+    // Universal FPS timing
+    let lastFrameTime = Date.now()
+    const getFrameDelay = () => {
+      const maxFpsValue = gameData.current.maxFPS
+      if (maxFpsValue === -1) return 0 // Unlimited FPS
+      return 1000 / maxFpsValue // Convert FPS to milliseconds
+    }
+
     const update = () => {
+      // Frame rate limiting
+      const now = Date.now()
+      const frameDelay = getFrameDelay()
+      if (frameDelay > 0 && now - lastFrameTime < frameDelay) {
+        requestRef.current = requestAnimationFrame(update)
+        return // Skip this frame to maintain target FPS
+      }
+      lastFrameTime = now
+
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
       const isReverse = gameData.current.isReverse
@@ -2723,6 +2755,8 @@ export default function App() {
                     setSensitivity={changeSensitivity}
                     baseGameSpeed={baseGameSpeed}
                     setBaseGameSpeed={changeBaseGameSpeed}
+                    maxFPS={maxFPS}
+                    setMaxFPS={changeMaxFPS}
                     gameState={gameState}
                     openSettingsFromPause={openSettingsFromPause}
                     embed={true}
@@ -2873,6 +2907,8 @@ export default function App() {
             setSensitivity={changeSensitivity}
             baseGameSpeed={baseGameSpeed}
             setBaseGameSpeed={changeBaseGameSpeed}
+            maxFPS={maxFPS}
+            setMaxFPS={changeMaxFPS}
             gameState={gameState}
             openSettingsFromPause={openSettingsFromPause}
             hideSystem={true}

@@ -110,6 +110,8 @@ export const TRANSLATIONS = {
     controls: "Controls",
     sensitivity: "Sensitivity",
     baseGameSpeed: "Base Game Speed",
+    maxFPS: "Max FPS",
+    unlimited: "Unlimited",
     close: "Close",
     holdForDetails: "Hold a button for details",
     // Quick Play Descriptions
@@ -265,6 +267,8 @@ export const TRANSLATIONS = {
     controls: "Điều khiển",
     sensitivity: "Độ nhạy",
     baseGameSpeed: "Tốc độ cơ bản",
+    maxFPS: "FPS tối đa",
+    unlimited: "Không giới hạn",
     close: "Đóng",
     holdForDetails: "Giữ một nút để xem chi tiết",
     // Quick Play Descriptions
@@ -420,6 +424,8 @@ export const TRANSLATIONS = {
     controls: "Controles",
     sensitivity: "Sensibilidad",
     baseGameSpeed: "Velocidad Base del Juego",
+    maxFPS: "FPS Máximo",
+    unlimited: "Sin límite",
     close: "Cerrar",
     holdForDetails: "Mantén presionado un botón para ver detalles",
     // Quick Play Descriptions
@@ -469,7 +475,7 @@ export const TRANSLATIONS = {
     auto: "Авто",
     classic: "Классика",
     hardcore: "Хардкор",
-    guide: "ГАЙД",
+    guide: "Г��ЙД",
     stats: "СТАТИСТИКА",
     settings: "НАСТРОЙКИ",
     gameOver: "Игра Окончена",
@@ -575,6 +581,8 @@ export const TRANSLATIONS = {
     controls: "Управление",
     sensitivity: "Чувствительность",
     baseGameSpeed: "Базовая скорость игры",
+    maxFPS: "Макс FPS",
+    unlimited: "Без ограничений",
     close: "Закрыть",
     holdForDetails: "Удерживайте кнопку для подробностей",
     // Quick Play Descriptions
