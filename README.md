@@ -31,11 +31,19 @@ This repository stays **automatically in sync** with deployments created on **v0
 
 ### 🚀 Catch Master v1.0.6
 
-#### 🌟 Improvements
-- **Settings:** Add Base Game Speed
-- **Particles Enhancement:** Improvement render
-- **Speed increment on game:** Add speed increment due to playing.
-- **Speed slow when active Snowball:** Music Speed when playing is decrease 50% when playing.
+#### ⚡ Performance & Visuals
+- **FPS Control:** Added adjustable frame rate settings to the UI, allowing players better control over performance based on their hardware.
+- **Visual Improvements:** Enhanced game visuals and refined FPS calculation logic to ensure much smoother gameplay across different devices.
+
+#### 🎵 Gameplay & Audio
+- **Dynamic Music Speed:** Updated music playback behavior to dynamically scale its playback rate/speed based on the player's current score, raising the tension as the game progresses!
+
+#### 🌐 Offline Support & Caching
+- **PWA Ready (Service Worker):** Implemented a Service Worker with a **network-first strategy** to enable seamless asset caching.
+- **Offline Experience:** Added the `<OfflineGame />` component to manage and enhance the user experience smoothly when disconnected from the internet.
+- **Cache Control:** Included a manual **"Clear Cache"** button within the Settings menu, allowing players to instantly refresh assets and fetch the latest version of the game.
+
+#### Upcoming update: Rain mode
 
 ---
 

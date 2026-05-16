@@ -44,6 +44,7 @@ import PauseModal from "./GameModal/PauseModal"
 import GameOverModal from "./GameModal/GameOverModal"
 import QuickPlayModal from "./ModeModal/QuickPlayModal"
 import DevModeModal from "./DevModal/DevModeModal"
+import OfflineGame from "./offlineGame"
 import { spawnBall } from "./MainGameLogic"
 import { isSuddenDeathMiss } from "./GameModal/SuddenDeathGameModal"
 import { getHiddenBallAlpha } from "./GameModal/HiddenBallModal"
@@ -51,6 +52,22 @@ import { getBlankObstacleProps } from "./GameModal/BlankModal"
 import { getInitialVerticalState } from "./GameModal/ReverseGameModal"
 import { getScoreKey, initializeScores, getScoreMultiplier } from "./ScoreManager"
 import type { Difficulty, GameType, HistoryEntry } from "./ScoreManager"
+
+// --- Update: Obfuscation Helpers for Score Security ---
+const SECRET_SALT = "MEO_SECRET_KEY_2024_PWA_SECURE";
+const obfuscate = (str: string) => {
+  return btoa(str.split('').map((char, i) => 
+    String.fromCharCode(char.charCodeAt(0) ^ SECRET_SALT.charCodeAt(i % SECRET_SALT.length))
+  ).join(''));
+};
+const deobfuscate = (str: string) => {
+  try {
+    const decoded = atob(str);
+    return decoded.split('').map((char, i) => 
+      String.fromCharCode(char.charCodeAt(0) ^ SECRET_SALT.charCodeAt(i % SECRET_SALT.length))
+    ).join('');
+  } catch (e) { return null; }
+};
 
 // --- Custom Hook: useIsMobile (Được tích hợp trực tiếp để không cần file ngoài) ---
 function useIsMobile() {
@@ -129,6 +146,8 @@ export default function App() {
   const [snowActive, setSnowActive] = useState(false)
   const [language, setLanguage] = useState<"en" | "vi" | "es" | "ru">("en")
   const [skin, setSkin] = useState("default")
+  const [background, setBackground] = useState("default")
+  const [skinTab, setSkinTab] = useState<"skins" | "backgrounds">("skins")
   const [openCustom, setOpenCustom] = useState(false)
   const [openQuickPlay, setOpenQuickPlay] = useState(false)
   const [isHidden, setIsHidden] = useState(false)
@@ -200,9 +219,14 @@ export default function App() {
 
     Object.keys(loaded).forEach(k => {
       const v = localStorage.getItem(k)
-      if (v !== null) {
-        const n = Number.parseInt(v, 10)
-        if (!Number.isNaN(n)) loaded[k] = n
+      if (v) {
+        // Try to decrypt; if fails, fallback to legacy number parsing (migration)
+        const decrypted = deobfuscate(v);
+        const scoreVal = decrypted !== null ? Number.parseInt(decrypted, 10) : Number.parseInt(v, 10);
+        
+        if (!Number.isNaN(scoreVal)) {
+          loaded[k] = scoreVal;
+        }
       }
     })
 
@@ -232,10 +256,11 @@ export default function App() {
     const savedHistory = localStorage.getItem("game_recent_history")
     if (savedHistory) {
       try {
-        const parsed = JSON.parse(savedHistory)
+        // Decrypt history JSON
+        const decrypted = deobfuscate(savedHistory);
+        const parsed = JSON.parse(decrypted || savedHistory);
         setRecentScores(parsed)
 
-        // Sync Best Scores from History (Retroactive fix for missing best scores)
         if (Array.isArray(parsed)) {
           parsed.forEach((h: any) => {
             const key = getScoreKey(h.difficulty, h.gameType, h.modifiers)
@@ -291,6 +316,7 @@ export default function App() {
     deathX: 0,
     deathY: 0,
     skin: "default",
+    background: "default",
     pixiParticleSystem: null as any,
   })
 
@@ -304,6 +330,13 @@ export default function App() {
   useEffect(() => {
     if (gameState === "over") {
       const { score, isAuto, isCustom, gameMode, isClassic, isHidden, isBlank, isReverse, isReverseControl, isMirror, isInvisible } = gameData.current
+
+      // Update 2: Don't save anything if score is 0
+      if (Math.floor(score) <= 0) {
+        setIsNewBestRecord(false)
+        setNewBestRank(null)
+        return
+      }
 
       let newEntry: HistoryEntry | undefined
 
@@ -361,7 +394,7 @@ export default function App() {
           nextBestScores = { ...bestScoresRef.current, [scoreKey]: currentScore }
           setBestScores(nextBestScores)
           bestScoresRef.current = nextBestScores
-          localStorage.setItem(scoreKey, String(currentScore))
+          localStorage.setItem(scoreKey, obfuscate(String(currentScore)))
         }
 
         // --- Calculate Top 5 Rank ---
@@ -471,6 +504,13 @@ export default function App() {
     localStorage.setItem("game_skin", newSkin)
   }
 
+  const changeBackground = (bg: string) => {
+    playClick()
+    setBackground(bg)
+    gameData.current.background = bg
+    localStorage.setItem("game_background", bg)
+  }
+
   const changeMenuMusicVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value)
     setMenuMusicVolume(v)
@@ -535,8 +575,10 @@ export default function App() {
   }
 
   const changeMaxFPS = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = parseFloat(e.target.value)
+    let v = parseFloat(e.target.value)
+    if (v === 240) v = -1 // Treat the maximum value as Unlimited
     setMaxFPS(v)
+    gameData.current.maxFPS = v // Update game logic immediately
     localStorage.setItem("game_maxFPS", String(v))
   }
 
@@ -544,8 +586,8 @@ export default function App() {
     try {
       await swManager.clearCache()
       console.log("[v0] Cache cleared, requesting restart...")
-      // Show a message and request app restart
-      alert(t["restartRequired"] || "Please restart the app to reload cached assets.")
+      // Update 3: Immediate hard refresh
+      window.location.reload()
     } catch (error) {
       console.error("[v0] Cache clear error:", error)
       alert("Failed to clear cache. Please try again.")
@@ -555,6 +597,21 @@ export default function App() {
   // --- Keyboard Shortcuts (PC) ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Handle closing Quick Play or Custom Game modals with Escape
+      if (e.code === "Escape") {
+        if (openQuickPlay) {
+          playClick()
+          setOpenQuickPlay(false)
+          return
+        }
+        if (openCustom) {
+          playClick()
+          setOpenCustom(false)
+          setCustomError(null)
+          return
+        }
+      }
+
       if (e.code === "Space" || e.code === "Escape") {
         if (gameState === "running") {
           playClick()
@@ -569,7 +626,7 @@ export default function App() {
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [gameState, openSettings, confirmExit])
+  }, [gameState, openSettings, confirmExit, openQuickPlay, openCustom])
 
   // --- Audio Helper: Fade In / Fade Out ---
   const fadeAudio = (audio: HTMLAudioElement, targetVol: number, duration = 800, onComplete?: () => void) => {
@@ -1095,61 +1152,84 @@ export default function App() {
   }
 
   useEffect(() => {
-    const loadAudio = (src: string) => {
-      const audio = new Audio(src)
-      audio.preload = "auto"
-      return audio
-    }
-
-    audioRefs.current = {
-      // SFX Sounds
-      catch: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/catch.mp3"),
-      miss: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/miss.mp3"),
-      gameover: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/gameover.mp3"),
-      heal: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/heal.mp3"),
-      boost: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/boost.mp3"),
-      boost_end: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/boost_end.mp3"),
-      newbest: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/newbest.mp3"),
-      shield: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/shield.mp3"),
-      shield_breaking: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/shield_breaking.mp3"),
-      snow: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/snow_start.mp3"),
-      snow_end: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/snow_end.mp3"),
-      bomb: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bomb.mp3"),
-      critical_bomb: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/critical_bomb.mp3"),
-      bomb_fall: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bomb_fall_loop.mp3"),
-      score_count: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/score_count.mp3"),
-      game_over_new_best: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/game_over_new_best.mp3"),
-      // Background Musics
-      bg_game_default: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bg_game_default.mp3"),
-      bg_game_hardcode: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bg_game_hardcode.mp3"),
-      bg_game_auto: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bg_game_auto.mp3"),
-      bg_game_custom: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bg_game_custom.mp3"),
-      // Main Menu Background
-      bg_menu: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/menu_bg.mp3"),
-      pause_bg: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/pause_music.mp3"),
-      // UI Sounds
-      count: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/count.mp3"),
-      go: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/go.mp3"),
-      kjacs: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/kjacs.mp3"),
-      click: loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/click2.mp3"),
+    const audioSources: any = {
+      catch: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/catch.mp3",
+      miss: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/miss.mp3",
+      gameover: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/gameover.mp3",
+      heal: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/heal.mp3",
+      boost: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/boost.mp3",
+      boost_end: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/boost_end.mp3",
+      newbest: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/newbest.mp3",
+      shield: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/shield.mp3",
+      shield_breaking: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/shield_breaking.mp3",
+      snow: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/snow_start.mp3",
+      snow_end: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/snow_end.mp3",
+      bomb: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bomb.mp3",
+      critical_bomb: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/critical_bomb.mp3",
+      bomb_fall: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bomb_fall_loop.mp3",
+      score_count: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/score_count.mp3",
+      game_over_new_best: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/game_over_new_best.mp3",
+      bg_game_default: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bg_game_default.mp3",
+      bg_game_hardcode: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bg_game_hardcode.mp3",
+      bg_game_auto: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bg_game_auto.mp3",
+      bg_game_custom: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/bg_game_custom.mp3",
+      bg_menu: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/menu_bg.mp3",
+      pause_bg: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/pause_music.mp3",
+      count: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/count.mp3",
+      go: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/go.mp3",
+      kjacs: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/kjacs.mp3",
+      click: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/click2.mp3",
       combo: [
-        loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/c1.mp3"),
-        loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/c2.mp3"),
-        loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/c3.mp3"),
-        loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/c4.mp3"),
-        loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/c5.mp3"),
-        loadAudio("https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/c6.mp3"),
+        "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/c1.mp3",
+        "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/c2.mp3",
+        "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/c3.mp3",
+        "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/c4.mp3",
+        "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/c5.mp3",
+        "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/c6.mp3",
       ],
     }
 
+    const totalAssets = Object.keys(audioSources).length - 1 + audioSources.combo.length
+    let loadedAssetsCount = 0
+
+    const onAssetLoaded = () => {
+      loadedAssetsCount++
+      const progress = (loadedAssetsCount / totalAssets) * 100
+      setIntroLoadingProgress(progress)
+    }
+
+    const loadAudio = (src: string) => {
+      const audio = new Audio(src)
+      audio.preload = "auto"
+      const handleLoad = () => {
+        audio.removeEventListener("canplaythrough", handleLoad)
+        audio.removeEventListener("error", handleLoad)
+        onAssetLoaded()
+      }
+      audio.addEventListener("canplaythrough", handleLoad)
+      audio.addEventListener("error", handleLoad)
+      return audio
+    }
+
+    const loadedRefs: any = {}
+    for (const [key, src] of Object.entries(audioSources)) {
+      if (Array.isArray(src)) {
+        loadedRefs[key] = src.map((s: string) => loadAudio(s))
+      } else {
+        loadedRefs[key] = loadAudio(src as string)
+      }
+    }
+
+    audioRefs.current = loadedRefs
+
     // Loop BGMs
-    if (audioRefs.current.bg_game_default) audioRefs.current.bg_game_default.loop = true
-    if (audioRefs.current.bg_game_hardcode) audioRefs.current.bg_game_hardcode.loop = true
-    if (audioRefs.current.bg_game_auto) audioRefs.current.bg_game_auto.loop = true
-    if (audioRefs.current.bg_game_custom) audioRefs.current.bg_game_custom.loop = true
-    if (audioRefs.current.bg_menu) audioRefs.current.bg_menu.loop = true
-    if (audioRefs.current.pause_bg) audioRefs.current.pause_bg.loop = true
-    if (audioRefs.current.score_count) audioRefs.current.score_count.loop = true
+    if (loadedRefs.bg_game_default) loadedRefs.bg_game_default.loop = true
+    if (loadedRefs.bg_game_hardcode) loadedRefs.bg_game_hardcode.loop = true
+    if (loadedRefs.bg_game_auto) loadedRefs.bg_game_auto.loop = true
+    if (loadedRefs.bg_game_custom) loadedRefs.bg_game_custom.loop = true
+    if (loadedRefs.bg_menu) loadedRefs.bg_menu.loop = true
+    if (loadedRefs.pause_bg) loadedRefs.pause_bg.loop = true
+    if (loadedRefs.score_count) loadedRefs.score_count.loop = true
 
     const savedMute = localStorage.getItem("game_muted") === "true"
     setIsMuted(savedMute)
@@ -1259,6 +1339,10 @@ export default function App() {
     setSkin(savedSkin)
     gameData.current.skin = savedSkin
 
+    const savedBg = localStorage.getItem("game_background") || "default"
+    setBackground(savedBg)
+    gameData.current.background = savedBg
+
     document.title = "Catch Master - Power by V0"
 
     // Register Service Worker for asset caching
@@ -1300,30 +1384,23 @@ export default function App() {
       }
 
       setIntroStep(0)
-      setIntroLoadingProgress(0)
-
-      // Smooth loading bar animation
-      const startTime = Date.now()
-      const duration = 1800 // 1.8 seconds for smooth progression
-      const loadingInterval = setInterval(() => {
-        const elapsed = Date.now() - startTime
-        const progress = Math.min((elapsed / duration) * 100, 90) // Cap at 90% until full load
-        setIntroLoadingProgress(progress)
-      }, 16) // ~60fps
-
       const t1 = window.setTimeout(() => {
         setIntroStep(1)
-        setIntroLoadingProgress(100) // Full progress when step changes
       }, 1000)
-      const t2 = window.setTimeout(() => setIntroStep(2), 2000)
       
-      return () => {
-        clearInterval(loadingInterval)
-        clearTimeout(t1)
-        clearTimeout(t2)
-      }
+      return () => clearTimeout(t1)
     }
   }, [showIntro])
+
+  // Separate effect to handle completion of loading
+  useEffect(() => {
+    if (showIntro && introLoadingProgress === 100 && introStep >= 1) {
+      const timer = setTimeout(() => {
+        setIntroStep(2)
+      }, 600)
+      return () => clearTimeout(timer)
+    }
+  }, [showIntro, introLoadingProgress, introStep])
 
   // Persist custom config and quick play settings separately (so it doesn't interfere with intro timings)
   useEffect(() => {
@@ -1441,24 +1518,69 @@ export default function App() {
     window.addEventListener("touchmove", handleMove, { passive: false })
 
     // Universal FPS timing
-    let lastFrameTime = Date.now()
+    let lastFrameTime = performance.now()
+    let lastLogicTime = performance.now()
+
     const getFrameDelay = () => {
       const maxFpsValue = gameData.current.maxFPS
       if (maxFpsValue === -1) return 0 // Unlimited FPS
       return 1000 / maxFpsValue // Convert FPS to milliseconds
     }
 
-    const update = () => {
+    const update = (currentTime: number) => {
       // Frame rate limiting
-      const now = Date.now()
       const frameDelay = getFrameDelay()
-      if (frameDelay > 0 && now - lastFrameTime < frameDelay) {
+      if (frameDelay > 0 && currentTime - lastFrameTime < frameDelay) {
         requestRef.current = requestAnimationFrame(update)
         return // Skip this frame to maintain target FPS
       }
-      lastFrameTime = now
+      
+      const deltaTime = (currentTime - lastLogicTime) / (1000 / 60) // Normalize to 60 FPS (1.0 = 16.6ms)
+      lastLogicTime = currentTime
+      lastFrameTime = currentTime
 
       ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+      // --- RENDER CUSTOM BACKGROUND ---
+      const curBg = gameData.current.background || "default"
+      if (curBg === "grid") {
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.04)"
+        ctx.lineWidth = 1
+        for (let i = 0; i < canvas.width; i += 40) {
+          ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke()
+        }
+        for (let i = 0; i < canvas.height; i += 40) {
+          ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke()
+        }
+      } else if (curBg === "dots") {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.06)"
+        for (let x = 20; x < canvas.width; x += 40) {
+          for (let y = 20; y < canvas.height; y += 40) {
+            ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2); ctx.fill()
+          }
+        }
+      } else if (curBg === "dynamic_stars") {
+        const time = currentTime * 0.0005
+        ctx.fillStyle = "rgba(255, 255, 255, 0.2)"
+        for (let i = 0; i < 40; i++) {
+          const sx = ((Math.abs(Math.sin(i * 999.9)) * 1000) % 1) * canvas.width
+          const speed = 10 + (i % 15)
+          const sy = (((Math.abs(Math.cos(i * 555.5)) * 1000) % 1) * canvas.height + currentTime * speed * 0.01) % canvas.height
+          ctx.beginPath(); ctx.arc(sx, sy, i % 3 === 0 ? 1.5 : 0.8, 0, Math.PI * 2); ctx.fill()
+        }
+      } else if (curBg === "dynamic_waves") {
+        const time = currentTime * 0.001
+        ctx.strokeStyle = "rgba(59, 130, 246, 0.08)"
+        ctx.lineWidth = 3
+        for (let j = 0; j < 4; j++) {
+          ctx.beginPath()
+          for (let i = 0; i < canvas.width; i += 10) {
+            const waveY = (canvas.height / 2) + Math.sin(i * 0.005 + time + j) * 80 + (j * 40 - 80)
+            if (i === 0) ctx.moveTo(i, waveY); else ctx.lineTo(i, waveY)
+          }
+          ctx.stroke()
+        }
+      }
 
       const isReverse = gameData.current.isReverse
       const gravityDirection = isReverse ? -1 : 1
@@ -1506,16 +1628,18 @@ export default function App() {
           gameData.current.deathX = bx
           gameData.current.deathY = by
 
+          // OSU death music transition: slow down to 0.09x and fade out over 1.8s
+          if (currentBgmRef.current) {
+            audioRateManager.animatePlaybackRate(0.09, 1800)
+            fadeAudio(currentBgmRef.current, 0, 1800)
+          }
+
           // 5️⃣ Delay chỉ dành cho hình ảnh + game over
           setTimeout(() => {
             setIsFlashWhite(true)
             setTimeout(() => setIsFlashWhite(false), 800)
             setGameState("over")
             clearSnow()
-            playSound("gameover")
-
-            // Stop Game Music (Fade Out)
-            fadeAudio(currentBgmRef.current, 0, 1500)
           }, 1250)
 
         } else {
@@ -1530,13 +1654,15 @@ export default function App() {
           createParticles(bx, by, "#f97316", "explode", true)
 
           if (gameData.current.lives <= 0) {
+            // OSU death music transition
+            if (currentBgmRef.current) {
+              audioRateManager.animatePlaybackRate(0.09, 1800)
+              fadeAudio(currentBgmRef.current, 0, 1800)
+            }
+
             setGameState("over")
             clearSnow()
             stopSound("bomb_fall")
-            playSound("gameover")
-
-            // Stop Game Music (Fade Out)
-            fadeAudio(currentBgmRef.current, 0, 1500)
           }
         }
 
@@ -1547,11 +1673,11 @@ export default function App() {
       const b = gameData.current.ball
 
       const widthDiff = gameData.current.targetWidth - gameData.current.playerWidth
-      gameData.current.playerWidth += widthDiff * 0.1
+      gameData.current.playerWidth += widthDiff * 0.1 * deltaTime
 
       // --- Bot Logic ---
       if (gameData.current.isAuto && canvas.getAttribute("data-state") === "running" && !gameData.current.isDying) {
-        const ts = gameData.current.timeScale || 1
+        const ts = (gameData.current.timeScale || 1)
 
         // 1. Predict Ball Position
         const timeToHit = Math.abs(logicPaddleY - b.y) / (b.speed * ts)
@@ -1584,34 +1710,34 @@ export default function App() {
 
         // 2. Identify Danger Zones
         const pWidth = gameData.current.playerWidth
-        const safetyMargin = 15
+        const hardMargin = 20 // Khoảng cách an toàn tối thiểu khi bom sát nút
+        const softMargin = 10 // Khoảng cách dự phòng cho bom ở xa
         
         // Hard Zones: Immediate threats (cannot cross)
         const hardZones: { min: number; max: number }[] = []
         // Soft Zones: Future threats (can cross but don't stop)
         const softZones: { min: number; max: number }[] = []
 
-        const addZone = (zones: any[], x: number, r: number) => {
-          const safeDist = pWidth / 2 + r + safetyMargin
+        const addZone = (zones: any[], x: number, r: number, margin: number) => {
+          const safeDist = pWidth / 2 + r + margin
           zones.push({ min: x - safeDist, max: x + safeDist })
         }
 
         // Main ball is a threat if orange
         if (b.type === "orange") {
           const distY = isReverse ? (b.y - logicPaddleY) : (logicPaddleY - b.y)
-          // Orange ball is always treated as Hard Zone if it's falling towards us
-          if (distY < 400 && distY > -50) addZone(hardZones, predictedX, b.radius)
-          else addZone(softZones, predictedX, b.radius)
+          if (distY < 450 && distY > -50) addZone(hardZones, predictedX, b.radius, hardMargin)
+          else addZone(softZones, predictedX, b.radius, softMargin)
         }
 
         // Falling bombs
         gameData.current.bombs.forEach(bomb => {
           const distY = isReverse ? (bomb.y - logicPaddleY) : (logicPaddleY - bomb.y)
-          // If bomb is close (e.g. < 250px), it's a Hard Zone
-          if (distY < 250 && distY > -50) {
-            addZone(hardZones, bomb.x, bomb.radius)
+          // Bombs are more dangerous, detect sooner (350px)
+          if (distY < 350 && distY > -50) {
+            addZone(hardZones, bomb.x, bomb.radius, hardMargin)
           } else {
-            addZone(softZones, bomb.x, bomb.radius)
+            addZone(softZones, bomb.x, bomb.radius, softMargin)
           }
         })
 
@@ -1689,28 +1815,30 @@ export default function App() {
 
         if (bestInterval) {
           // Initial Target: Ball or Current
-          let desiredX = (b.type !== "orange") ? predictedX : currentCenter
+          const isGoodBall = b.type !== "orange"
+          let desiredX = isGoodBall ? predictedX : currentCenter
           
           // Clamp to Hard Safe Interval
           targetCenter = Math.max(bestInterval.min, Math.min(desiredX, bestInterval.max))
           
-          // Avoid Soft Zones (Don't stop under a high bomb)
+          // Avoid Soft Zones (Future threats)
           for (const sz of mergedSoftZones) {
              if (targetCenter > sz.min && targetCenter < sz.max) {
-               // We are inside a soft zone.
-               const dLeft = Math.abs(targetCenter - sz.min)
-               const dRight = Math.abs(targetCenter - sz.max)
+               // "Item optimization": Chỉ thoát vùng Soft Zone nếu quả bóng hiện tại KHÔNG rơi vào đây
+               // hoặc nếu vị trí bắt bóng nằm quá xa tâm thanh hứng (không an toàn).
+               const distToGoodBall = Math.abs(targetCenter - predictedX)
+               const isCatchingPossible = distToGoodBall < pWidth / 3 
                
-               // If ball is safe and outside this soft zone, try to move towards it
-               let escapeX = dLeft < dRight ? sz.min : sz.max
-               if (b.type !== "orange") {
+               if (!isGoodBall || !isCatchingPossible) {
+                  const dLeft = Math.abs(targetCenter - sz.min)
+                  const dRight = Math.abs(targetCenter - sz.max)
+                  
+                  let escapeX = dLeft < dRight ? sz.min : sz.max
                   if (predictedX < sz.min) escapeX = sz.min
                   else if (predictedX > sz.max) escapeX = sz.max
+                  
+                  targetCenter = Math.max(bestInterval.min, Math.min(escapeX, bestInterval.max))
                }
-               
-               // Clamp escapeX to bestInterval
-               escapeX = Math.max(bestInterval.min, Math.min(escapeX, bestInterval.max))
-               targetCenter = escapeX
              }
           }
         }
@@ -1718,14 +1846,14 @@ export default function App() {
         // 5. Move
         const targetX = targetCenter - pWidth / 2
 
-        gameData.current.playerX += (targetX - gameData.current.playerX) * 0.5
+        gameData.current.playerX += (targetX - gameData.current.playerX) * (1 - Math.pow(1 - 0.5, deltaTime))
       }
 
       // --- Manual Movement Smoothing ---
       if (!gameData.current.isAuto && canvas.getAttribute("data-state") === "running" && !gameData.current.isDying) {
         if (gameData.current.sensitivity > 0) {
           const factor = 1 / (gameData.current.sensitivity * 0.5 + 1)
-          gameData.current.playerX += (gameData.current.targetPlayerX - gameData.current.playerX) * factor
+          gameData.current.playerX += (gameData.current.targetPlayerX - gameData.current.playerX) * factor * deltaTime
         } else if (gameData.current.sensitivity < 0) {
           // Negative: Spring/Overshoot effect (Snappy)
           const factor = 1 + (Math.abs(gameData.current.sensitivity) * 0.05)
@@ -1742,39 +1870,41 @@ export default function App() {
       )
 
       if (canvas.getAttribute("data-state") === "running" && !gameData.current.isDying) {
-        const smoothFactor = 0.05
+        const smoothFactor = 0.1
         gameData.current.timeScale +=
-          (gameData.current.targetTimeScale - gameData.current.timeScale) * smoothFactor
+          (gameData.current.targetTimeScale - gameData.current.timeScale) * smoothFactor * deltaTime
         const prevBallY = b.y;
         const ts = gameData.current.timeScale || 1
-        b.y += b.speed * ts * gravityDirection
+        
+        // Apply movement scaled by deltaTime
+        b.y += b.speed * ts * gravityDirection * deltaTime
+        
         if (b.type === "yellow") {
-          b.sinTime += 0.15
-          // b.x += b.dx + Math.sin(b.sinTime) * 10
-          // Thay bằng logic linh hoạt:
-          if (b.type === "yellow") {
-            b.sinTime += 0.15
-            // Biên độ (amplitude) tỉ lệ thuận với tốc độ
-            // b.speed càng cao, dao động càng rộng
-            const dynamicAmplitude = b.speed * 3 // Bạn có thể chỉnh con số 4 này để tăng/giảm độ cong
-            b.x += b.dx * ts + Math.sin(b.sinTime) * dynamicAmplitude * ts
-          } else {
-            b.x += b.dx * ts
-          }
+          b.sinTime += 0.15 * deltaTime
+          const dynamicAmplitude = b.speed * 3 
+          b.x += (b.dx * ts + Math.sin(b.sinTime) * dynamicAmplitude * ts) * deltaTime
         } else {
-          b.x += b.dx * ts
+          b.x += b.dx * ts * deltaTime
         }
 
         if (b.x - b.radius < 0) {
           b.x = b.radius
-          if (b.type === "yellow") b.dx = Math.abs(b.dx) + 0.8 // Yellow ball bounces off walls
-          else b.dx = Math.abs(b.dx) + 0.8
+          b.dx = Math.abs(b.dx) + 0.8
+          // Mirror sine wave phase on bounce to ensure it moves away from left wall
+          if (b.type === "yellow" && Math.sin(b.sinTime) < 0) {
+            b.sinTime = -b.sinTime
+          }
         } else if (b.x + b.radius > canvas.width) {
           b.x = canvas.width - b.radius
-          if (b.type === "yellow") b.dx = -Math.abs(b.dx) - 0.8 // Yellow ball bounces off walls
-          else b.dx = -Math.abs(b.dx) - 0.8
+          b.dx = -Math.abs(b.dx) - 0.8
+          // Mirror sine wave phase on bounce to ensure it moves away from right wall
+          if (b.type === "yellow" && Math.sin(b.sinTime) > 0) {
+            b.sinTime = -b.sinTime
+          }
         }
 
+        // Trail generation - logic simplified to work better with variable FPS
+        // At high FPS we push more points, but we'll cap the history
         if (gameData.current.trailsEnabled) {
           trails.current.push({ x: b.x, y: b.y, alpha: 0.5 })
           if (trails.current.length > 8) trails.current.shift()
@@ -1783,7 +1913,7 @@ export default function App() {
         // --- Update Bombs ---
         for (let i = gameData.current.bombs.length - 1; i >= 0; i--) {
           const bomb = gameData.current.bombs[i]
-          bomb.y += bomb.speed * ts * gravityDirection
+          bomb.y += bomb.speed * ts * gravityDirection * deltaTime
 
           // Check collision with player
           const isInsideX = bomb.x >= gameData.current.playerX && bomb.x <= gameData.current.playerX + gameData.current.playerWidth
@@ -1814,8 +1944,8 @@ export default function App() {
           particles.current.push({
             x: Math.random() * canvas.width,
             y: -12,
-            vx: (Math.random() - 0.5) * 0.4,
-            vy: Math.random() * 0.8 + 0.3,
+            vx: (Math.random() - 0.5) * 0.4 * deltaTime,
+            vy: (Math.random() * 0.8 + 0.3) * deltaTime,
             radius: Math.random() * 1.8 + 0.6,
             color: "#ffffff",
             alpha: 0.9,
@@ -1865,9 +1995,9 @@ export default function App() {
               setSnowActive(true)
               playSound("snow")
               createParticles(b.x, b.y, "#ffffff", "explode", true)
-              
-              // Reduce music playback rate to half when slow is active
-              audioRateManager.setSlowMode(true)
+
+              // Smoothly transition music speed to 0.5x over 1 second
+              audioRateManager.animatePlaybackRate(0.5, 1000)
               
               if (snowIntervalRef.current) {
                 clearInterval(snowIntervalRef.current)
@@ -1883,9 +2013,13 @@ export default function App() {
                   setSnowActive(false)
                   setSnowLeft(0)
                   playSound("snow_end")
-                  
-                  // Restore music playback rate to normal
-                  audioRateManager.setSlowMode(false)
+
+                  // Smoothly transition music speed back to current score-based rate
+                  const currentScoreInt = Math.floor(gameData.current.score)
+                  const musicRate = currentScoreInt < 200 
+                    ? 1.0 + Math.floor(currentScoreInt / 40) * 0.01 
+                    : 1.05 + Math.floor((currentScoreInt - 200) / 50) * 0.01
+                  audioRateManager.animatePlaybackRate(musicRate, 1000)
                   
                   if (snowIntervalRef.current) {
                     clearInterval(snowIntervalRef.current)
@@ -1953,10 +2087,13 @@ export default function App() {
 
           setScore(currentScoreInt)
           
-          // Update music playback rate based on game speed (chipmunk effect)
-          // baseSpeed = 1.5 + score * 0.02
-          const baseSpeed = Math.min(1.5 + currentScoreInt * 0.02, 80)
-          audioRateManager.updatePlaybackRate(baseSpeed)
+          // Update music playback rate based on score increments:
+          // +0.01 per 40 points up to 200, then +0.01 per 50 points
+          const musicRate = currentScoreInt < 200 
+            ? 1.0 + Math.floor(currentScoreInt / 40) * 0.01 
+            : 1.05 + Math.floor((currentScoreInt - 200) / 50) * 0.01
+          
+          audioRateManager.updatePlaybackRate(musicRate)
           
           resetBall()
         }
@@ -1976,11 +2113,15 @@ export default function App() {
               setTimeout(() => setIsFlashRed(false), 150)
               createParticles(b.x, isReverse ? 6 : canvas.height - 6, "#ef4444", "miss", true)
 
+              // OSU death music transition
+              if (currentBgmRef.current) {
+                audioRateManager.animatePlaybackRate(0.09, 1800)
+                fadeAudio(currentBgmRef.current, 0, 1800)
+              }
+
               setGameState("over")
               clearSnow()
               stopSound("bomb_fall")
-              playSound("gameover")
-              fadeAudio(currentBgmRef.current, 0, 1500)
 
               resetBall()
             } else {
@@ -2005,14 +2146,16 @@ export default function App() {
               gameData.current.combo = 0
               setComboCount(0)
               if (gameData.current.lives <= 0) {
+                // OSU death music transition
+                if (currentBgmRef.current) {
+                  audioRateManager.animatePlaybackRate(0.09, 1800)
+                  fadeAudio(currentBgmRef.current, 0, 1800)
+                }
+
                 setGameState("over")
                 // Ensure snow effect cleaned up on game over
                 clearSnow()
                 stopSound("bomb_fall")
-                playSound("gameover")
-
-                // Stop Game Music (Fade Out)
-                fadeAudio(currentBgmRef.current, 0, 1500)
               }
               resetBall()
             }
@@ -2030,24 +2173,12 @@ export default function App() {
         ctx.restore()
       }
 
-      if (gameData.current.trailsEnabled) {
-        trails.current.forEach((t, i) => {
-          t.alpha -= 0.05 // Trail decay
-        })
-      }
-
       if (gameData.current.particlesEnabled) {
-        // Update PixiJS particles if system exists
-        if (gameData.current.pixiParticleSystem) {
-          gameData.current.pixiParticleSystem.update()
-        }
-        
-        // Update canvas-based particles (fallback)
         particles.current.forEach((p, i) => {
           if (p.type === "absorb") {
             const tX = gameData.current.playerX + gameData.current.playerWidth / 2
-            p.x += (tX - p.x) * 0.15
-            p.y += (visualPaddleY - p.y) * 0.15
+            p.x += (tX - p.x) * 0.15 * deltaTime
+            p.y += (visualPaddleY - p.y) * 0.15 * deltaTime
           } else {
             p.x += p.vx
             p.y += p.vy
@@ -2153,21 +2284,6 @@ export default function App() {
       }
 
       // --- HIDDEN & BLANK LOGIC ---
-      // 1. Vẽ vệt bóng và quả bóng trước
-      // if (gameData.current.trailsEnabled) {
-      //   trails.current.forEach((t, i) => {
-      //     const hiddenAlpha = getHiddenBallAlpha(t.y, paddleY, gameData.current.isHidden)
-      //     const finalAlpha = Math.max(0, t.alpha) * hiddenAlpha
-      //     if (finalAlpha > 0) {
-      //       ctx.globalAlpha = finalAlpha
-      //       ctx.fillStyle = ballColors[b.type]
-      //       ctx.beginPath()
-      //       ctx.arc(t.x, t.y, b.radius * (i / 8), 0, Math.PI * 2)
-      //       ctx.fill()
-      //     }
-      //   })
-      // }
-
       const ballAlpha = getHiddenBallAlpha(b.y, logicPaddleY, canvas.height, gameData.current.isHidden, isReverse)
       if (ballAlpha > 0) {
         ctx.save()
@@ -2227,7 +2343,7 @@ export default function App() {
         ctx.strokeRect(gameData.current.playerX, logicPaddleY, gameData.current.playerWidth, 15)
         ctx.fillText(`Paddle: ${gameData.current.playerX.toFixed(0)}`, gameData.current.playerX, logicPaddleY - 5)
 
-        // Ball Hitbox
+        // Ball Hitbox 
         ctx.beginPath()
         ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2)
         ctx.stroke()
@@ -2245,7 +2361,7 @@ export default function App() {
       requestRef.current = requestAnimationFrame(update)
     }
 
-    update()
+    requestRef.current = requestAnimationFrame(update)
     return () => {
       window.removeEventListener("mousemove", handleMove)
       window.removeEventListener("touchmove", handleMove)
@@ -2318,9 +2434,13 @@ export default function App() {
         gameState={gameState}
         setGameState={setGameState}
         score={score}
+        setLives={setLives}
         setScore={setScore}
         gameData={gameData}
         currentBgmRef={currentBgmRef}
+        maxFPS={maxFPS}
+        fadeAudio={fadeAudio} // Pass fadeAudio function
+        setMaxFPS={setMaxFPS}
       />
 
       <AnimatePresence>
@@ -2466,27 +2586,48 @@ export default function App() {
               )}
             </div>
 
-            {/* Snow Freeze Badge */}
-            {snowActive && (
-              <div className="flex flex-col items-center gap-1 mr-2">
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t.freeze}</span>
-                <div className="text-xs font-black text-white bg-white/5 px-2 py-1 rounded-full flex items-center gap-2 tabular-nums">
-                  <span className="text-[12px]">❄️</span>
-                  <span>{snowLeft}s</span>
+            {/* Controls Section (Snow, Pause, Bot) */}
+            <div className="flex items-center gap-3">
+              {snowActive && (
+                <div className="flex flex-col items-center gap-1">
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t.freeze}</span>
+                  <div className="text-xs font-black text-white bg-white/5 px-2 py-1 rounded-full flex items-center gap-2 tabular-nums">
+                    <span className="text-[12px]">❄️</span>
+                    <span>{snowLeft}s</span>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Pause Button */}
-            <button
-              onClick={() => {
-                playClick()
-                pauseGame()
-              }}
-              className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl backdrop-blur-md border border-white/20 transition-all active:scale-90"
-            >
-              <Pause size={16} className="text-white fill-white" />
-            </button>
+              <div className="flex flex-col items-end gap-2">
+                <button
+                  onClick={() => {
+                    playClick()
+                    pauseGame()
+                  }}
+                  className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl backdrop-blur-md border border-white/20 transition-all active:scale-90"
+                >
+                  <Pause size={16} className="text-white fill-white" />
+                </button>
+
+                <AnimatePresence>
+                  {isAuto && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.5, x: 10 }}
+                      animate={{ opacity: 1, scale: 1, x: 0 }}
+                      exit={{ opacity: 0, scale: 0.5, x: 10 }}
+                      className="flex items-center bg-green-500/20 border border-green-500/50 p-2.5 rounded-xl backdrop-blur-md cursor-help group transition-all duration-300"
+                    >
+                      <Cpu size={16} className="text-green-500 animate-spin" />
+                      <div className="w-0 overflow-hidden group-hover:w-20 group-active:w-20 transition-all duration-300 ease-out">
+                        <span className="pl-2 text-[10px] text-green-400 font-black uppercase tracking-widest whitespace-nowrap">
+                          {t.auto}
+                        </span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
           </div>
         )}
 
@@ -2498,6 +2639,8 @@ export default function App() {
             isMobile={isMobile}
             score={score}
             confirmExit={confirmExit}
+            maxFPS={maxFPS}
+            setMaxFPS={changeMaxFPS}
             toggleAutoMode={toggleAutoMode}
             playClick={playClick}
             setOpenSettings={setOpenSettings}
@@ -2533,21 +2676,21 @@ export default function App() {
           >
             <div className="max-w-md w-full text-center flex flex-col items-center justify-center relative">
               {/* Loading bar */}
-              <div className="absolute top-8 left-0 right-0 px-8">
-                <div className="bg-slate-800/50 h-1 rounded-full overflow-hidden border border-slate-700/50">
-                  <motion.div
-                    initial={{ width: "0%" }}
-                    animate={{ width: `${introLoadingProgress}%` }}
-                    transition={{ duration: 0.1, ease: "easeOut" }}
-                    className="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-purple-500 shadow-lg shadow-blue-500/50"
-                  />
-                </div>
-                {introStep < 2 && (
+              {introStep < 2 && (
+                <div className="absolute top-8 left-0 right-0 px-8">
+                  <div className="bg-slate-800/50 h-1 rounded-full overflow-hidden border border-slate-700/50">
+                    <motion.div
+                      initial={{ width: "0%" }}
+                      animate={{ width: `${introLoadingProgress}%` }}
+                      transition={{ duration: 0.1, ease: "easeOut" }}
+                      className="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-purple-500 shadow-lg shadow-blue-500/50"
+                    />
+                  </div>
                   <div className="mt-3 text-xs text-slate-400 font-mono">
                     {Math.round(introLoadingProgress)}%
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               <div className="h-80 flex flex-col items-center justify-center relative">
                 <AnimatePresence mode="wait">
@@ -2700,45 +2843,101 @@ export default function App() {
                     <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.skins}</h3>
                   </div>
                   <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-2">
-                  <div className="grid grid-cols-2 gap-4 pb-4">
-                    {[
-                      { id: "default", name: "Default", class: "bg-blue-500" },
-                      { id: "emerald", name: "Emerald", class: "bg-emerald-500" },
-                      { id: "neon", name: "Neon", class: "bg-fuchsia-500 shadow-[0_0_15px_#d946ef]" },
-                      { id: "ice", name: "Ice", class: "bg-cyan-500 shadow-[0_0_10px_#cffafe]" },
-                      { id: "cyber", name: "Cyber", class: "bg-lime-500" },
-                      { id: "inferno", name: "Inferno", class: "bg-gradient-to-b from-orange-500 to-orange-800 shadow-[0_0_15px_#f97316]" },
-                      { id: "void", name: "Void", class: "bg-violet-900 shadow-[0_0_10px_#8b5cf6]" },
-                      { id: "galaxy", name: "Galaxy", class: "bg-gradient-to-b from-indigo-700 to-indigo-950" },
-                      { id: "diamond", name: "Diamond", class: "bg-cyan-200 shadow-[0_0_10px_#22d3ee]" },
-                      { id: "iron", name: "Iron", class: "bg-slate-400" },
-                      { id: "gold", name: "Gold", class: "bg-yellow-400 shadow-[0_0_10px_#fde047]" },
-                      { id: "copper", name: "Copper", class: "bg-orange-400" },
-                      { id: "wooden", name: "Wooden", class: "bg-amber-800" },
-                      { id: "ruby", name: "Ruby", class: "bg-red-600 shadow-[0_0_10px_#ef4444]" },
-                      { id: "sapphire", name: "Sapphire", class: "bg-blue-700 shadow-[0_0_10px_#3b82f6]" },
-                      { id: "platinum", name: "Platinum", class: "bg-slate-300 shadow-[0_0_10px_#e2e8f0]" },
-                      { id: "leaves", name: "Leaves", class: "bg-green-600" },
-                      { id: "water", name: "Water", class: "bg-sky-500 shadow-[0_0_10px_#38bdf8]" },
-                    ].map((s) => (
+                    <div className="flex p-1 bg-white/5 rounded-xl mb-6 border border-white/5">
                       <button
-                        key={s.id}
-                        onClick={() => changeSkin(s.id)}
-                        className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 group ${skin === s.id
-                          ? "bg-slate-800 border-blue-500 shadow-lg shadow-blue-500/20"
-                          : "bg-slate-900/50 border-white/5 hover:bg-slate-800 hover:border-white/10"
-                          }`}
+                        onClick={() => { playClick(); setSkinTab("skins"); }}
+                        className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                          skinTab === "skins" ? "bg-blue-600 text-white shadow-lg" : "text-slate-500 hover:text-slate-300"
+                        }`}
                       >
-                        <div className={`w-16 h-4 rounded-full ${s.class}`} />
-                        <span className={`text-xs font-black uppercase tracking-wider ${skin === s.id ? "text-white" : "text-slate-500 group-hover:text-slate-300"}`}>
-                          {s.name}
-                        </span>
-                        {skin === s.id && (
-                          <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full shadow-[0_0_8px_#3b82f6]" />
-                        )}
+                        {t.skins}
                       </button>
-                    ))}
-                  </div>
+                      <button
+                        onClick={() => { playClick(); setSkinTab("backgrounds"); }}
+                        className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                          skinTab === "backgrounds" ? "bg-blue-600 text-white shadow-lg" : "text-slate-500 hover:text-slate-300"
+                        }`}
+                      >
+                        {t.backgrounds}
+                      </button>
+                    </div>
+
+                    {skinTab === "skins" ? (
+                      <div className="grid grid-cols-2 gap-4 pb-4">
+                        {[
+                          { id: "default", name: "Default", class: "bg-blue-500" },
+                          { id: "emerald", name: "Emerald", class: "bg-emerald-500" },
+                          { id: "neon", name: "Neon", class: "bg-fuchsia-500 shadow-[0_0_15px_#d946ef]" },
+                          { id: "ice", name: "Ice", class: "bg-cyan-500 shadow-[0_0_10px_#cffafe]" },
+                          { id: "cyber", name: "Cyber", class: "bg-lime-500" },
+                          { id: "inferno", name: "Inferno", class: "bg-gradient-to-b from-orange-500 to-orange-800 shadow-[0_0_15px_#f97316]" },
+                          { id: "void", name: "Void", class: "bg-violet-900 shadow-[0_0_10px_#8b5cf6]" },
+                          { id: "galaxy", name: "Galaxy", class: "bg-gradient-to-b from-indigo-700 to-indigo-950" },
+                          { id: "diamond", name: "Diamond", class: "bg-cyan-200 shadow-[0_0_10px_#22d3ee]" },
+                          { id: "iron", name: "Iron", class: "bg-slate-400" },
+                          { id: "gold", name: "Gold", class: "bg-yellow-400 shadow-[0_0_10px_#fde047]" },
+                          { id: "copper", name: "Copper", class: "bg-orange-400" },
+                          { id: "wooden", name: "Wooden", class: "bg-amber-800" },
+                          { id: "ruby", name: "Ruby", class: "bg-red-600 shadow-[0_0_10px_#ef4444]" },
+                          { id: "sapphire", name: "Sapphire", class: "bg-blue-700 shadow-[0_0_10px_#3b82f6]" },
+                          { id: "platinum", name: "Platinum", class: "bg-slate-300 shadow-[0_0_10px_#e2e8f0]" },
+                          { id: "leaves", name: "Leaves", class: "bg-green-600" },
+                          { id: "water", name: "Water", class: "bg-sky-500 shadow-[0_0_10px_#38bdf8]" },
+                        ].map((s) => (
+                          <button
+                            key={s.id}
+                            onClick={() => changeSkin(s.id)}
+                            className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 group ${skin === s.id
+                              ? "bg-slate-800 border-blue-500 shadow-lg shadow-blue-500/20"
+                              : "bg-slate-900/50 border-white/5 hover:bg-slate-800 hover:border-white/10"
+                              }`}
+                          >
+                            <div className={`w-16 h-4 rounded-full ${s.class}`} />
+                            <span className={`text-xs font-black uppercase tracking-wider ${skin === s.id ? "text-white" : "text-slate-500 group-hover:text-slate-300"}`}>
+                              {s.name}
+                            </span>
+                            {skin === s.id && (
+                              <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full shadow-[0_0_8px_#3b82f6]" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="space-y-6 pb-4">
+                        <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl flex items-start gap-3">
+                          <AlertCircle size={18} className="text-blue-400 shrink-0 mt-0.5" />
+                          <p className="text-[10px] text-blue-200 leading-relaxed italic">{t.perfWarning}</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          {[
+                            { id: "default", name: "Solid Void", type: t.static, icon: "⬛" },
+                            { id: "grid", name: "Blueprint", type: t.static, icon: "🌐" },
+                            { id: "dots", name: "Polka", type: t.static, icon: "░" },
+                            { id: "dynamic_stars", name: "Stardust", type: t.dynamic, icon: "✨" },
+                            { id: "dynamic_waves", name: "Cyber Flow", type: t.dynamic, icon: "🌊" },
+                          ].map((bg) => (
+                            <button
+                              key={bg.id}
+                              onClick={() => changeBackground(bg.id)}
+                              className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 group ${background === bg.id
+                                ? "bg-slate-800 border-blue-500 shadow-lg shadow-blue-500/20"
+                                : "bg-slate-900/50 border-white/5 hover:bg-slate-800 hover:border-white/10"
+                                }`}
+                            >
+                              <span className="text-2xl mb-1">{bg.icon}</span>
+                              <span className={`text-[10px] font-black uppercase tracking-wider ${background === bg.id ? "text-white" : "text-slate-400 group-hover:text-slate-200"}`}>
+                                {bg.name}
+                              </span>
+                              <span className="text-[8px] font-bold text-slate-600 uppercase tracking-tighter">{bg.type}</span>
+                              {background === bg.id && (
+                                <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full shadow-[0_0_8px_#3b82f6]" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -2816,13 +3015,6 @@ export default function App() {
           </motion.div>
         )}
       </div>
-
-      {isAuto && gameState === "running" && (
-        <div className={`absolute left-1/2 -translate-x-1/2 bg-green-500/20 border border-green-500/50 px-4 py-2 rounded-full flex items-center gap-2 backdrop-blur-md transition-all duration-300 z-30 ${isReverse ? "bottom-36" : "top-36"}`}>
-          <Cpu size={14} className="text-green-500 animate-spin" />
-          <span className="text-[10px] text-green-400 font-bold uppercase tracking-widest">{t.botActive}</span>
-        </div>
-      )}
 
       <AnimatePresence>
         {snowActive && (
@@ -2937,6 +3129,7 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+        <OfflineGame />
 
     </div>
   )

@@ -51,6 +51,7 @@ export default function GameOverModal({
     // 1. Wait for "Game Over" text to appear
     const startDelay = setTimeout(() => {
       // 2. Start counting
+      playSound("gameover")
       playSound("score_count")
       
       const controls = animate(0, score, {
@@ -71,7 +72,7 @@ export default function GameOverModal({
       })
       
       return () => controls.stop()
-    }, 800)
+    }, 1200) // Adjusted delay: play Game Over sound and start counting score simultaneously
 
     return () => {
       clearTimeout(startDelay)

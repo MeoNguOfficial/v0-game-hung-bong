@@ -17,7 +17,7 @@ export default function OfflineGame() {
     const updateStatus = () => setIsOnline(navigator.onLine)
     window.addEventListener("online", updateStatus)
     window.addEventListener("offline", updateStatus)
-
+    
     // Luôn reset trạng thái ẩn khi load lại game (mount component)
     setDismissedReadyForOffline(false)
 
@@ -60,12 +60,12 @@ export default function OfflineGame() {
           <span className="text-[10px] font-black text-white uppercase tracking-tighter">Offline Mode</span>
         </div>
       )}
-
+      
       {isCached && isOnline && !dismissedReadyForOffline && (
         <div className="bg-emerald-500/95 backdrop-blur-md px-4 py-2 rounded-full flex items-center gap-2 shadow-xl border border-emerald-400/50">
           <Zap size={14} className="text-white fill-white" />
           <span className="text-[10px] font-black text-white uppercase tracking-tighter">Ready for Offline</span>
-          <button
+          <button 
             onClick={handleDismiss}
             className="pointer-events-auto ml-1 p-0.5 hover:bg-white/20 rounded-full transition-colors"
           >
