@@ -56,7 +56,7 @@ export const spawnBall = (
     speed: 0,
     type: "normal",
     radius: 10,
-    sinTime: 0,
+    sinTime: Math.random() < 0.5 ? 0 : Math.PI,
   }
 
   // Position

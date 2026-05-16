@@ -329,6 +329,9 @@ export default function App() {
   // Save score only when Game Over
   useEffect(() => {
     if (gameState === "over") {
+      // Fix: Đảm bảo dừng âm thanh bom rơi khi trạng thái chuyển sang Game Over
+      stopSound("bomb_fall")
+
       const { score, isAuto, isCustom, gameMode, isClassic, isHidden, isBlank, isReverse, isReverseControl, isMirror, isInvisible } = gameData.current
 
       // Update 2: Don't save anything if score is 0
