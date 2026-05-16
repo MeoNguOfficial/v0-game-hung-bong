@@ -2019,9 +2019,9 @@ export default function App() {
 
                   // Smoothly transition music speed back to current score-based rate
                   const currentScoreInt = Math.floor(gameData.current.score)
-                  const musicRate = currentScoreInt < 200 
+                  const musicRate = Math.min(currentScoreInt < 200 
                     ? 1.0 + Math.floor(currentScoreInt / 40) * 0.01 
-                    : 1.05 + Math.floor((currentScoreInt - 200) / 50) * 0.01
+                    : 1.05 + Math.floor((currentScoreInt - 200) / 50) * 0.01, 3.0)
                   audioRateManager.animatePlaybackRate(musicRate, 1000)
                   
                   if (snowIntervalRef.current) {
@@ -2092,9 +2092,9 @@ export default function App() {
           
           // Update music playback rate based on score increments:
           // +0.01 per 40 points up to 200, then +0.01 per 50 points
-          const musicRate = currentScoreInt < 200 
+          const musicRate = Math.min(currentScoreInt < 200 
             ? 1.0 + Math.floor(currentScoreInt / 40) * 0.01 
-            : 1.05 + Math.floor((currentScoreInt - 200) / 50) * 0.01
+            : 1.05 + Math.floor((currentScoreInt - 200) / 50) * 0.01, 2.5)
 
           // Chỉ cập nhật tốc độ nhạc theo điểm số nếu KHÔNG trong trạng thái đóng băng (Snow Slowed)
           if (!gameData.current.isSnowSlowed) {
