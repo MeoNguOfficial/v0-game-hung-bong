@@ -34,6 +34,7 @@ import { TRANSLATIONS } from "./translations"
 import { PixiParticleSystem } from "../lib/pixiParticleSystem"
 import { initializePixiJS, cleanupPixiJS } from "../lib/pixiSetup"
 import { audioRateManager } from "../lib/audioPlaybackRateManager"
+import { swManager } from "../lib/serviceWorkerManager"
 import SettingsModal from "./TabModal/SettingsModal"
 import BallGuide from "./TabModal/BallGuide"
 import StatsModal from "./TabModal/StatsModal"
@@ -537,6 +538,18 @@ export default function App() {
     const v = parseFloat(e.target.value)
     setMaxFPS(v)
     localStorage.setItem("game_maxFPS", String(v))
+  }
+
+  const handleClearCache = async () => {
+    try {
+      await swManager.clearCache()
+      console.log("[v0] Cache cleared, requesting restart...")
+      // Show a message and request app restart
+      alert(t["restartRequired"] || "Please restart the app to reload cached assets.")
+    } catch (error) {
+      console.error("[v0] Cache clear error:", error)
+      alert("Failed to clear cache. Please try again.")
+    }
   }
 
   // --- Keyboard Shortcuts (PC) ---
@@ -1247,6 +1260,13 @@ export default function App() {
     gameData.current.skin = savedSkin
 
     document.title = "Catch Master - Power by V0"
+
+    // Register Service Worker for asset caching
+    if (typeof window !== "undefined") {
+      swManager.register().catch((err) => {
+        console.error("[v0] Service Worker registration error:", err)
+      })
+    }
   }, [])
 
   // Menu Background Music: play when on main menu (gameState === "start") but not during the Intro
@@ -2757,6 +2777,7 @@ export default function App() {
                     setBaseGameSpeed={changeBaseGameSpeed}
                     maxFPS={maxFPS}
                     setMaxFPS={changeMaxFPS}
+                    clearCache={handleClearCache}
                     gameState={gameState}
                     openSettingsFromPause={openSettingsFromPause}
                     embed={true}
@@ -2909,6 +2930,7 @@ export default function App() {
             setBaseGameSpeed={changeBaseGameSpeed}
             maxFPS={maxFPS}
             setMaxFPS={changeMaxFPS}
+            clearCache={handleClearCache}
             gameState={gameState}
             openSettingsFromPause={openSettingsFromPause}
             hideSystem={true}
