@@ -44,6 +44,7 @@ interface SettingsModalProps {
   setBaseGameSpeed: (e: React.ChangeEvent<HTMLInputElement>) => void
   maxFPS: number
   setMaxFPS: (e: React.ChangeEvent<HTMLInputElement>) => void
+  clearCache?: () => Promise<void>
   gameState?: "start" | "countdown" | "running" | "paused" | "over" | "dev_paused"
   openSettingsFromPause?: boolean
   embed?: boolean
@@ -78,6 +79,7 @@ export default function SettingsModal({
   setBaseGameSpeed,
   maxFPS,
   setMaxFPS,
+  clearCache,
   gameState = "start",
   openSettingsFromPause = false,
   embed = false,
@@ -424,6 +426,24 @@ export default function SettingsModal({
                     <span className="text-sm font-bold text-slate-300 uppercase">{t.reportBug || "Report Bug"}</span>
                   </div>
                 </button>
+
+                {clearCache && (
+                  <button
+                    onClick={clearCache}
+                    disabled={false}
+                    className="w-full flex items-center justify-between bg-slate-800/50 p-4 rounded-2xl border border-white/5 hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-cyan-500/20 text-cyan-400">
+                        <Trash2 size={18} />
+                      </div>
+                      <div className="text-left">
+                        <span className="text-sm font-bold text-slate-300 uppercase">{t.clearCache || "Clear Cache"}</span>
+                        <span className="text-xs text-slate-500 block">{t.clearCacheDesc || "Clear cached assets"}</span>
+                      </div>
+                    </div>
+                  </button>
+                )}
 
                 <div className="bg-slate-800/50 p-4 rounded-2xl border border-white/5">
                   <AnimatePresence mode="wait">

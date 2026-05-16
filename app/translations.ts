@@ -112,6 +112,9 @@ export const TRANSLATIONS = {
     baseGameSpeed: "Base Game Speed",
     maxFPS: "Max FPS",
     unlimited: "Unlimited",
+    cacheStorage: "Cache Storage",
+    clearCache: "Clear Cache",
+    clearCacheDesc: "Clear cached assets. App restart required.",
     close: "Close",
     holdForDetails: "Hold a button for details",
     // Quick Play Descriptions
@@ -269,6 +272,9 @@ export const TRANSLATIONS = {
     baseGameSpeed: "Tốc độ cơ bản",
     maxFPS: "FPS tối đa",
     unlimited: "Không giới hạn",
+    cacheStorage: "Bộ nhớ đệm",
+    clearCache: "Xóa bộ nhớ đệm",
+    clearCacheDesc: "Xóa tài nguyên đã lưu. Cần khởi động lại ứng dụng.",
     close: "Đóng",
     holdForDetails: "Giữ một nút để xem chi tiết",
     // Quick Play Descriptions
@@ -426,6 +432,9 @@ export const TRANSLATIONS = {
     baseGameSpeed: "Velocidad Base del Juego",
     maxFPS: "FPS Máximo",
     unlimited: "Sin límite",
+    cacheStorage: "Almacenamiento en Caché",
+    clearCache: "Borrar Caché",
+    clearCacheDesc: "Borrar recursos en caché. Se requiere reinicio.",
     close: "Cerrar",
     holdForDetails: "Mantén presionado un botón para ver detalles",
     // Quick Play Descriptions
@@ -551,7 +560,7 @@ export const TRANSLATIONS = {
     paddleSize: "Платформа x2",
     armor: "Броня",
     freeze10s: "Заморозка (10с)",
-    lifeLoss: "-1 Жизнь / Конец",
+    lifeLoss: "-1 Жизнь / Коне��",
     hpPlus: "+1 HP",
     scorePlus1: "+1 Очко",
     scorePlus3: "+3 Очка",
@@ -583,6 +592,9 @@ export const TRANSLATIONS = {
     baseGameSpeed: "Базовая скорость игры",
     maxFPS: "Макс FPS",
     unlimited: "Без ограничений",
+    cacheStorage: "Кэш хранилище",
+    clearCache: "Очистить кэш",
+    clearCacheDesc: "Очистить кэшированные ресурсы. Требуется перезагрузка.",
     close: "Закрыть",
     holdForDetails: "Удерживайте кнопку для подробностей",
     // Quick Play Descriptions
