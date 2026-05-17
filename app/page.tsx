@@ -948,6 +948,8 @@ export default function App() {
   }
 
   const startCountdown = (mode: "normal" | "hardcode" | "sudden_death", isAutoMode: boolean) => {
+    // Đảm bảo dừng nhạc menu khi bắt đầu vào game
+    stopMenuBgm()
     setGameMode(mode)
     setCountdown(3)
     setGameState("countdown")
@@ -1064,6 +1066,9 @@ export default function App() {
         return
       }
     }
+
+    // Đảm bảo dừng nhạc menu khi bắt đầu vào game tùy chỉnh
+    stopMenuBgm()
 
     setGameMode(customConfig.difficulty)
     setOpenCustom(false)
