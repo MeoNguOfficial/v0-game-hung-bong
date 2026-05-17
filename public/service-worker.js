@@ -44,6 +44,11 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event
 
+  // Skip caching for non-GET requests (POST, PUT, DELETE, etc)
+  if (request.method !== 'GET') {
+    return event.respondWith(fetch(request))
+  }
+
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       if (cachedResponse) {
@@ -61,7 +66,7 @@ self.addEventListener('fetch', (event) => {
           // Clone the response
           const responseToCache = response.clone()
 
-          // Cache successful responses
+          // Cache successful responses (only GET requests reach here)
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(request, responseToCache)
           })
