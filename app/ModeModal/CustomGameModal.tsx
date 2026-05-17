@@ -272,11 +272,18 @@ export default function CustomGameModal({
               { id: "snow", color: "bg-white", label: t.ballSnow },
               { id: "orange", color: "bg-orange-500", label: t.ballBomb },
               { id: "heal", color: "bg-green-500", label: t.ballHeal },
-            ].map((ball) => (
-              <div key={ball.id} className={`p-3 rounded-xl border transition-all flex items-center gap-3 ${customConfig.balls[ball.id as keyof typeof customConfig.balls].enabled ? "bg-slate-800 border-white/20" : "bg-slate-900/50 border-transparent opacity-50"}`}>
-                <button onClick={() => toggleBall(ball.id)} className="flex items-center gap-3 flex-1" disabled={customConfig.isClassic && !['normal', 'heal', 'grey'].includes(ball.id)}>
-                  <div className={`w-4 h-4 rounded-full ${ball.color} shadow-sm shrink-0`} />
-                  <span className={`text-xs font-bold uppercase truncate ${customConfig.balls[ball.id as keyof typeof customConfig.balls].enabled ? "text-white" : "text-slate-500"}`}>{ball.label}</span>
+            ].map((ball) => {
+              const config = customConfig.balls[ball.id as keyof typeof customConfig.balls];
+              return (
+                <div 
+                  key={ball.id} 
+                  className={`p-4 rounded-3xl border transition-all flex flex-col gap-4 ${
+                    config.enabled ? "bg-slate-800 border-white/20 shadow-lg" : "bg-slate-900/40 border-transparent opacity-40 grayscale"
+                  }`}
+                >
+                <button onClick={() => toggleBall(ball.id)} className="flex items-center gap-2.5 w-full">
+                  <div className={`w-3 h-3 rounded-full ${ball.color} shadow-sm shrink-0`} />
+                  <span className={`text-[10px] font-black uppercase truncate flex-1 text-left ${config.enabled ? "text-white" : "text-slate-500"}`}>{ball.label}</span>
                 </button>
                 {config.enabled && (
                   <div className="flex flex-col gap-2 mt-auto">
