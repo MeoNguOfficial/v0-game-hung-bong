@@ -990,7 +990,6 @@ export default function App() {
         isCustom: false,
         customBallConfig: {},
         allowedBalls: [],
-        isClassic: isClassicMode,
         isHidden: isHidden,
         isBlank: isBlank,
         isReverse: isReverse,
@@ -1024,7 +1023,6 @@ export default function App() {
       setSnowLeft(0)
       setSnowActive(false)
       setIsAuto(isAutoMode)
-      setIsClassic(isClassicMode)
       // No need to set state here, it's already managed
       // setIsHidden(isHidden)
       // setIsBlank(isBlank)
@@ -1148,7 +1146,6 @@ export default function App() {
       isCustom: false,
       customBallConfig: {},
       allowedBalls: [],
-      isClassic: isClassic,
       isHidden: isHidden,
       isBlank: isBlank,
       isReverse: isReverse,

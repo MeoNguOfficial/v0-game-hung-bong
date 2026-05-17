@@ -136,7 +136,7 @@ export default function QuickPlayModal({
 
   const currentMultiplier = getScoreMultiplier(
     gameMode,
-    isClassic ? "classic" : "default",
+    "default",
     { isHidden, isBlank, isReverse },
     isReverseControl || isMirror || isInvisible
   )
