@@ -1,5 +1,4 @@
 import { BallState, GameData } from "./MainGameLogic"
-import { getClassicBallType } from "./GameModal/ClassicGameModal"
 import { getDefaultBallType } from "./GameModal/DefaultGameModal"
 import { getCustomBallType } from "./GameCustomLogic"
 
@@ -14,8 +13,6 @@ const getRandomBallTypeExcludingBomb = (gameData: GameData): BallState["type"] =
 
   if (gameData.isCustom) {
     type = getCustomBallType(gameData.customBallConfig ?? {}, score) as BallState["type"]
-  } else if (gameData.isClassic) {
-    type = getClassicBallType(gameMode) as BallState["type"]
   } else {
     type = getDefaultBallType(score, gameMode) as BallState["type"]
   }

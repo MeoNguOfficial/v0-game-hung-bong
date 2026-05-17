@@ -135,7 +135,7 @@ export const updateBallLifecycle = (
       if (b.type === "purple") scoreAdd += 2
       if (b.type === "yellow") scoreAdd += 9
 
-      let multiplier = getScoreMultiplier(gameData.gameMode, gameData.isClassic ? "classic" : "default", { isHidden: !!gameData.isHidden, isBlank: !!gameData.isBlank, isReverse: !!gameData.isReverse }, !!(gameData.isReverseControl || gameData.isMirror || gameData.isInvisible))
+      let multiplier = getScoreMultiplier(gameData.gameMode, "default", { isHidden: !!gameData.isHidden, isBlank: !!gameData.isBlank, isReverse: !!gameData.isReverse }, !!(gameData.isReverseControl || gameData.isMirror || gameData.isInvisible))
       if (gameData.isRain) multiplier *= 0.8
       
       gameData.score += scoreAdd * multiplier

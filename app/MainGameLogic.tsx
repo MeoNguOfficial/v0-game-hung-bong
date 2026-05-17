@@ -1,5 +1,4 @@
 import { getCustomBallType } from "./GameCustomLogic"
-import { getClassicBallType } from "./GameModal/ClassicGameModal"
 import { getDefaultBallType } from "./GameModal/DefaultGameModal"
 import { getInitialVerticalState } from "./GameModal/ReverseGameModal"
 
@@ -29,7 +28,6 @@ export interface SpawnResult {
 export interface GameData {
   score?: number
   isCustom?: boolean
-  isClassic?: boolean
   gameMode?: "normal" | "hardcode" | "sudden_death"
   customBallConfig?: Record<string, { enabled: boolean; score: number; rate: number }>
   allowedBalls?: string[]
@@ -44,7 +42,6 @@ export const spawnBall = (
 ): SpawnResult => {
   const score = gameData.score || 0
   const isCustom = gameData.isCustom
-  const isClassic = gameData.isClassic
   const gameMode = gameData.gameMode
   const customBallConfig = gameData.customBallConfig
   const { startY } = getInitialVerticalState(canvasHeight, gameData.isReverse || false)
@@ -78,9 +75,6 @@ export const spawnBall = (
   // --- TYPE SELECTION LOGIC ---
   if (isCustom) {
     b.type = getCustomBallType(customBallConfig ?? {}, score) as BallState["type"]
-  } else if (isClassic) {
-    // Sudden Death dùng tỉ lệ của Hardcore
-    b.type = getClassicBallType(gameMode === "sudden_death" ? "hardcode" : (gameMode || "normal"))
   } else {
     // Sudden Death dùng tỉ lệ của Hardcore
     b.type = getDefaultBallType(score, gameMode === "sudden_death" ? "hardcode" : (gameMode || "normal"))
@@ -97,7 +91,7 @@ export const spawnBall = (
 
   // --- BOMB SPAWN LOGIC ---
   let newBombs: BombState[] = []
-  const canSpawnSimultaneousBombs = !isClassic && (!isCustom || (gameData.allowedBalls && gameData.allowedBalls.includes("orange")))
+  const canSpawnSimultaneousBombs = !isCustom || (gameData.allowedBalls && gameData.allowedBalls.includes("orange"))
   
   const spawnChance = score > 3000 ? 0.25 : 0.2
 

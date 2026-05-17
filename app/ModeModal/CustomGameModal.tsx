@@ -1,15 +1,14 @@
 "use client"
 
-import React from "react"
+import React, { useState, useRef, useEffect } from "react"
 import { motion } from "framer-motion"
 import {
-  X, Shield, Heart, Zap, Skull, Bot, EyeOff, Square, ArrowUpCircle,
+  X, Zap, Skull, Bot, EyeOff, Square, ArrowUpCircle,
   Undo2, RotateCcw, RefreshCw, AlertCircle, Play,
-  ArrowRightLeft, FlipVertical, Ghost
+  ArrowRightLeft, FlipVertical, Ghost, Plus, Minus
 } from "lucide-react"
 
 export interface CustomConfig {
-  isClassic: boolean
   difficulty: "normal" | "hardcode" | "sudden_death"
   isAuto: boolean
   isHidden: boolean
@@ -34,6 +33,67 @@ interface CustomGameModalProps {
   configHistory: CustomConfig[]
   setConfigHistory: React.Dispatch<React.SetStateAction<CustomConfig[]>>
 }
+
+// Component Input số nâng cao với nút +/- và tính năng kéo (drag)
+const DraggableNumberInput = ({ 
+  value, onChange, min = 0, max = 100, step = 1, label, colorClass, playClick 
+}: { 
+  value: number, onChange: (val: number) => void, min?: number, max?: number, 
+  step?: number, label: string, colorClass: string, playClick: () => void 
+}) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const startX = useRef(0);
+  const startVal = useRef(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    startX.current = e.clientX;
+    startVal.current = value;
+    document.body.style.cursor = 'ew-resize';
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      const diff = Math.floor((e.clientX - startX.current) / 5); // Độ nhạy: 5px = 1 đơn vị
+      const newVal = Math.min(max, Math.max(min, startVal.current + diff * step));
+      if (newVal !== value) onChange(newVal);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      document.body.style.cursor = 'default';
+    };
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, value, min, max, step, onChange]);
+
+  return (
+    <div className="flex flex-col w-full group">
+      <div className="flex justify-between items-center mb-1 px-1">
+        <label className="text-[9px] text-slate-500 font-black uppercase tracking-tighter leading-none">{label}</label>
+        <span className="text-[7px] text-slate-600 font-bold opacity-0 group-hover:opacity-100 transition-opacity">DRAG ↔</span>
+      </div>
+      <div className="flex items-center bg-slate-950/50 border border-slate-700/50 rounded-xl overflow-hidden focus-within:border-blue-500 transition-all w-full">
+        <button onClick={() => { playClick(); onChange(Math.max(min, value - step)); }} className="px-3 py-2.5 hover:bg-white/5 text-slate-400 transition-colors"><Minus size={12} /></button>
+        <input 
+          type="number" value={value} 
+          onMouseDown={handleMouseDown}
+          onChange={(e) => onChange(Math.min(max, Math.max(min, parseInt(e.target.value) || 0)))}
+          className={`flex-1 min-w-0 bg-transparent text-center text-xs font-black outline-none cursor-ew-resize select-none py-2 ${colorClass}`} 
+        />
+        <button onClick={() => { playClick(); onChange(Math.min(max, value + step)); }} className="px-3 py-2.5 hover:bg-white/5 text-slate-400 transition-colors"><Plus size={12} /></button>
+      </div>
+    </div>
+  );
+};
 
 export default function CustomGameModal({
   t, customConfig, setCustomConfig, customError, setCustomError, setOpenCustom,
@@ -63,13 +123,13 @@ export default function CustomGameModal({
       isMirror: false,
       isInvisible: false,
       balls: {
-        normal: { enabled: !prev.isClassic, score: 0, rate: 40 },
-        purple: { enabled: !prev.isClassic, score: 50, rate: 30 },
-        yellow: { enabled: !prev.isClassic, score: 100, rate: 15 },
-        boost: { enabled: !prev.isClassic, score: 200, rate: 3 },
+        normal: { enabled: true, score: 0, rate: 40 },
+        purple: { enabled: true, score: 50, rate: 30 },
+        yellow: { enabled: true, score: 100, rate: 15 },
+        boost: { enabled: true, score: 200, rate: 3 },
         grey: { enabled: true, score: 300, rate: 2 },
-        snow: { enabled: !prev.isClassic, score: 500, rate: 3 },
-        orange: { enabled: !prev.isClassic, score: 2, rate: 2 },
+        snow: { enabled: true, score: 500, rate: 3 },
+        orange: { enabled: true, score: 2, rate: 2 },
         heal: { enabled: true, score: 150, rate: 5 },
       }
     }))
@@ -123,32 +183,7 @@ export default function CustomGameModal({
     setCustomError(null)
   }
 
-  const handleClassicToggle = (isClassic: boolean) => {
-    playClick() // SFX đã có
-    saveHistory()
-    setCustomConfig(prev => {
-      const newBalls = { ...prev.balls }
-      Object.keys(newBalls).forEach(key => {
-        const isClassicBall = ['normal', 'heal', 'grey'].includes(key)
-        newBalls[key as keyof typeof newBalls].enabled = isClassic ? isClassicBall : true
-      })
 
-      const newConfig = { ...prev, isClassic, balls: newBalls }
-
-      const enabledKeys = Object.keys(newBalls).filter(k => newBalls[k as keyof typeof newBalls].enabled)
-      const count = enabledKeys.length
-      if (count > 0) {
-        const share = Math.floor(100 / count)
-        let remainder = 100 - (share * count)
-        enabledKeys.forEach(k => {
-          const extra = remainder > 0 ? 1 : 0
-          newBalls[k as keyof typeof newBalls].rate = share + extra
-          if (remainder > 0) remainder--
-        })
-      }
-      return newConfig
-    })
-  }
 
   // Các hàm tiện ích để handle input thay đổi có kèm SFX
   const handleConfigToggle = (key: keyof CustomConfig) => {
@@ -177,14 +212,7 @@ export default function CustomGameModal({
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-6 custom-scrollbar">
-        {/* Game Mode */}
-        <section>
-          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{t.gameMode}</h4>
-          <div className="bg-white/5 p-2 rounded-2xl border border-white/5 flex gap-2">
-            <button onClick={() => handleClassicToggle(false)} className={`flex-1 py-3 rounded-xl font-bold text-sm uppercase transition-all flex items-center justify-center gap-2 ${!customConfig.isClassic ? "bg-blue-600 text-white shadow-lg" : "bg-slate-800 text-slate-400"}`}><Shield size={16} /> {t.modeDefault}</button>
-            <button onClick={() => handleClassicToggle(true)} className={`flex-1 py-3 rounded-xl font-bold text-sm uppercase transition-all flex items-center justify-center gap-2 ${customConfig.isClassic ? "bg-yellow-600 text-white shadow-lg" : "bg-slate-800 text-slate-400"}`}><Heart size={16} /> {t.modeClassic}</button>
-          </div>
-        </section>
+
 
         {/* Difficulty */}
         <section>
@@ -234,7 +262,7 @@ export default function CustomGameModal({
             <button onClick={handleReset} className="flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-slate-800 text-slate-300 border border-white/10 hover:bg-slate-700 transition-all"><RotateCcw size={14} /> {t.reset}</button>
             <button onClick={autoBalanceRates} className="flex items-center justify-center gap-2 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider text-blue-400 bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all"><RefreshCw size={14} /> {t.autoBalance}</button>
           </div>
-          <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-3">
             {[
               { id: "normal", color: "bg-red-500", label: t.ballNormal },
               { id: "purple", color: "bg-purple-500", label: t.ballFast },
@@ -244,42 +272,54 @@ export default function CustomGameModal({
               { id: "snow", color: "bg-white", label: t.ballSnow },
               { id: "orange", color: "bg-orange-500", label: t.ballBomb },
               { id: "heal", color: "bg-green-500", label: t.ballHeal },
-            ].map((ball) => (
-              <div key={ball.id} className={`p-3 rounded-xl border transition-all flex items-center gap-3 ${customConfig.balls[ball.id as keyof typeof customConfig.balls].enabled ? "bg-slate-800 border-white/20" : "bg-slate-900/50 border-transparent opacity-50"}`}>
-                <button onClick={() => toggleBall(ball.id)} className="flex items-center gap-3 flex-1" disabled={customConfig.isClassic && !['normal', 'heal', 'grey'].includes(ball.id)}>
-                  <div className={`w-4 h-4 rounded-full ${ball.color} shadow-sm shrink-0`} />
-                  <span className={`text-xs font-bold uppercase truncate ${customConfig.balls[ball.id as keyof typeof customConfig.balls].enabled ? "text-white" : "text-slate-500"}`}>{ball.label}</span>
+            ].map((ball) => {
+              const config = customConfig.balls[ball.id as keyof typeof customConfig.balls];
+              return (
+                <div 
+                  key={ball.id} 
+                  className={`p-4 rounded-3xl border transition-all flex flex-col gap-4 ${
+                    config.enabled ? "bg-slate-800 border-white/20 shadow-lg" : "bg-slate-900/40 border-transparent opacity-40 grayscale"
+                  }`}
+                >
+                <button onClick={() => toggleBall(ball.id)} className="flex items-center gap-2.5 w-full">
+                  <div className={`w-3 h-3 rounded-full ${ball.color} shadow-sm shrink-0`} />
+                  <span className={`text-[10px] font-black uppercase truncate flex-1 text-left ${config.enabled ? "text-white" : "text-slate-500"}`}>{ball.label}</span>
                 </button>
-                {customConfig.balls[ball.id as keyof typeof customConfig.balls].enabled && (
-                  <div className="flex items-center gap-2">
-                    <div className="flex flex-col items-end">
-                      <label className="text-[8px] text-slate-500 font-bold uppercase">{t.score}</label>
-                      <input type="number" min="0" max="1000" value={customConfig.balls[ball.id as keyof typeof customConfig.balls].score}
-                        onChange={(e) => {
-                          playClick(); // SFX khi thay đổi số
-                          saveHistory();
-                          const val = Math.min(1000, Math.max(0, parseInt(e.target.value) || 0));
-                          setCustomConfig(prev => ({ ...prev, balls: { ...prev.balls, [ball.id]: { ...prev.balls[ball.id as keyof typeof prev.balls], score: val } } }))
-                        }}
-                        className="w-14 bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-xs font-mono text-right text-white focus:border-blue-500 outline-none"
-                      />
-                    </div>
-                    <div className="flex flex-col items-end">
-                      <label className="text-[8px] text-slate-500 font-bold uppercase">{t.rate}</label>
-                      <input type="number" min="0" max="100" value={customConfig.balls[ball.id as keyof typeof customConfig.balls].rate}
-                        onChange={(e) => {
-                          playClick(); // SFX khi thay đổi số
-                          saveHistory();
-                          const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
-                          setCustomConfig(prev => ({ ...prev, balls: { ...prev.balls, [ball.id]: { ...prev.balls[ball.id as keyof typeof prev.balls], rate: val } } }))
-                        }}
-                        className="w-12 bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-xs font-mono text-right text-yellow-400 focus:border-yellow-500 outline-none"
-                      />
-                    </div>
+                {config.enabled && (
+                  <div className="flex flex-col gap-2 mt-auto">
+                    <DraggableNumberInput 
+                      label={t.score}
+                      value={config.score}
+                      min={0} max={1000} step={10}
+                      colorClass="text-white"
+                      playClick={playClick}
+                      onChange={(val) => {
+                        saveHistory();
+                        setCustomConfig(prev => ({ 
+                          ...prev, 
+                          balls: { ...prev.balls, [ball.id]: { ...config, score: val } } 
+                        }));
+                      }}
+                    />
+                    <DraggableNumberInput 
+                      label={t.rate}
+                      value={config.rate}
+                      min={0} max={100}
+                      colorClass="text-yellow-400"
+                      playClick={playClick}
+                      onChange={(val) => {
+                        saveHistory();
+                        setCustomConfig(prev => ({ 
+                          ...prev, 
+                          balls: { ...prev.balls, [ball.id]: { ...config, rate: val } } 
+                        }));
+                      }}
+                    />
                   </div>
                 )}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
           <div className="mt-2 flex justify-end">
             <span className={`text-[10px] font-bold uppercase tracking-wider ${getTotalRate() === 100 ? "text-green-400" : "text-red-400"}`}>{t.totalRate}: {getTotalRate()}%</span>

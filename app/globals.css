@@ -90,3 +90,62 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Tùy chỉnh thanh cuộn toàn cục cho các trình duyệt Webkit (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5); /* Tương đương slate-900 với độ trong suốt */
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: transparent; /* Ẩn mặc định */
+  border-radius: 10px;
+  transition: background-color 1s ease; /* Hiệu ứng ẩn mờ dần trong 1 giây */
+}
+
+/* Hiện thanh cuộn khi di chuột vào vùng chứa hoặc đang kéo thanh cuộn */
+*:hover::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-thumb:active {
+  background-color: rgba(71, 85, 105, 0.4);
+  transition: background-color 0.2s ease; /* Hiện lên nhanh chóng */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(59, 130, 246, 0.5) !important;
+}
+
+/* Lớp tiện ích .custom-scrollbar được dùng trong các Modal */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px; /* Mảnh hơn cho không gian hẹp */
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent; /* Track trong suốt để nhìn sạch hơn trong modal */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 20px;
+  transition: background-color 1s ease;
+}
+
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(59, 130, 246, 0.4);
+  transition: background-color 0.2s ease;
+}
+
+/* Ẩn mũi tên tăng giảm mặc định của input number */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
