@@ -118,8 +118,8 @@ export const TRANSLATIONS = {
     maxFPS: "Max FPS",
     unlimited: "Unlimited",
     cacheStorage: "Cache Storage",
-    clearCache: "Clear Cache",
-    clearCacheDesc: "Clear cached assets. App restart required.",
+    clearCache: "Refresh Cache Now",
+    clearCacheDesc: "Fetch the latest assets. App restart required.",
     close: "Close",
     holdForDetails: "Hold a button for details",
     // Quick Play Descriptions
@@ -283,8 +283,8 @@ export const TRANSLATIONS = {
     maxFPS: "FPS tối đa",
     unlimited: "Không giới hạn",
     cacheStorage: "Bộ nhớ đệm",
-    clearCache: "Xóa bộ nhớ đệm",
-    clearCacheDesc: "Xóa tài nguyên đã lưu. Cần khởi động lại ứng dụng.",
+    clearCache: "Làm mới Bộ nhớ đệm ngay",
+    clearCacheDesc: "Tải lại tài nguyên mới nhất. Cần khởi động lại ứng dụng.",
     close: "Đóng",
     holdForDetails: "Giữ một nút để xem chi tiết",
     // Quick Play Descriptions
@@ -444,8 +444,8 @@ export const TRANSLATIONS = {
     maxFPS: "FPS Máximo",
     unlimited: "Sin límite",
     cacheStorage: "Almacenamiento en Caché",
-    clearCache: "Borrar Caché",
-    clearCacheDesc: "Borrar recursos en caché. Se requiere reinicio.",
+    clearCache: "Refrescar Caché Ahora",
+    clearCacheDesc: "Obtener los últimos recursos. Se requiere reinicio.",
     close: "Cerrar",
     holdForDetails: "Mantén presionado un botón para ver detalles",
     // Quick Play Descriptions
@@ -605,8 +605,8 @@ export const TRANSLATIONS = {
     maxFPS: "Макс FPS",
     unlimited: "Без ограничений",
     cacheStorage: "Кэш хранилище",
-    clearCache: "Очистить кэш",
-    clearCacheDesc: "Очистить кэшированные ресурсы. Требуется перезагрузка.",
+    clearCache: "Обновить кэш сейчас",
+    clearCacheDesc: "Загрузить последние ресурсы. Требуется перезагрузка.",
     close: "Закрыть",
     holdForDetails: "Удерживайте кнопку для подробностей",
     // Quick Play Descriptions

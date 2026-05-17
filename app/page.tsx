@@ -52,6 +52,8 @@ import { getBlankObstacleProps } from "./GameModal/BlankModal"
 import { getInitialVerticalState } from "./GameModal/ReverseGameModal"
 import { getScoreKey, initializeScores, getScoreMultiplier } from "./ScoreManager"
 import type { Difficulty, GameType, HistoryEntry } from "./ScoreManager"
+import { runAutoplayLogic } from "./AutoplayLogic"
+import { resolveBallCollisions } from "./CollisionLogic"
 
 // --- Update: Obfuscation Helpers for Score Security ---
 const SECRET_SALT = "MEO_SECRET_KEY_2024_PWA_SECURE";
@@ -101,6 +103,34 @@ interface Particle {
   decay: number
   type?: "explode" | "absorb" | "firework" | "shard" | "miss"
 }
+
+// --- Audio Utility: Web Audio API Clink Generator ---
+let audioCtx: AudioContext | null = null;
+const playClinkSfx = (volume: number) => {
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = "sine";
+    // Tần số cao tạo tiếng "clink" kim loại
+    osc.frequency.setValueAtTime(1800, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.04);
+
+    gain.gain.setValueAtTime(0.05 * volume, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.04);
+  } catch (e) { /* Silent fail if audio context blocked */ }
+};
 
 interface Trail {
   x: number
@@ -197,6 +227,8 @@ export default function App() {
   const logicTimeRef = useRef(0)
   const [fpsDisplay, setFpsDisplay] = useState(0)
   const [logicDisplay, setLogicDisplay] = useState(0)
+  const [gameSpeedDisplay, setGameSpeedDisplay] = useState(1.0)
+  const [musicSpeedDisplay, setMusicSpeedDisplay] = useState(1.0)
   const [showDevToast, setShowDevToast] = useState(false)
   const [showDevMenu, setShowDevMenu] = useState(false)
   const [debugUI, setDebugUI] = useState(false)
@@ -599,7 +631,7 @@ export default function App() {
   const handleClearCache = async () => {
     try {
       await swManager.clearCache()
-      console.log("[v0] Cache cleared, requesting restart...")
+      console.log("[v0] Cache refreshed, requesting restart...")
       // Update 3: Immediate hard refresh
       window.location.reload()
     } catch (error) {
@@ -1454,6 +1486,7 @@ export default function App() {
 
     // Initialize audio playback rate manager
     audioRateManager.reset()
+
     if (currentBgmRef.current) {
       audioRateManager.registerAudioElement("bgm", currentBgmRef.current)
     }
@@ -1526,6 +1559,7 @@ export default function App() {
       const rect = canvas.getBoundingClientRect()
       const scaleX = canvas.width / rect.width
       let mouseX = (clientX - rect.left) * scaleX
+      
       if (gameData.current.isReverseControl) {
         mouseX = canvas.width - mouseX
       }
@@ -1706,218 +1740,19 @@ export default function App() {
       const isAuto = gameData.current.isAuto
       const isDebug = debugFlags.current.hitbox
 
-      if ((isAuto || isDebug) && canvas.getAttribute("data-state") === "running" && !gameData.current.isDying) {
-        const ts = (gameData.current.timeScale || 1)
-
-        // 1. Predict Ball Position
-        const timeToHit = Math.abs(logicPaddleY - b.y) / (b.speed * ts)
-        let predictedX = b.x
-
-        if (timeToHit > 0) {
-          predictedX = b.x + b.dx * timeToHit
-
-          // Bouncing Logic
-          let tempX = predictedX
-          const minX = b.radius
-          const maxX = canvas.width - b.radius
-
-          while (tempX < minX || tempX > maxX) {
-            if (tempX < minX) {
-              tempX = minX + (minX - tempX)
-            } else if (tempX > maxX) {
-              tempX = maxX - (tempX - maxX)
-            }
-          }
-          predictedX = tempX
-
-          // Yellow ball sine wave
-          if (b.type === "yellow") {
-            const futureSinTime = b.sinTime + 0.15 * timeToHit
-            const dynamicAmplitude = b.speed * 3
-            predictedX += Math.sin(futureSinTime) * dynamicAmplitude
-          }
-        }
-
-        // 2. Identify Danger Zones
-        const pWidth = gameData.current.playerWidth
-        const hardMargin = 8 // Thu hẹp lề để lách bom (Logic: gap ~30px giữa bom và bóng là đớp được)
-        const softMargin = 4 // Giảm lề dự phòng cho di chuyển linh hoạt hơn
+      if (canvas.getAttribute("data-state") === "running") {
+        runAutoplayLogic(
+          gameData.current,
+          canvas.width,
+          logicPaddleY,
+          deltaTime,
+          debugFlags.current.hitbox
+        )
         
-        // Hard Zones: Immediate threats (cannot cross)
-        const hardZones: { min: number; max: number }[] = []
-        // Soft Zones: Future threats (can cross but don't stop)
-        const softZones: { min: number; max: number }[] = []
-
-        const addZone = (zones: any[], x: number, r: number, margin: number) => {
-          const safeDist = pWidth / 2 + r + margin
-          zones.push({ min: x - safeDist, max: x + safeDist })
-        }
-
-        // Main ball is a threat if orange
-        if (b.type === "orange") {
-          const distY = isReverse ? (b.y - logicPaddleY) : (logicPaddleY - b.y)
-          if (distY < 450 && distY > -50) addZone(hardZones, predictedX, b.radius, hardMargin)
-          else addZone(softZones, predictedX, b.radius, softMargin)
-        }
-
-        // Falling bombs
-        gameData.current.bombs.forEach(bomb => {
-          const distY = isReverse ? (bomb.y - logicPaddleY) : (logicPaddleY - bomb.y)
-          // Bombs are more dangerous, detect sooner (350px)
-          if (distY < 350 && distY > -50) {
-            addZone(hardZones, bomb.x, bomb.radius, hardMargin)
-          } else {
-            addZone(softZones, bomb.x, bomb.radius, softMargin)
-          }
-        })
-
-        // Merge Hard Zones
-        hardZones.sort((a, b) => a.min - b.min)
-        const mergedHardZones: { min: number; max: number }[] = []
-        if (hardZones.length > 0) {
-          let current = hardZones[0]
-          for (let i = 1; i < hardZones.length; i++) {
-            const next = hardZones[i]
-            if (current.max >= next.min) {
-              current.max = Math.max(current.max, next.max)
-            } else {
-              mergedHardZones.push(current)
-              current = next
-            }
-          }
-          mergedHardZones.push(current)
-        }
-
-        // Merge Soft Zones
-        softZones.sort((a, b) => a.min - b.min)
-        const mergedSoftZones: { min: number; max: number }[] = []
-        if (softZones.length > 0) {
-          let current = softZones[0]
-          for (let i = 1; i < softZones.length; i++) {
-            const next = softZones[i]
-            if (current.max >= next.min) {
-              current.max = Math.max(current.max, next.max)
-            } else {
-              mergedSoftZones.push(current)
-              current = next
-            }
-          }
-          mergedSoftZones.push(current)
-        }
-
-        // 3. Calculate Safe Intervals (from Hard Zones)
-        const validMin = pWidth / 2
-        const validMax = canvas.width - pWidth / 2
-        const safeIntervals: { min: number; max: number }[] = []
-
-        let cursor = validMin
-        mergedHardZones.forEach(z => {
-          if (z.min > cursor) {
-            safeIntervals.push({ min: cursor, max: z.min })
-          }
-          cursor = Math.max(cursor, z.max)
-        })
-        if (cursor < validMax) {
-          safeIntervals.push({ min: cursor, max: validMax })
-        }
-
-        // 4. Determine Target
-        const currentCenter = gameData.current.playerX + pWidth / 2
-        let targetCenter = currentCenter
-
-        // Find best interval (closest to current position to ensure reachability)
-        let bestInterval = null
-        let minDistToInterval = Infinity
-
-        if (safeIntervals.length > 0) {
-          for (const interval of safeIntervals) {
-            if (currentCenter >= interval.min && currentCenter <= interval.max) {
-              bestInterval = interval
-              break
-            }
-            const dist = currentCenter < interval.min ? interval.min - currentCenter : currentCenter - interval.max
-            if (dist < minDistToInterval) {
-              minDistToInterval = dist
-              bestInterval = interval
-            }
-          }
-        }
-
-        if (bestInterval) {
-          // Initial Target: Ball or Current
-          const isGoodBall = b.type !== "orange"
-
-          if (isGoodBall) {
-            // Tối ưu ăn bóng thông minh: Tìm vị trí trong Safe Interval cho phép đớp bóng bằng cạnh thanh hứng
-            // Catch Range: Khoảng giá trị mà tâm thanh hứng có thể đứng để bóng chạm vào bề mặt thanh
-            const catchRangeMin = predictedX - pWidth / 2 + b.radius + 2
-            const catchRangeMax = predictedX + pWidth / 2 - b.radius - 2
-            
-            let bestCatchingPoint = null
-            let minCenterDist = Infinity
-            
-            // Duyệt qua các khoảng an toàn để tìm điểm đớp bóng gần với tâm bóng nhất
-            for (const interval of safeIntervals) {
-              const intersectMin = Math.max(interval.min, catchRangeMin)
-              const intersectMax = Math.min(interval.max, catchRangeMax)
-              
-              if (intersectMin <= intersectMax) {
-                // Ưu tiên đớp chính diện (predictedX), nếu không được thì lấy điểm gần nhất trong vùng giao
-                const candidate = Math.max(intersectMin, Math.min(predictedX, intersectMax))
-                const dist = Math.abs(candidate - predictedX)
-                if (dist < minCenterDist) {
-                  minCenterDist = dist
-                  bestCatchingPoint = candidate
-                }
-              }
-            }
-            
-            if (bestCatchingPoint !== null) {
-              targetCenter = bestCatchingPoint
-            } else {
-              // Nếu không thể đớp bóng an toàn, ưu tiên giữ vị trí an toàn gần nhất
-              targetCenter = Math.max(bestInterval.min, Math.min(currentCenter, bestInterval.max))
-            }
-          } else {
-            // Đang né bóng cam hoặc bom -> Di chuyển về điểm an toàn
-            targetCenter = Math.max(bestInterval.min, Math.min(currentCenter, bestInterval.max))
-          }
-          
-          // Avoid Soft Zones (Future threats)
-          for (const sz of mergedSoftZones) {
-             if (targetCenter > sz.min && targetCenter < sz.max) {
-               // "Item optimization": Chỉ thoát vùng Soft Zone nếu quả bóng hiện tại KHÔNG rơi vào đây
-               // hoặc nếu vị trí bắt bóng nằm quá xa tâm thanh hứng (không an toàn).
-               const distToGoodBall = Math.abs(targetCenter - predictedX)
-               const isCatchingPossible = distToGoodBall < pWidth / 3 
-               
-               if (!isGoodBall || !isCatchingPossible) {
-                  const dLeft = Math.abs(targetCenter - sz.min)
-                  const dRight = Math.abs(targetCenter - sz.max)
-                  
-                  let escapeX = dLeft < dRight ? sz.min : sz.max
-                  if (predictedX < sz.min) escapeX = sz.min
-                  else if (predictedX > sz.max) escapeX = sz.max
-                  
-                  targetCenter = Math.max(bestInterval.min, Math.min(escapeX, bestInterval.max))
-               }
-             }
-          }
-        }
-
-        // Save for debug rendering
-        gameData.current.aiDebug = {
-          predictedX,
-          targetCenter,
-          hardZones: [...mergedHardZones],
-          softZones: [...mergedSoftZones],
-        }
-
-        // 5. Move
-        if (isAuto) {
-          const targetX = targetCenter - pWidth / 2
-          gameData.current.playerX += (targetX - gameData.current.playerX) * (1 - Math.pow(1 - 0.5, deltaTime))
-        }
+        // Thử nghiệm va chạm bóng rơi với nhau
+        resolveBallCollisions(gameData.current, canvas.width, isReverse, () => {
+          if (!gameData.current.isMuted) playClinkSfx(gameData.current.sfxVolume);
+        });
       }
 
       // --- Manual Movement Smoothing ---
@@ -2002,7 +1837,7 @@ export default function App() {
           }
 
           // Remove if out of bounds
-          if ((!isReverse && bomb.y > canvas.height) || (isReverse && bomb.y < 0)) {
+          if ((!isReverse && bomb.y > 700) || (isReverse && bomb.y < 0)) {
             gameData.current.bombs.splice(i, 1)
             if (gameData.current.bombs.length === 0 && gameData.current.ball.type !== "orange") {
               stopSound("bomb_fall")
@@ -2067,8 +1902,14 @@ export default function App() {
               playSound("snow")
               createParticles(b.x, b.y, "#ffffff", "explode", true)
 
-              // Smoothly transition music speed to 0.5x over 1 second
-              audioRateManager.animatePlaybackRate(0.5, 1000)
+              // Calculate current base music rate based on score
+              const currentScoreInt = Math.floor(gameData.current.score)
+              const currentBaseRate = Math.min(currentScoreInt < 200 
+                ? 1.0 + Math.floor(currentScoreInt / 40) * 0.01 
+                : 1.05 + Math.floor((currentScoreInt - 200) / 50) * 0.01, 2.5)
+
+              // Smoothly transition music speed to half of current rate over 1 second
+              audioRateManager.animatePlaybackRate(currentBaseRate / 2, 1000)
               
               if (snowIntervalRef.current) {
                 clearInterval(snowIntervalRef.current)
@@ -2254,7 +2095,7 @@ export default function App() {
             p.x += (tX - p.x) * 0.15 * deltaTime
             p.y += (visualPaddleY - p.y) * 0.15 * deltaTime
           } else {
-            p.x += p.vx
+            p.x += p.vx 
             p.y += p.vy
           }
           p.alpha -= p.decay
@@ -2465,6 +2306,10 @@ export default function App() {
       if (currentTime - lastStatsUpdate > 500) {
         setFpsDisplay(Math.round(fpsRef.current))
         setLogicDisplay(logicTimeRef.current)
+        setGameSpeedDisplay(gameData.current.timeScale)
+        if (currentBgmRef.current) {
+          setMusicSpeedDisplay(currentBgmRef.current.playbackRate)
+        }
         lastStatsUpdate = currentTime
       }
 
@@ -2637,11 +2482,15 @@ export default function App() {
                 <span className="text-xl font-black text-yellow-400 italic tabular-nums leading-none">{score}</span>
                 {(showFPS || debugHitboxPlay) && (
                   <div className="flex flex-col mt-0.5">
-                    {showFPS && (
+                    {(showFPS || debugHitboxPlay) && (
                       <span className="text-[9px] font-bold text-emerald-500 leading-none">FPS: {fpsDisplay}</span>
                     )}
                     {debugHitboxPlay && (
-                      <span className="text-[9px] font-bold text-yellow-500 leading-none mt-0.5">LOGIC: {logicDisplay.toFixed(2)}ms</span>
+                      <>
+                        <span className="text-[9px] font-bold text-yellow-500 leading-none mt-0.5">LOGIC: {logicDisplay.toFixed(2)}ms</span>
+                        <span className="text-[9px] font-bold text-cyan-400 leading-none mt-0.5 uppercase">Speed: {gameSpeedDisplay.toFixed(2)}x</span>
+                        <span className="text-[9px] font-bold text-purple-400 leading-none mt-0.5 uppercase">Music: {musicSpeedDisplay.toFixed(2)}x</span>
+                      </>
                     )}
                   </div>
                 )}

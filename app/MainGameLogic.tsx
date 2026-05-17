@@ -99,11 +99,14 @@ export const spawnBall = (
   let newBombs: BombState[] = []
   const canSpawnSimultaneousBombs = !isClassic && (!isCustom || (gameData.allowedBalls && gameData.allowedBalls.includes("orange")))
   
-  if (canSpawnSimultaneousBombs && score > 50 && Math.random() < 0.2) {
-    let maxBombs = 2
-    if (score > 1000) maxBombs = 5
-    else if (score > 500) maxBombs = 4
-    else if (score > 200) maxBombs = 3
+  const spawnChance = score > 3000 ? 0.25 : 0.2
+
+  if (canSpawnSimultaneousBombs && score > 50 && Math.random() < spawnChance) {
+    let maxBombs = 1
+    if (score > 2000) maxBombs = 5
+    else if (score > 1000) maxBombs = 4
+    else if (score > 500) maxBombs = 3
+    else if (score > 200) maxBombs = 2
 
     const bombCount = Math.floor(Math.random() * maxBombs) + 1
     const bombSpeed = baseSpeed * 1.1

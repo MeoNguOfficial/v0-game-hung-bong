@@ -462,8 +462,8 @@ export default function SettingsModal({
                         <Trash2 size={18} />
                       </div>
                       <div className="text-left">
-                        <span className="text-sm font-bold text-slate-300 uppercase">{t.clearCache || "Clear Cache"}</span>
-                        <span className="text-xs text-slate-500 block">{t.clearCacheDesc || "Clear cached assets"}</span>
+                        <span className="text-sm font-bold text-slate-300 uppercase">{t.clearCache || "Refresh Cache Now"}</span>
+                        <span className="text-xs text-slate-500 block">{t.clearCacheDesc || "Fetch the latest assets"}</span>
                       </div>
                     </div>
                   </button>
