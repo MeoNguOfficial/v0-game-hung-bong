@@ -62,13 +62,13 @@ export default function CustomGameModal({
       isMirror: false,
       isInvisible: false,
       balls: {
-        normal: { enabled: !prev.isClassic, score: 0, rate: 40 },
-        purple: { enabled: !prev.isClassic, score: 50, rate: 30 },
-        yellow: { enabled: !prev.isClassic, score: 100, rate: 15 },
-        boost: { enabled: !prev.isClassic, score: 200, rate: 3 },
+        normal: { enabled: true, score: 0, rate: 40 },
+        purple: { enabled: true, score: 50, rate: 30 },
+        yellow: { enabled: true, score: 100, rate: 15 },
+        boost: { enabled: true, score: 200, rate: 3 },
         grey: { enabled: true, score: 300, rate: 2 },
-        snow: { enabled: !prev.isClassic, score: 500, rate: 3 },
-        orange: { enabled: !prev.isClassic, score: 2, rate: 2 },
+        snow: { enabled: true, score: 500, rate: 3 },
+        orange: { enabled: true, score: 2, rate: 2 },
         heal: { enabled: true, score: 150, rate: 5 },
       }
     }))
@@ -213,7 +213,7 @@ export default function CustomGameModal({
               { id: "heal", color: "bg-green-500", label: t.ballHeal },
             ].map((ball) => (
               <div key={ball.id} className={`p-3 rounded-xl border transition-all flex items-center gap-3 ${customConfig.balls[ball.id as keyof typeof customConfig.balls].enabled ? "bg-slate-800 border-white/20" : "bg-slate-900/50 border-transparent opacity-50"}`}>
-                <button onClick={() => toggleBall(ball.id)} className="flex items-center gap-3 flex-1" disabled={customConfig.isClassic && !['normal', 'heal', 'grey'].includes(ball.id)}>
+                <button onClick={() => toggleBall(ball.id)} className="flex items-center gap-3 flex-1">
                   <div className={`w-4 h-4 rounded-full ${ball.color} shadow-sm shrink-0`} />
                   <span className={`text-xs font-bold uppercase truncate ${customConfig.balls[ball.id as keyof typeof customConfig.balls].enabled ? "text-white" : "text-slate-500"}`}>{ball.label}</span>
                 </button>
