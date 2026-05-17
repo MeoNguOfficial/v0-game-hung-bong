@@ -161,7 +161,6 @@ export default function App() {
   const [showNewBest, setShowNewBest] = useState(false)
   const [isAuto, setIsAuto] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
-  const [isClassic, setIsClassic] = useState(false)
   const [particlesEnabled, setParticlesEnabled] = useState(true)
   const [showFPS, setShowFPS] = useState(false)
   const [trailsEnabled, setTrailsEnabled] = useState(true)
@@ -189,7 +188,6 @@ export default function App() {
   const [isInvisible, setIsInvisible] = useState(false)
   const [customError, setCustomError] = useState<string | null>(null)
   const [customConfig, setCustomConfig] = useState<CustomConfig>({
-    isClassic: false,
     difficulty: "normal",
     isAuto: false,
     isHidden: false,
@@ -271,8 +269,6 @@ export default function App() {
     const legacyMappings = [
       { old: "my_game_best_normal", difficulty: "normal", gameType: "default" },
       { old: "my_game_best_hardcore", difficulty: "hardcode", gameType: "default" },
-      { old: "my_game_best_classic_normal", difficulty: "normal", gameType: "classic" },
-      { old: "my_game_best_classic_hardcore", difficulty: "hardcode", gameType: "classic" },
     ]
 
     legacyMappings.forEach(({ old, difficulty, gameType }) => {
@@ -320,7 +316,6 @@ export default function App() {
     isCustom: false,
     customBallConfig: {} as Record<string, { enabled: boolean; score: number; rate: number }>,
     allowedBalls: [] as string[],
-    isClassic: false,
     isHidden: false,
     isBlank: false,
     isReverse: false,
@@ -375,7 +370,7 @@ export default function App() {
       // Fix: Đảm bảo dừng âm thanh bom rơi khi trạng thái chuyển sang Game Over
       stopSound("bomb_fall")
 
-      const { score, isAuto, isCustom, gameMode, isClassic, isHidden, isBlank, isReverse, isReverseControl, isMirror, isInvisible } = gameData.current
+      const { score, isAuto, isCustom, gameMode, isHidden, isBlank, isReverse, isReverseControl, isMirror, isInvisible } = gameData.current
 
       // Update 2: Don't save anything if score is 0
       if (Math.floor(score) <= 0) {
@@ -392,7 +387,7 @@ export default function App() {
           score: Math.floor(score),
           timestamp: Date.now(),
           difficulty: gameMode,
-          gameType: isClassic ? "classic" : "default",
+          gameType: "default",
           modifiers: { isHidden: !!isHidden, isBlank: !!isBlank, isReverse: !!isReverse },
           funny: { isReverseControl, isMirror, isInvisible }
         }
@@ -401,13 +396,9 @@ export default function App() {
         setRecentScores(prev => {
           const all = [entryToSave, ...prev]
 
-          // 1. Tìm Top 5 của mỗi chế độ để bảo vệ (không bị xóa do đầy)
-          const classic = all.filter(x => x.gameType === 'classic')
-          const def = all.filter(x => x.gameType !== 'classic')
-
-          const topClassic = [...classic].sort((a, b) => b.score - a.score).slice(0, 5)
-          const topDefault = [...def].sort((a, b) => b.score - a.score).slice(0, 5)
-          const protectedSet = new Set([...topClassic, ...topDefault])
+          // 1. Find Top 5 to protect (not removed due to full)
+          const topDefault = [...all].sort((a, b) => b.score - a.score).slice(0, 5)
+          const protectedSet = new Set([...topDefault])
 
           // 2. Lấy 20 trận gần nhất
           const recent20 = all.slice(0, 20)
@@ -423,7 +414,7 @@ export default function App() {
 
       if (!isAuto && !isCustom && newEntry) {
         const currentDiff = gameMode
-        const currentType = isClassic ? "classic" : "default"
+        const currentType = "default"
         const currentMods = {
           isHidden: !!isHidden,
           isBlank: !!isBlank,
@@ -458,7 +449,7 @@ export default function App() {
               diff = parts[0]
               type = parts[1]
             }
-            return diff === currentDiff && (isClassic ? type === "classic" : type !== "classic")
+            return diff === currentDiff && type !== "classic"
           })
           .map(([k, v]) => {
             // Parse key to get details for deduplication
@@ -491,7 +482,7 @@ export default function App() {
         const updatedRecents = [newEntry, ...recentScores].slice(0, 10)
         
         const relevantRecents = updatedRecents
-          .filter(r => r.difficulty === currentDiff && (isClassic ? r.gameType === "classic" : r.gameType !== "classic"))
+          .filter(r => r.difficulty === currentDiff && r.gameType !== "classic")
           .map(r => ({
             value: r.score,
             difficulty: r.difficulty,
@@ -956,13 +947,31 @@ export default function App() {
     }
   }
 
-  const startCountdown = (mode: "normal" | "hardcode" | "sudden_death", isClassicMode: boolean, isAutoMode: boolean) => {
-    // Ensure menu BGM stops fully when entering any game mode
-    stopMenuBgm()
-
-    // Update startCountdown to accept and set game mode, then run countdown
+  const startCountdown = (mode: "normal" | "hardcode" | "sudden_death", isAutoMode: boolean) => {
     setGameMode(mode)
-    setIsClassic(isClassicMode)
+    setCountdown(3)
+    setGameState("countdown")
+    gameData.current = {
+      ...gameData.current,
+      gameMode: mode,
+      isAuto: isAutoMode,
+      combo: 0,
+      playerX: 210,
+      targetPlayerX: 210,
+      playerWidth: 80,
+      targetWidth: 80,
+      score: 0,
+      lives: 5,
+      isBoosted: false,
+      boostTimeLeft: 0,
+      snowTimeLeft: 0,
+      isSnowSlowed: false,
+      isDying: false,
+      deathX: 0,
+      deathY: 0,
+      hasPlayedNewBest: false,
+      hasShield: false,
+    }
     setIsNewBestRecord(false)
     setNewBestRank(null)
     setIsAuto(isAutoMode)
@@ -1048,107 +1057,80 @@ export default function App() {
   }
 
   const startCustomGame = () => {
-    const allowed = Object.entries(customConfig.balls)
-      .filter(([_, cfg]) => cfg.enabled)
-      .map(([type]) => type)
-
-    if (allowed.length === 0) {
-      setCustomError(t.selectAtLeastOneBall)
-      return
+    if (customConfig.balls) {
+      const enabled = Object.keys(customConfig.balls).filter(
+        k => customConfig.balls[k as keyof typeof customConfig.balls].enabled
+      )
+      if (enabled.length === 0) {
+        setCustomError("At least one ball must be enabled!")
+        return
+      }
     }
 
-    const totalRate = Object.values(customConfig.balls)
-      .filter(b => b.enabled)
-      .reduce((acc, b) => acc + b.rate, 0)
-
-    if (totalRate !== 100) {
-      setCustomError(t.totalRateError)
-      return
-    }
-
-    // Ensure menu BGM stops when starting custom game
-    stopMenuBgm()
-
-    setIsNewBestRecord(false)
-    setNewBestRank(null)
-    // Đóng modal trước khi bắt đầu đếm ngược
+    setGameMode(customConfig.difficulty)
     setOpenCustom(false)
+    setCountdown(3)
+    setGameState("countdown")
+    gameData.current = {
+      ...gameData.current,
+      gameMode: customConfig.difficulty,
+      isAuto: customConfig.isAuto,
+      isCustom: true,
+      customBallConfig: customConfig.balls,
+      allowedBalls: Object.keys(customConfig.balls).filter(
+        k => customConfig.balls[k as keyof typeof customConfig.balls].enabled
+      ),
+      isHidden: customConfig.isHidden,
+      isBlank: customConfig.isBlank,
+      isReverse: customConfig.isReverse,
+      isReverseControl: customConfig.isReverseControl,
+      isMirror: customConfig.isMirror,
+      isInvisible: customConfig.isInvisible,
+      combo: 0,
+      playerX: 210,
+      targetPlayerX: 210,
+      playerWidth: 80,
+      targetWidth: 80,
+      score: 0,
+      lives: 5,
+      isBoosted: false,
+      boostTimeLeft: 0,
+      snowTimeLeft: 0,
+      isSnowSlowed: false,
+      isDying: false,
+      deathX: 0,
+      deathY: 0,
+      hasPlayedNewBest: false,
+      hasShield: false,
+    }
 
-    runCountdown(customConfig.isAuto, () => {
-      const difficulty = customConfig.difficulty
-      const lives = (difficulty === "hardcode" || difficulty === "sudden_death") ? 1 : 5
+    setIsHidden(customConfig.isHidden)
+    setIsBlank(customConfig.isBlank)
+    setIsReverse(customConfig.isReverse)
+    setIsReverseControl(customConfig.isReverseControl)
+    setIsMirror(customConfig.isMirror)
+    setIsInvisible(customConfig.isInvisible)
+    setScore(0)
+    setLives(lives)
+    setComboCount(0)
+    setGameState("running")
+    setShowNewBest(false)
+    particles.current = []
+    trails.current = []
+    resetBall()
 
-      gameData.current = {
-        ...gameData.current,
-        score: 0,
-        lives: lives,
-        combo: 0,
-        gameMode: difficulty,
-        isClassic: customConfig.isClassic,
-        isCustom: true,
-        customBallConfig: JSON.parse(JSON.stringify(customConfig.balls)),
-        allowedBalls: allowed,
-        isReverse: customConfig.isReverse,
-        isReverseControl: customConfig.isReverseControl,
-        isMirror: customConfig.isMirror,
-        isInvisible: customConfig.isInvisible,
-        playerX: 210,
-        isHidden: customConfig.isHidden,
-        isBlank: customConfig.isBlank,
-        targetPlayerX: 210,
-        playerWidth: 80,
-        targetWidth: 80,
-        isBoosted: false,
-        boostTimeLeft: 0,
-        snowTimeLeft: 0,
-        isSnowSlowed: false,
-        timeScale: 1,
-        targetTimeScale: 1,
-        hasPlayedNewBest: false,
-        hasShield: false,
-        ball: { x: 250, y: -50, radius: 10, speed: 3.5, dx: 2, type: "normal", sinTime: 0 },
-        bombs: [],
-        isDying: false,
-        deathX: 0,
-        deathY: 0,
-        isAuto: customConfig.isAuto,
-      }
-      if (snowIntervalRef.current) {
-        clearInterval(snowIntervalRef.current)
-        snowIntervalRef.current = null
-      }
-      setSnowLeft(0)
-      setSnowActive(false)
-      setIsAuto(customConfig.isAuto)
-      setIsClassic(customConfig.isClassic)
-      setIsHidden(customConfig.isHidden)
-      setIsBlank(customConfig.isBlank)
-      setIsReverse(customConfig.isReverse)
-      setIsReverseControl(customConfig.isReverseControl)
-      setIsMirror(customConfig.isMirror)
-      setIsInvisible(customConfig.isInvisible)
-      setScore(0)
-      setLives(lives)
-      setComboCount(0)
-      setGameState("running")
-      setShowNewBest(false)
-      particles.current = []
-      trails.current = []
-      resetBall()
-
-      // Start Game Music (Fade In)
-      const bgm = audioRefs.current?.bg_game_custom
-      currentBgmRef.current = bgm
-      if (bgm) bgm.volume = 0
-      
-      // Register BGM for playback rate management
-      if (bgm) {
-        audioRateManager.registerAudioElement("bgm", bgm)
-        audioRateManager.reset() // Reset to 1.0x at game start
-      }
-      
-      fadeAudio(bgm, gameMusicVolume, 2000)
-    })
+    // Start Game Music (Fade In)
+    const bgm = audioRefs.current?.bg_game_custom
+    currentBgmRef.current = bgm
+    if (bgm) bgm.volume = 0
+    
+    // Register BGM for playback rate management
+    if (bgm) {
+      audioRateManager.registerAudioElement("bgm", bgm)
+      audioRateManager.reset() // Reset to 1.0x at game start
+    }
+    
+    fadeAudio(bgm, gameMusicVolume, 2000)
   }
 
   const startAutoGame = () => {
@@ -1357,7 +1339,6 @@ export default function App() {
       try {
         const parsed = JSON.parse(savedQuickPlayConfig)
         setGameMode(parsed.gameMode || "normal")
-        setIsClassic(parsed.isClassic || false)
         setIsHidden(parsed.isHidden || false)
         setIsBlank(parsed.isBlank || false)
         setIsAuto(parsed.isAuto || false)
@@ -1463,7 +1444,6 @@ export default function App() {
       localStorage.setItem("game_custom_config", JSON.stringify(customConfig))
       localStorage.setItem("game_quickplay_config", JSON.stringify({
         gameMode,
-        isClassic,
         isAuto,
         isHidden,
         isBlank,
@@ -1473,7 +1453,7 @@ export default function App() {
         isInvisible,
       }))
     }
-  }, [customConfig, gameMode, isClassic, isAuto, isHidden, isBlank, isReverse, isConfigLoaded])
+  }, [customConfig, gameMode, isAuto, isHidden, isBlank, isReverse, isConfigLoaded])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -1972,7 +1952,7 @@ export default function App() {
 
           // Apply Multiplier
           const currentDiff = gameData.current.gameMode;
-          const currentType = gameData.current.isClassic ? "classic" : "default";
+          const currentType = "default";
           const currentMods = {
             isHidden: !!gameData.current.isHidden,
             isBlank: !!gameData.current.isBlank,
@@ -2515,7 +2495,7 @@ export default function App() {
                         diff = parts[0]
                         type = parts[1]
                       }
-                      return diff === gameMode && (isClassic ? type === "classic" : type !== "classic")
+                      return diff === gameMode && type !== "classic"
                     })
                     
                     const top5 = filtered.sort((a, b) => b[1] - a[1]).slice(0, 5)
@@ -3015,16 +2995,14 @@ export default function App() {
           <QuickPlayModal
             t={t}
             onClose={() => setOpenQuickPlay(false)}
-            onPlay={(mode, isClassic, isAuto) => {
+            onPlay={(mode, isAuto) => {
               setOpenQuickPlay(false)
-              startCountdown(mode, isClassic, isAuto)
+              startCountdown(mode, isAuto)
             }}
             playClick={playClick}
             animationLevel={animationLevel}
             gameMode={gameMode}
             setGameMode={setGameMode}
-            isClassic={isClassic}
-            setIsClassic={setIsClassic}
             isAuto={isAuto}
             setIsAuto={setIsAuto}
             isHidden={isHidden}

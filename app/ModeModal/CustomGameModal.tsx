@@ -3,13 +3,12 @@
 import React from "react"
 import { motion } from "framer-motion"
 import {
-  X, Shield, Heart, Zap, Skull, Bot, EyeOff, Square, ArrowUpCircle,
+  X, Zap, Skull, Bot, EyeOff, Square, ArrowUpCircle,
   Undo2, RotateCcw, RefreshCw, AlertCircle, Play,
   ArrowRightLeft, FlipVertical, Ghost
 } from "lucide-react"
 
 export interface CustomConfig {
-  isClassic: boolean
   difficulty: "normal" | "hardcode" | "sudden_death"
   isAuto: boolean
   isHidden: boolean
@@ -123,32 +122,7 @@ export default function CustomGameModal({
     setCustomError(null)
   }
 
-  const handleClassicToggle = (isClassic: boolean) => {
-    playClick() // SFX đã có
-    saveHistory()
-    setCustomConfig(prev => {
-      const newBalls = { ...prev.balls }
-      Object.keys(newBalls).forEach(key => {
-        const isClassicBall = ['normal', 'heal', 'grey'].includes(key)
-        newBalls[key as keyof typeof newBalls].enabled = isClassic ? isClassicBall : true
-      })
 
-      const newConfig = { ...prev, isClassic, balls: newBalls }
-
-      const enabledKeys = Object.keys(newBalls).filter(k => newBalls[k as keyof typeof newBalls].enabled)
-      const count = enabledKeys.length
-      if (count > 0) {
-        const share = Math.floor(100 / count)
-        let remainder = 100 - (share * count)
-        enabledKeys.forEach(k => {
-          const extra = remainder > 0 ? 1 : 0
-          newBalls[k as keyof typeof newBalls].rate = share + extra
-          if (remainder > 0) remainder--
-        })
-      }
-      return newConfig
-    })
-  }
 
   // Các hàm tiện ích để handle input thay đổi có kèm SFX
   const handleConfigToggle = (key: keyof CustomConfig) => {
@@ -177,14 +151,7 @@ export default function CustomGameModal({
       </div>
 
       <div className="flex-1 overflow-y-auto space-y-6 custom-scrollbar">
-        {/* Game Mode */}
-        <section>
-          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{t.gameMode}</h4>
-          <div className="bg-white/5 p-2 rounded-2xl border border-white/5 flex gap-2">
-            <button onClick={() => handleClassicToggle(false)} className={`flex-1 py-3 rounded-xl font-bold text-sm uppercase transition-all flex items-center justify-center gap-2 ${!customConfig.isClassic ? "bg-blue-600 text-white shadow-lg" : "bg-slate-800 text-slate-400"}`}><Shield size={16} /> {t.modeDefault}</button>
-            <button onClick={() => handleClassicToggle(true)} className={`flex-1 py-3 rounded-xl font-bold text-sm uppercase transition-all flex items-center justify-center gap-2 ${customConfig.isClassic ? "bg-yellow-600 text-white shadow-lg" : "bg-slate-800 text-slate-400"}`}><Heart size={16} /> {t.modeClassic}</button>
-          </div>
-        </section>
+
 
         {/* Difficulty */}
         <section>
