@@ -9,6 +9,7 @@ import {
   Film,
   Music,
   Globe,
+  Zap,
   Activity,
   Disc,
   Bug,
@@ -28,6 +29,10 @@ interface SettingsModalProps {
   toggleParticles: () => void
   trailsEnabled: boolean
   toggleTrails: () => void
+  shockwavesEnabled: boolean
+  toggleShockwaves: () => void
+  cameraShakeEnabled: boolean
+  toggleCameraShake: () => void
   animationLevel: "full" | "min" | "none"
   setAnimationLevel: (level: "full" | "min" | "none") => void
   playClick: () => void
@@ -65,6 +70,10 @@ export default function SettingsModal({
   toggleParticles,
   trailsEnabled,
   toggleTrails,
+  shockwavesEnabled,
+  toggleShockwaves,
+  cameraShakeEnabled,
+  toggleCameraShake,
   animationLevel,
   setAnimationLevel,
   playClick,
@@ -182,7 +191,8 @@ export default function SettingsModal({
                   step="1"
                   value={sensitivity}
                   onChange={setSensitivity}
-                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500 touch-action-pan-y"
+                  style={{ touchAction: 'pan-y' }}
                 />
                 
                 {!openSettingsFromPause && (
@@ -199,7 +209,8 @@ export default function SettingsModal({
                       value={baseGameSpeed}
                       onChange={setBaseGameSpeed}
                       disabled={gameState === "running"}
-                      className={`w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500 ${gameState === "running" ? "opacity-50 cursor-not-allowed" : ""}`}
+                      className={`w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500 touch-action-pan-y ${gameState === "running" ? "opacity-50 cursor-not-allowed" : ""}`}
+                      style={{ touchAction: 'pan-y' }}
                     />
                     <div className="text-xs text-slate-500 mt-2 text-center">0.5x - 3.0x{gameState === "running" && " (disabled during game)"}</div>
                   </div>
@@ -220,7 +231,8 @@ export default function SettingsModal({
                       step="1"
                       value={maxFPS}
                       onChange={setMaxFPS}
-                      className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                      className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500 touch-action-pan-y"
+                      style={{ touchAction: 'pan-y' }}
                     />
                     <div className="text-xs text-slate-500 mt-2 text-center">-1 (Unlimited) to 240 FPS</div>
                   </div>
@@ -253,7 +265,8 @@ export default function SettingsModal({
                   disabled={isMenuMusicDisabled}
                   value={menuMusicVolume}
                   onChange={setMenuMusicVolume}
-                  className={`w-full h-2 bg-slate-700 rounded-lg appearance-none accent-purple-500 ${isMenuMusicDisabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+                  className={`w-full h-2 bg-slate-700 rounded-lg appearance-none accent-purple-500 touch-action-pan-y ${isMenuMusicDisabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+                  style={{ touchAction: 'pan-y' }}
                 />
               </div>
 
@@ -276,7 +289,8 @@ export default function SettingsModal({
                   disabled={isGameMusicDisabled}
                   value={gameMusicVolume}
                   onChange={setGameMusicVolume}
-                  className={`w-full h-2 bg-slate-700 rounded-lg appearance-none accent-indigo-500 ${isGameMusicDisabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+                  className={`w-full h-2 bg-slate-700 rounded-lg appearance-none accent-indigo-500 touch-action-pan-y ${isGameMusicDisabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+                  style={{ touchAction: 'pan-y' }}
                 />
               </div>
 
@@ -299,7 +313,8 @@ export default function SettingsModal({
                   disabled={isSfxDisabled}
                   value={sfxVolume}
                   onChange={setSfxVolume}
-                  className={`w-full h-2 bg-slate-700 rounded-lg appearance-none accent-green-500 ${isSfxDisabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+                  className={`w-full h-2 bg-slate-700 rounded-lg appearance-none accent-green-500 touch-action-pan-y ${isSfxDisabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+                  style={{ touchAction: 'pan-y' }}
                 />
               </div>
 
@@ -407,6 +422,46 @@ export default function SettingsModal({
                     layout
                     transition={animationLevel === "full" ? { type: "spring", stiffness: 500, damping: 30 } : { duration: animationLevel === "min" ? 0.2 : 0 }}
                     className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!trailsEnabled ? "left-1" : "left-7"}`}
+                  />
+                </button>
+              </div>
+
+              {/* Shockwaves Toggle */}
+              <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${shockwavesEnabled ? "bg-cyan-500/20 text-cyan-400" : "bg-slate-700 text-slate-400"}`}>
+                    <Zap size={18} />
+                  </div>
+                  <span className="text-sm font-bold text-slate-300 uppercase">{t.shockwaves}</span>
+                </div>
+                <button
+                  onClick={toggleShockwaves}
+                  className={`w-12 h-6 rounded-full relative transition-colors ${!shockwavesEnabled ? "bg-slate-600" : "bg-cyan-600"}`}
+                >
+                  <motion.div
+                    layout
+                    transition={animationLevel === "full" ? { type: "spring", stiffness: 500, damping: 30 } : { duration: animationLevel === "min" ? 0.2 : 0 }}
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!shockwavesEnabled ? "left-1" : "left-7"}`}
+                  />
+                </button>
+              </div>
+
+              {/* Camera Shake Toggle */}
+              <div className="flex justify-between items-center bg-slate-800/50 p-4 rounded-2xl border border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${cameraShakeEnabled ? "bg-orange-500/20 text-orange-400" : "bg-slate-700 text-slate-400"}`}>
+                    <Activity size={18} className={cameraShakeEnabled ? "animate-bounce" : ""} />
+                  </div>
+                  <span className="text-sm font-bold text-slate-300 uppercase">{t.cameraShake}</span>
+                </div>
+                <button
+                  onClick={toggleCameraShake}
+                  className={`w-12 h-6 rounded-full relative transition-colors ${!cameraShakeEnabled ? "bg-slate-600" : "bg-orange-600"}`}
+                >
+                  <motion.div
+                    layout
+                    transition={animationLevel === "full" ? { type: "spring", stiffness: 500, damping: 30 } : { duration: animationLevel === "min" ? 0.2 : 0 }}
+                    className={`absolute top-1 w-4 h-4 bg-white rounded-full ${!cameraShakeEnabled ? "left-1" : "left-7"}`}
                   />
                 </button>
               </div>

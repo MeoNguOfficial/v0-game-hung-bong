@@ -104,6 +104,16 @@ interface Particle {
   type?: "explode" | "absorb" | "firework" | "shard" | "miss"
 }
 
+interface Shockwave {
+  x: number
+  y: number
+  w: number
+  h: number
+  radius: number
+  alpha: number
+  color: string
+}
+
 // --- Audio Utility: Web Audio API Clink Generator ---
 let audioCtx: AudioContext | null = null;
 const playClinkSfx = (volume: number) => {
@@ -163,6 +173,8 @@ export default function App() {
   const [isMuted, setIsMuted] = useState(false)
   const [particlesEnabled, setParticlesEnabled] = useState(true)
   const [showFPS, setShowFPS] = useState(false)
+  const [shockwavesEnabled, setShockwavesEnabled] = useState(true)
+  const [cameraShakeEnabled, setCameraShakeEnabled] = useState(true)
   const [trailsEnabled, setTrailsEnabled] = useState(true)
   const [animationLevel, setAnimationLevel] = useState<"full" | "min" | "none">("full")
   const [openSettings, setOpenSettings] = useState(false)
@@ -341,6 +353,8 @@ export default function App() {
     hasPlayedNewBest: false,
     hasShield: false,
     particlesEnabled: true,
+    shockwavesEnabled: true,
+    cameraShakeEnabled: true,
     trailsEnabled: true,
     ball: { x: 250, y: -50, radius: 10, speed: 3.5, dx: 2, type: "normal" as any, sinTime: 0 },
     bombs: [] as { x: number; y: number; radius: number; speed: number }[],
@@ -359,6 +373,9 @@ export default function App() {
   })
 
   const debugFlags = useRef({ hitbox: false })
+  const shockwaves = useRef<Shockwave[]>([])
+  const shakeTime = useRef(0)
+  const shakeIntensity = useRef(0)
 
   useEffect(() => {
     debugFlags.current.hitbox = debugHitboxPlay
@@ -918,6 +935,22 @@ export default function App() {
     localStorage.setItem("game_trails", String(newState))
   }
 
+  const toggleShockwaves = () => {
+    const newState = !shockwavesEnabled
+    playClick()
+    setShockwavesEnabled(newState)
+    gameData.current.shockwavesEnabled = newState
+    localStorage.setItem("game_shockwaves", String(newState))
+  }
+
+  const toggleCameraShake = () => {
+    const newState = !cameraShakeEnabled
+    playClick()
+    setCameraShakeEnabled(newState)
+    gameData.current.cameraShakeEnabled = newState
+    localStorage.setItem("game_camera_shake", String(newState))
+  }
+
   const changeAnimationLevel = (level: "full" | "min" | "none") => {
     playClick()
     setAnimationLevel(level)
@@ -975,6 +1008,7 @@ export default function App() {
       hasShield: false,
     }
     setIsNewBestRecord(false)
+      shockwaves.current = []
     setNewBestRank(null)
     setIsAuto(isAutoMode)
     // These are now part of the quick play modal, so we use their state directly
@@ -1033,6 +1067,7 @@ export default function App() {
       setComboCount(0)
       setGameState("running")
       setActiveTab("home")
+      shockwaves.current = []
       setDirection(-1)
       setShowNewBest(false)
       particles.current = []
@@ -1117,6 +1152,7 @@ export default function App() {
     setLives(lives)
     setComboCount(0)
     setGameState("running")
+    shockwaves.current = []
     setShowNewBest(false)
     particles.current = []
     trails.current = []
@@ -1185,6 +1221,7 @@ export default function App() {
     setLives((gameMode === "hardcode" || gameMode === "sudden_death") ? 1 : 5)
     setComboCount(0)
     setIsAuto(true)
+    shockwaves.current = []
     setGameState("running")
   }
 
@@ -1371,6 +1408,15 @@ export default function App() {
     } else if (typeof navigator !== "undefined" && navigator.language.startsWith("vi")) {
       setLanguage("vi")
     }
+
+    const savedShockwaves = localStorage.getItem("game_shockwaves") !== "false"
+    setShockwavesEnabled(savedShockwaves)
+    gameData.current.shockwavesEnabled = savedShockwaves
+
+    const savedCameraShake = localStorage.getItem("game_camera_shake") !== "false"
+    setCameraShakeEnabled(savedCameraShake)
+    gameData.current.cameraShakeEnabled = savedCameraShake
+
     gameData.current.trailsEnabled = savedTrails
 
     const savedSkin = localStorage.getItem("game_skin") || "default"
@@ -1584,6 +1630,16 @@ export default function App() {
 
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
+      // --- CAMERA SHAKE UPDATE ---
+      let shakeX = 0, shakeY = 0
+      if (shakeTime.current > 0) {
+        shakeX = (Math.random() - 0.5) * shakeIntensity.current
+        shakeY = (Math.random() - 0.5) * shakeIntensity.current
+        shakeTime.current -= deltaTime
+      }
+      ctx.save()
+      ctx.translate(shakeX, shakeY)
+
       // --- RENDER CUSTOM BACKGROUND ---
       const curBg = gameData.current.background || "default"
       if (curBg === "grid") {
@@ -1602,6 +1658,39 @@ export default function App() {
             ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2); ctx.fill()
           }
         }
+      } else if (curBg === "scanlines") {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.025)"
+        for (let i = 0; i < canvas.height; i += 4) {
+          ctx.fillRect(0, i, canvas.width, 1)
+        }
+      } else if (curBg === "hexagons") {
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.03)"
+        ctx.lineWidth = 1
+        const r = 25
+        const h = r * Math.sin(Math.PI / 3)
+        for (let y = 0; y < canvas.height + r; y += h * 2) {
+          for (let x = 0; x < canvas.width + r; x += r * 3) {
+            // Vẽ lục giác 1
+            ctx.beginPath()
+            for (let k = 0; k < 6; k++) {
+              ctx.lineTo(x + r * Math.cos(k * Math.PI / 3), y + r * Math.sin(k * Math.PI / 3))
+            }
+            ctx.closePath(); ctx.stroke()
+            // Vẽ lục giác 2 (offset)
+            const x2 = x + r * 1.5, y2 = y + h
+            ctx.beginPath()
+            for (let k = 0; k < 6; k++) {
+              ctx.lineTo(x2 + r * Math.cos(k * Math.PI / 3), y2 + r * Math.sin(k * Math.PI / 3))
+            }
+            ctx.closePath(); ctx.stroke()
+          }
+        }
+      } else if (curBg === "vignette") {
+        const grad = ctx.createRadialGradient(canvas.width/2, canvas.height/2, canvas.width * 0.2, canvas.width/2, canvas.height/2, canvas.width * 0.9)
+        grad.addColorStop(0, "transparent")
+        grad.addColorStop(1, "rgba(2, 6, 23, 0.7)")
+        ctx.fillStyle = grad
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
       } else if (curBg === "dynamic_stars") {
         const time = currentTime * 0.0005
         ctx.fillStyle = "rgba(255, 255, 255, 0.2)"
@@ -1623,6 +1712,34 @@ export default function App() {
           }
           ctx.stroke()
         }
+      } else if (curBg === "dynamic_rain") {
+        ctx.strokeStyle = "rgba(34, 197, 94, 0.12)"
+        ctx.lineWidth = 1
+        for (let i = 0; i < 25; i++) {
+          const x = ((Math.abs(Math.sin(i * 123.4)) * 1000) % 1) * canvas.width
+          const speed = 25 + (i % 20) * 4
+          const y = (currentTime * speed * 0.01) % (canvas.height + 100) - 50
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 50); ctx.stroke()
+        }
+      } else if (curBg === "dynamic_bubbles") {
+        const time = currentTime * 0.001
+        ctx.fillStyle = "rgba(59, 130, 246, 0.04)"
+        for (let i = 0; i < 15; i++) {
+          const x = ((Math.abs(Math.sin(i * 456.7)) * 1000) % 1) * canvas.width + Math.sin(time + i) * 25
+          const speed = 5 + (i % 6)
+          const y = canvas.height - ((currentTime * speed * 0.01) % (canvas.height + 120)) + 60
+          const radius = 8 + (i % 18)
+          ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill()
+        }
+      } else if (curBg === "dynamic_fireflies") {
+        const time = currentTime * 0.001
+        for (let i = 0; i < 12; i++) {
+          const x = ((Math.abs(Math.sin(i * 321.0)) * 1000) % 1) * canvas.width + Math.cos(time * 0.4 + i) * 50
+          const y = ((Math.abs(Math.cos(i * 654.3)) * 1000) % 1) * canvas.height + Math.sin(time * 0.6 + i) * 50
+          const alpha = 0.05 + (0.5 + 0.5 * Math.sin(time + i)) * 0.15
+          ctx.fillStyle = `rgba(250, 204, 21, ${alpha})`
+          ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill()
+        }
       }
 
       const isReverse = gameData.current.isReverse
@@ -1641,6 +1758,49 @@ export default function App() {
         grey: "#94a3b8",
         snow: "#ffffff",
         orange: "#f97316",
+      }
+
+      const triggerCameraShake = (intensity: number, duration: number) => {
+        if (!gameData.current.cameraShakeEnabled) return
+        shakeIntensity.current = intensity
+        shakeTime.current = duration
+      }
+
+      // --- PADDLE RENDERING HELPER ---
+      const currentSkin = gameData.current.skin || "default"
+      let paddleColor = "#3b82f6"
+      let shadowColor = "transparent"
+      let shadowBlur = 0
+
+      switch (currentSkin) {
+        case "emerald": paddleColor = "#10b981"; break
+        case "neon": paddleColor = "#d946ef"; shadowColor = "#d946ef"; shadowBlur = 15; break
+        case "ice": paddleColor = "#06b6d4"; shadowColor = "#cffafe"; shadowBlur = 10; break
+        case "cyber": paddleColor = "#84cc16"; break
+        case "inferno": paddleColor = "#ea580c"; shadowColor = "#f97316"; shadowBlur = 15; break
+        case "void": paddleColor = "#4c1d95"; shadowColor = "#8b5cf6"; shadowBlur = 10; break
+        case "galaxy": paddleColor = "#4338ca"; break
+        case "diamond": paddleColor = "#a5f3fc"; shadowColor = "#22d3ee"; shadowBlur = 10; break
+        case "iron": paddleColor = "#94a3b8"; break
+        case "gold": paddleColor = "#facc15"; shadowColor = "#fde047"; shadowBlur = 10; break
+        case "copper": paddleColor = "#fb923c"; break
+        case "wooden": paddleColor = "#92400e"; break
+        case "ruby": paddleColor = "#dc2626"; shadowColor = "#ef4444"; shadowBlur = 10; break
+        case "sapphire": paddleColor = "#1d4ed8"; shadowColor = "#3b82f6"; shadowBlur = 10; break
+        case "platinum": paddleColor = "#cbd5e1"; shadowColor = "#e2e8f0"; shadowBlur = 10; break
+        case "leaves": paddleColor = "#16a34a"; break
+        case "water": paddleColor = "#0ea5e9"; shadowColor = "#38bdf8"; shadowBlur = 10; break
+        default: paddleColor = "#3b82f6"; break
+      }
+
+      const createShockwave = (x: number, y: number, color: string) => {
+        if (!gameData.current.shockwavesEnabled) return
+        shockwaves.current.push({ x, y, w: gameData.current.playerWidth, h: 15, radius: 0, alpha: 0.6, color })
+        
+        // Nếu đang có combo, tạo thêm một vòng sóng thứ 2 lệch pha
+        if (gameData.current.combo > 0) {
+          shockwaves.current.push({ x, y, w: gameData.current.playerWidth, h: 15, radius: -15, alpha: 0.35, color })
+        }
       }
 
       // Helper for Bomb Hit
@@ -1670,6 +1830,7 @@ export default function App() {
           gameData.current.isDying = true
           gameData.current.deathX = bx
           gameData.current.deathY = by
+          triggerCameraShake(15, 40)
 
           // OSU death music transition: slow down to 0.09x and fade out over 1.8s
           if (currentBgmRef.current) {
@@ -1692,6 +1853,7 @@ export default function App() {
           setLives(gameData.current.lives)
 
           setIsFlashWhite(true)
+          triggerCameraShake(10, 20)
           setTimeout(() => setIsFlashWhite(false), 150)
 
           createParticles(bx, by, "#f97316", "explode", true)
@@ -1927,7 +2089,11 @@ export default function App() {
           } else if (b.type === "orange") {
             handleBombHit(b.x, b.y)
             if (gameData.current.bombs.length === 0) stopSound("bomb_fall")
-          } else createParticles(b.x, b.y, ballColors[b.type], "explode", isCenter)
+          } else {
+            createParticles(b.x, b.y, ballColors[b.type], "explode", isCenter)
+            // Hiệu ứng Shockwave theo màu skin hiện tại
+            createShockwave(gameData.current.playerX, visualPaddleY, typeof paddleColor === 'string' ? paddleColor : "#3b82f6")
+          }
 
           if (b.type === "heal") {
             gameData.current.lives = Math.min(gameData.current.lives + 1, 5)
@@ -2092,6 +2258,30 @@ export default function App() {
         })
       }
 
+      // Render Shockwaves
+      shockwaves.current.forEach((sw, i) => {
+        sw.radius += 4 * deltaTime
+        sw.alpha -= 0.02 * deltaTime
+        if (sw.alpha <= 0) shockwaves.current.splice(i, 1)
+        else {
+        const rw = sw.w + sw.radius * 2
+        const rh = sw.h + sw.radius * 2
+        const rr = 8 + sw.radius
+
+        // Chỉ vẽ khi kích thước và bán kính góc không âm
+        if (rw > 0 && rh > 0 && rr >= 0) {
+          ctx.save()
+          ctx.globalAlpha = sw.alpha
+          ctx.strokeStyle = sw.color
+          ctx.lineWidth = 2
+          ctx.beginPath()
+          ctx.roundRect(sw.x - sw.radius, sw.y - sw.radius, rw, rh, rr)
+          ctx.stroke()
+          ctx.restore()
+        }
+        }
+      })
+
       // Helper: draw a ball with consistent texture (used for main ball and bombs)
       const drawBall = (x: number, y: number, radius: number, type: string) => {
         ctx.beginPath()
@@ -2122,32 +2312,6 @@ export default function App() {
       ctx.globalAlpha = 1
 
       // --- PADDLE RENDERING WITH SKINS ---
-      const currentSkin = gameData.current.skin || "default"
-      let paddleColor = "#3b82f6"
-      let shadowColor = "transparent"
-      let shadowBlur = 0
-
-      switch (currentSkin) {
-        case "emerald": paddleColor = "#10b981"; break
-        case "neon": paddleColor = "#d946ef"; shadowColor = "#d946ef"; shadowBlur = 15; break
-        case "ice": paddleColor = "#06b6d4"; shadowColor = "#cffafe"; shadowBlur = 10; break
-        case "cyber": paddleColor = "#84cc16"; break
-        case "inferno": paddleColor = "#ea580c"; shadowColor = "#f97316"; shadowBlur = 15; break
-        case "void": paddleColor = "#4c1d95"; shadowColor = "#8b5cf6"; shadowBlur = 10; break
-        case "galaxy": paddleColor = "#4338ca"; break
-        case "diamond": paddleColor = "#a5f3fc"; shadowColor = "#22d3ee"; shadowBlur = 10; break
-        case "iron": paddleColor = "#94a3b8"; break
-        case "gold": paddleColor = "#facc15"; shadowColor = "#fde047"; shadowBlur = 10; break
-        case "copper": paddleColor = "#fb923c"; break
-        case "wooden": paddleColor = "#92400e"; break
-        case "ruby": paddleColor = "#dc2626"; shadowColor = "#ef4444"; shadowBlur = 10; break
-        case "sapphire": paddleColor = "#1d4ed8"; shadowColor = "#3b82f6"; shadowBlur = 10; break
-        case "platinum": paddleColor = "#cbd5e1"; shadowColor = "#e2e8f0"; shadowBlur = 10; break
-        case "leaves": paddleColor = "#16a34a"; break
-        case "water": paddleColor = "#0ea5e9"; shadowColor = "#38bdf8"; shadowBlur = 10; break
-        default: paddleColor = "#3b82f6"; break
-      }
-
       // Boost Effect Override (Flashing white when ending)
       if (gameData.current.isBoosted) {
         if (gameData.current.boostTimeLeft <= 2 && Math.floor(Date.now() / 100) % 2 === 0) {
@@ -2295,6 +2459,7 @@ export default function App() {
         lastStatsUpdate = currentTime
       }
 
+      ctx.restore() // Phục hồi từ Camera Shake translate
       requestRef.current = requestAnimationFrame(update)
     }
 
@@ -2862,11 +3027,17 @@ export default function App() {
 
                         <div className="grid grid-cols-2 gap-4">
                           {[
-                            { id: "default", name: "Solid Void", type: t.static, icon: "⬛" },
-                            { id: "grid", name: "Blueprint", type: t.static, icon: "🌐" },
-                            { id: "dots", name: "Polka", type: t.static, icon: "░" },
-                            { id: "dynamic_stars", name: "Stardust", type: t.dynamic, icon: "✨" },
-                            { id: "dynamic_waves", name: "Cyber Flow", type: t.dynamic, icon: "🌊" },
+                            { id: "default", name: t.bgSolid || "Solid Void", type: t.static, icon: "⬛" },
+                            { id: "grid", name: t.bgGrid || "Blueprint", type: t.static, icon: "🌐" },
+                            { id: "dots", name: t.bgDots || "Polka", type: t.static, icon: "░" },
+                            { id: "scanlines", name: t.bgScanlines || "Retro CRT", type: t.static, icon: "📺" },
+                            { id: "hexagons", name: t.bgHexagons || "Honeycomb", type: t.static, icon: "🐝" },
+                            { id: "vignette", name: t.bgVignette || "Cinematic", type: t.static, icon: "🎬" },
+                            { id: "dynamic_stars", name: t.bgStars || "Stardust", type: t.dynamic, icon: "✨" },
+                            { id: "dynamic_waves", name: t.bgWaves || "Cyber Flow", type: t.dynamic, icon: "🌊" },
+                            { id: "dynamic_rain", name: t.bgRain || "Digital Rain", type: t.dynamic, icon: "🌧️" },
+                            { id: "dynamic_bubbles", name: t.bgBubbles || "Aura Rising", type: t.dynamic, icon: "🫧" },
+                            { id: "dynamic_fireflies", name: t.bgFireflies || "Night Glow", type: t.dynamic, icon: "💡" },
                           ].map((bg) => (
                             <button
                               key={bg.id}
@@ -2906,6 +3077,10 @@ export default function App() {
                     toggleFPS={toggleFPS}
                     particlesEnabled={particlesEnabled}
                     toggleParticles={toggleParticles}
+                    shockwavesEnabled={shockwavesEnabled}
+                    toggleShockwaves={toggleShockwaves}
+                    cameraShakeEnabled={cameraShakeEnabled}
+                    toggleCameraShake={toggleCameraShake}
                     trailsEnabled={trailsEnabled}
                     toggleTrails={toggleTrails}
                     animationLevel={animationLevel}
@@ -3052,6 +3227,10 @@ export default function App() {
             toggleFPS={toggleFPS}
             particlesEnabled={particlesEnabled}
             toggleParticles={toggleParticles}
+            shockwavesEnabled={shockwavesEnabled}
+            toggleShockwaves={toggleShockwaves}
+            cameraShakeEnabled={cameraShakeEnabled}
+            toggleCameraShake={toggleCameraShake}
             trailsEnabled={trailsEnabled}
             toggleTrails={toggleTrails}
             animationLevel={animationLevel}
