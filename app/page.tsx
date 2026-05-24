@@ -1173,25 +1173,14 @@ export default function App() {
     setCountdown(3)
     setGameState("countdown")
 
-    // Khởi tạo sơ bộ để HUD hiển thị đúng thông tin trong khi đếm ngược
-    gameData.current = {
-      ...gameData.current,
-      gameMode: customConfig.difficulty,
-      baseGameSpeed: baseGameSpeed / 100,
-      isAuto: customConfig.isAuto,
-      isCustom: true,
-      customBallConfig: customConfig.balls,
-      combo: 0,
-      score: 0,
-      lives: customConfig.difficulty === "hardcode" || customConfig.difficulty === "sudden_death" ? 1 : 5,
-    }
+    const currentSpeedMultiplier = baseGameSpeed / 100;
 
     runCountdown(customConfig.isAuto, () => {
       // Khởi tạo toàn bộ dữ liệu khi bắt đầu chạy logic game
       gameData.current = {
         ...gameData.current,
         gameMode: customConfig.difficulty,
-        baseGameSpeed: baseGameSpeed / 100,
+        baseGameSpeed: currentSpeedMultiplier,
         isAuto: customConfig.isAuto,
         isCustom: true,
         customBallConfig: customConfig.balls,
@@ -1221,7 +1210,7 @@ export default function App() {
         hasPlayedNewBest: false,
         hasShield: false,
         bombImmunityTimeLeft: 0,
-        ball: { x: 250, y: -50, radius: 10, speed: 3.5, dx: 2, type: "normal", sinTime: 0 },
+        ball: { x: 250, y: -50, radius: 10, speed: 1.5 * currentSpeedMultiplier, dx: 2, type: "normal", sinTime: 0 },
         bombs: [],
       }
 
