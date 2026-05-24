@@ -156,7 +156,6 @@ export default function GameOverModal({
 
   useEffect(() => {
     const startDelay = setTimeout(() => {
-      playSound("gameover")
       playSound("score_count")
       
       const controls = animate(0, score, {

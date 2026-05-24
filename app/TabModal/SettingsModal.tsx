@@ -1,21 +1,18 @@
-import React from "react"
+import React, { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   X,
   Volume2,
   VolumeX,
   Sparkles,
-  Wind,
   Film,
-  Music,
   Globe,
-  Zap,
   Activity,
-  Disc,
   Bug,
   Trash2,
   AlertTriangle,
   Sliders,
+  Settings,
 } from "lucide-react"
 
 interface SettingsModalProps {
@@ -42,6 +39,10 @@ interface SettingsModalProps {
   toggleBgMenu: () => void
   menuMusicVolume: number
   setMenuMusicVolume: (e: React.ChangeEvent<HTMLInputElement>) => void
+  gameMusicEnabled?: boolean
+  toggleGameMusic?: () => void
+  sfxEnabled?: boolean
+  toggleSfx?: () => void
   gameMusicVolume: number
   setGameMusicVolume: (e: React.ChangeEvent<HTMLInputElement>) => void
   sfxVolume: number
@@ -58,6 +59,8 @@ interface SettingsModalProps {
   embed?: boolean
   hideSystem?: boolean
 }
+
+type TabType = "language" | "visuals" | "audio" | "controls" | "parameters" | "animation" | "others" | "system"
 
 export default function SettingsModal({
   t,
@@ -83,6 +86,10 @@ export default function SettingsModal({
   toggleBgMenu,
   menuMusicVolume,
   setMenuMusicVolume,
+  gameMusicEnabled = true,
+  toggleGameMusic = () => {},
+  sfxEnabled = true,
+  toggleSfx = () => {},
   gameMusicVolume,
   setGameMusicVolume,
   sfxVolume,
@@ -99,18 +106,21 @@ export default function SettingsModal({
   embed = false,
   hideSystem = false,
 }: SettingsModalProps) {
+  // Định nghĩa thẻ bọc ngoài Wrapper và Container dựa vào chế độ nhúng (embed)
+  const Wrapper = embed ? "div" : motion.div
   const Container = embed ? "div" : motion.div
-  const wrapperClass = embed 
-    ? "w-full h-full" 
-    : "fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-md p-4 md:p-6"
-  
-  // Mở rộng kích thước Modal trên PC để hiển thị dạng lưới ngang tuyệt đẹp
-  const contentClass = embed
-    ? "w-full h-full flex flex-col overflow-hidden"
-    : "bg-slate-900 border border-slate-800 w-full max-w-[94%] xl:max-w-[1200px] rounded-[2rem] shadow-2xl max-h-[92vh] flex flex-col overflow-hidden"
 
-  const [showResetConfirm, setShowResetConfirm] = React.useState(false)
-  const [resetComplete, setResetComplete] = React.useState(false)
+  const wrapperClass = embed
+    ? "w-full h-full" // Khi được nhúng, nó sẽ chiếm toàn bộ không gian của thẻ cha
+    : "fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 md:p-6" // Lớp phủ toàn màn hình
+
+  const contentClass = embed
+    ? "w-full h-full flex flex-col overflow-hidden" // Nội dung lấp đầy khung bọc khi nhúng
+    : "bg-slate-950 border border-slate-800/80 w-full max-w-[96%] xl:max-w-[1100px] rounded-[2rem] shadow-2xl max-h-[90vh] flex flex-col overflow-hidden" // Hộp thoại modal căn giữa
+
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [resetComplete, setResetComplete] = useState(false)
+  const [activeTab, setActiveTab] = useState<TabType>("language")
 
   const handleResetData = () => {
     localStorage.clear()
@@ -118,35 +128,480 @@ export default function SettingsModal({
   }
 
   const isMenuMusicDisabled = isMuted || !bgMenuEnabled
-  const isGameMusicDisabled = isMuted
-  const isSfxDisabled = isMuted
+  const isGameMusicDisabled = isMuted || !gameMusicEnabled
+  const isSfxDisabled = isMuted || !sfxEnabled
+
+  const tabsList = [
+    { id: "language" as TabType, label: t.language || "Ngôn ngữ", icon: Globe, color: "text-cyan-400", border: "border-cyan-500/30" },
+    { id: "visuals" as TabType, label: t.visuals || "Hình ảnh", icon: Sparkles, color: "text-yellow-400", border: "border-yellow-500/30" },
+    { id: "audio" as TabType, label: t.audio || "Âm thanh", icon: Volume2, color: "text-emerald-400", border: "border-emerald-500/30" },
+    { id: "controls" as TabType, label: t.controls || "Điều khiển", icon: Activity, color: "text-purple-400", border: "border-purple-500/30" },
+    { id: "parameters" as TabType, label: t.parameters || "Thông số", icon: Sliders, color: "text-blue-400", border: "border-blue-500/30" },
+    { id: "animation" as TabType, label: t.animationLevel || "Hoạt hình", icon: Film, color: "text-indigo-400", border: "border-indigo-500/30" },
+    { id: "others" as TabType, label: t.others || "Khác", icon: Bug, color: "text-pink-400", border: "border-pink-500/30" },
+    ...(!hideSystem ? [{ id: "system" as TabType, label: t.system || "Hệ thống", icon: AlertTriangle, color: "text-red-400", border: "border-red-500/30" }] : [])
+  ]
+
+  // Render Component Chi Tiết Tương ứng Từng Tab (cho phiên bản PC dùng Tab)
+  const renderTabContent = (tab: TabType) => {
+    switch (tab) {
+      case "language":
+        return (
+          <div className="flex flex-col h-full justify-between">
+            <div>
+              <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+                {t.languageDesc || "Chọn ngôn ngữ hiển thị trong trò chơi. Các thay đổi sẽ được áp dụng ngay lập tức."}
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {(["en", "vi", "es", "ru"] as const).map((lang) => (
+                  <button
+                    key={lang}
+                    onClick={() => {
+                      playClick()
+                      setLanguage(lang)
+                    }}
+                    className={`py-4 rounded-2xl font-bold text-sm uppercase transition-all border ${
+                      language === lang
+                        ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/30 scale-[1.02]"
+                        : "bg-slate-900/60 text-slate-400 border-white/5 hover:bg-slate-800/80 hover:text-slate-200"
+                    }`}
+                  >
+                    {lang === "vi" ? "Tiếng Việt" : lang === "en" ? "English" : lang === "es" ? "Español" : lang === "ru" ? "Русский" : lang.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="text-[11px] text-slate-500 italic mt-6">
+              * Support multilingual dynamic routing translation.
+            </div>
+          </div>
+        )
+      case "visuals":
+        return (
+          <div className="space-y-4">
+            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+              {t.visualsDesc || "Tinh chỉnh các hiệu ứng đồ họa để có trải nghiệm chơi game tối ưu và đẹp mắt nhất."}
+            </p>
+            {/* Particles Toggle */}
+            <div className="flex justify-between items-center bg-slate-900/60 p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
+              <div>
+                <span className="text-xs font-bold text-slate-200 uppercase tracking-wide block">{t.particles || "Hạt hiệu ứng"}</span>
+                <span className="text-[10px] text-slate-500">{t.particlesInfo || "Hiệu ứng hạt bay xung quanh bóng"}</span>
+              </div>
+              <button
+                onClick={() => { playClick(); toggleParticles(); }}
+                className={`w-12 h-6 rounded-full relative transition-colors ${particlesEnabled ? "bg-blue-600" : "bg-slate-700"}`}
+              >
+                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${particlesEnabled ? "left-[28px]" : "left-1"}`} />
+              </button>
+            </div>
+
+            {/* Trails Toggle */}
+            <div className="flex justify-between items-center bg-slate-900/60 p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
+              <div>
+                <span className="text-xs font-bold text-slate-200 uppercase tracking-wide block">{t.trails || "Vệt sáng"}</span>
+                <span className="text-[10px] text-slate-500">{t.trailsInfo || "Vệt sáng chuyển động kéo dài phía sau bóng"}</span>
+              </div>
+              <button
+                onClick={() => { playClick(); toggleTrails(); }}
+                className={`w-12 h-6 rounded-full relative transition-colors ${trailsEnabled ? "bg-blue-600" : "bg-slate-700"}`}
+              >
+                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${trailsEnabled ? "left-[28px]" : "left-1"}`} />
+              </button>
+            </div>
+
+            {/* Shockwaves Toggle */}
+            <div className="flex justify-between items-center bg-slate-900/60 p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
+              <div>
+                <span className="text-xs font-bold text-slate-200 uppercase tracking-wide block">{t.shockwaves || "Sóng kích"}</span>
+                <span className="text-[10px] text-slate-500">{t.shockwavesInfo || "Tạo hiệu ứng sóng rung kích khi bóng va chạm"}</span>
+              </div>
+              <button
+                onClick={() => { playClick(); toggleShockwaves(); }}
+                className={`w-12 h-6 rounded-full relative transition-colors ${shockwavesEnabled ? "bg-cyan-600" : "bg-slate-700"}`}
+              >
+                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${shockwavesEnabled ? "left-[28px]" : "left-1"}`} />
+              </button>
+            </div>
+
+            {/* Camera Shake Toggle */}
+            <div className="flex justify-between items-center bg-slate-900/60 p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
+              <div>
+                <span className="text-xs font-bold text-slate-200 uppercase tracking-wide block">{t.cameraShake || "Rung màn hình"}</span>
+                <span className="text-[10px] text-slate-500">{t.cameraShakeInfo || "Màn hình rung lắc nhẹ khi bóng nảy mạnh"}</span>
+              </div>
+              <button
+                onClick={() => { playClick(); toggleCameraShake(); }}
+                className={`w-12 h-6 rounded-full relative transition-colors ${cameraShakeEnabled ? "bg-orange-600" : "bg-slate-700"}`}
+              >
+                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${cameraShakeEnabled ? "left-[28px]" : "left-1"}`} />
+              </button>
+            </div>
+          </div>
+        )
+      case "audio":
+        return (
+          <div className="space-y-5">
+            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+              {t.audioDesc || "Điều chỉnh âm lượng nhạc nền menu, nhạc nền game và các hiệu ứng âm thanh."}
+            </p>
+            {/* Menu Music Slider */}
+            <div className={`bg-slate-900/60 p-4 rounded-2xl border border-white/5 transition-opacity ${isMenuMusicDisabled ? "opacity-30" : "opacity-100"}`}>
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { playClick(); toggleBgMenu(); }} className={`transition-colors p-1.5 rounded bg-slate-800 ${bgMenuEnabled && !isMuted ? "text-purple-400" : "text-slate-500"}`}>
+                    {bgMenuEnabled && !isMuted ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                  </button>
+                  <span className="text-xs font-bold text-slate-200 uppercase">{t.menuMusic || "Nhạc Menu"}</span>
+                </div>
+                <span className="text-xs font-mono font-bold text-purple-400">{Math.round(menuMusicVolume * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                disabled={isMenuMusicDisabled}
+                value={menuMusicVolume}
+                onChange={setMenuMusicVolume}
+                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500 touch-action-pan-y"
+              />
+            </div>
+
+            {/* Game Music Slider */}
+            <div className={`bg-slate-900/60 p-4 rounded-2xl border border-white/5 transition-opacity ${isGameMusicDisabled ? "opacity-30" : "opacity-100"}`}>
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { playClick(); toggleGameMusic(); }} className={`transition-colors p-1.5 rounded bg-slate-800 ${gameMusicEnabled && !isMuted ? "text-indigo-400" : "text-slate-500"}`}>
+                    {gameMusicEnabled && !isMuted ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                  </button>
+                  <span className="text-xs font-bold text-slate-200 uppercase">{t.gameMusic || "Nhạc Game"}</span>
+                </div>
+                <span className="text-xs font-mono font-bold text-indigo-400">{Math.round(gameMusicVolume * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                disabled={isGameMusicDisabled}
+                value={gameMusicVolume}
+                onChange={setGameMusicVolume}
+                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500 touch-action-pan-y"
+              />
+            </div>
+
+            {/* SFX Volume Slider */}
+            <div className={`bg-slate-900/60 p-4 rounded-2xl border border-white/5 transition-opacity ${isSfxDisabled ? "opacity-30" : "opacity-100"}`}>
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { playClick(); toggleSfx(); }} className={`transition-colors p-1.5 rounded bg-slate-800 ${sfxEnabled && !isMuted ? "text-green-400" : "text-slate-500"}`}>
+                    {sfxEnabled && !isMuted ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                  </button>
+                  <span className="text-xs font-bold text-slate-200 uppercase">{t.sfx || "Hiệu ứng"}</span>
+                </div>
+                <span className="text-xs font-mono font-bold text-green-400">{Math.round(sfxVolume * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                disabled={isSfxDisabled}
+                value={sfxVolume}
+                onChange={setSfxVolume}
+                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-green-500 touch-action-pan-y"
+              />
+            </div>
+          </div>
+        )
+      case "controls":
+        return (
+          <div className="space-y-6">
+            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+              {t.controlsDesc || "Điều chỉnh độ nhạy khi di chuyển thanh đỡ bóng và cấu hình tốc độ ban đầu."}
+            </p>
+            {/* Sensitivity Input */}
+            <div className="bg-slate-900/60 p-4 rounded-2xl border border-white/5">
+              <div className="flex justify-between items-center mb-2">
+                <div>
+                  <span className="text-xs font-bold text-slate-200 uppercase tracking-wide block">{t.sensitivity || "Độ nhạy"}</span>
+                  <span className="text-[10px] text-slate-500">{t.sensitivityInfo || "Độ nhạy của chuột, phím hoặc thao tác vuốt cảm ứng"}</span>
+                </div>
+                <span className="font-mono text-sm font-bold bg-slate-950 px-3 py-1 rounded text-blue-400 border border-white/5">{sensitivity}</span>
+              </div>
+              <input
+                type="range"
+                min="-10"
+                max="10"
+                step="1"
+                value={sensitivity}
+                onChange={setSensitivity}
+                className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500 touch-action-pan-y"
+              />
+            </div>
+
+            {/* Base Game Speed Input */}
+            {!openSettingsFromPause && (
+              <div className="bg-slate-900/60 p-4 rounded-2xl border border-white/5">
+                <div className="flex justify-between items-center mb-2">
+                  <div>
+                    <span className={`text-xs font-bold uppercase tracking-wide block ${gameState === "running" ? "text-slate-500" : "text-slate-200"}`}>
+                      {t.baseGameSpeed || "Tốc độ cơ bản"}
+                    </span>
+                    <span className="text-[10px] text-slate-500">{t.baseSpeedInfo || "Tốc độ di chuyển ban đầu của bóng"}</span>
+                  </div>
+                  <span className="font-mono text-sm font-bold bg-slate-950 px-3 py-1 rounded text-purple-400 border border-white/5">
+                    {(baseGameSpeed / 100).toFixed(2)}x
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="50"
+                  max="300"
+                  step="10"
+                  value={baseGameSpeed}
+                  onChange={setBaseGameSpeed}
+                  disabled={gameState === "running"}
+                  className={`w-full h-1.5 bg-slate-800 rounded-lg appearance-none accent-purple-500 touch-action-pan-y ${
+                    gameState === "running" ? "opacity-30 cursor-not-allowed" : "cursor-pointer"
+                  }`}
+                />
+                {gameState === "running" && (
+                  <p className="text-[9px] text-yellow-500/80 mt-1">{t.speedLockedNote || "* Không thể thay đổi khi trận đấu đang diễn ra"}</p>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      case "parameters":
+        return (
+          <div className="space-y-6">
+            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+              {t.paramsDesc || "Theo dõi các thông số kỹ thuật tối ưu và giới hạn tốc độ hiển thị khung hình."}
+            </p>
+            {/* Show FPS Toggle */}
+            <div className="flex justify-between items-center bg-slate-900/60 p-4 rounded-2xl border border-white/5">
+              <div>
+                <span className="text-xs font-bold text-slate-200 uppercase tracking-wide block">{t.showFPS || "Hiển thị FPS"}</span>
+                <span className="text-[10px] text-slate-500">{t.showFPSInfo || "Hiển thị bộ đếm số khung hình trên giây góc màn hình"}</span>
+              </div>
+              <button
+                onClick={() => { playClick(); toggleFPS(); }}
+                className={`w-12 h-6 rounded-full relative transition-colors ${showFPS ? "bg-emerald-600" : "bg-slate-700"}`}
+              >
+                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${showFPS ? "left-[26px]" : "left-1"}`} />
+              </button>
+            </div>
+
+            {/* Max FPS Config */}
+            {!openSettingsFromPause && (
+              <div className="bg-slate-900/60 p-4 rounded-2xl border border-white/5">
+                <div className="flex justify-between items-center mb-2">
+                  <div>
+                    <span className="text-xs font-bold text-slate-200 uppercase tracking-wide block">{t.maxFPS || "Giới hạn FPS"}</span>
+                    <span className="text-[10px] text-slate-500">{t.maxFPSInfo || "Giới hạn số khung hình để tiết kiệm pin và tránh nóng máy"}</span>
+                  </div>
+                  <span className="font-mono text-sm font-bold bg-slate-950 px-3 py-1 rounded text-cyan-400 border border-white/5">
+                    {maxFPS === -1 ? (t.unlimited || "Không giới hạn") : `${maxFPS} FPS`}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="-1"
+                  max="240"
+                  step="1"
+                  value={maxFPS}
+                  onChange={setMaxFPS}
+                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500 touch-action-pan-y"
+                />
+              </div>
+            )}
+          </div>
+        )
+      case "animation":
+        return (
+          <div className="space-y-4">
+            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+              {t.animationDesc || "Điều chỉnh mức độ chuyển động của các hiệu ứng để tối ưu hiệu năng."}
+            </p>
+            <div className="flex flex-col gap-3">
+              {(["full", "min", "none"] as const).map((level) => (
+                <button
+                  key={level}
+                  onClick={() => {
+                    playClick()
+                    setAnimationLevel(level)
+                  }}
+                  className={`py-4 px-5 rounded-2xl font-bold text-sm uppercase transition-all border flex items-center justify-between ${
+                    animationLevel === level
+                      ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/30"
+                      : "bg-slate-900/60 text-slate-400 border-white/5 hover:bg-slate-800"
+                  }`}
+                >
+                  <span className="text-left font-bold">{t[`anim${level.charAt(0).toUpperCase() + level.slice(1)}`] || level}</span>
+                  {animationLevel === level && <div className="w-2.5 h-2.5 rounded-full bg-white shadow-glow" />}
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      case "others":
+        return (
+          <div className="space-y-4">
+            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+              {t.othersDesc || "Các thiết lập hỗ trợ bổ sung cho người chơi."}
+            </p>
+            {/* Report Bug */}
+            <button
+              onClick={() => {
+                playClick()
+                window.open("https://github.com/MeoNguOfficial/v0-game-hung-bong/issues", "_blank")
+              }}
+              className="w-full flex items-center justify-between bg-slate-900/60 p-4 rounded-2xl border border-white/5 hover:bg-slate-800/80 transition-colors text-left"
+            >
+              <div>
+                <span className="text-xs font-bold text-slate-200 uppercase block">{t.reportBug || "Báo cáo lỗi"}</span>
+                <span className="text-[10px] text-slate-500">{t.reportBugInfo || "Phản hồi trực tiếp các vấn đề phát sinh"}</span>
+              </div>
+              <Bug size={18} className="text-orange-400" />
+            </button>
+
+            {/* Clear Cache */}
+            {clearCache && (
+              <button
+                onClick={() => {
+                  playClick()
+                  clearCache()
+                }}
+                className="w-full flex items-center justify-between bg-slate-900/60 p-4 rounded-2xl border border-white/5 hover:bg-slate-800/80 transition-colors text-left"
+              >
+                <div>
+                  <span className="text-xs font-bold text-slate-200 uppercase block">{t.clearCache || "Xóa bộ đệm"}</span>
+                  <span className="text-[10px] text-slate-500">{t.clearCacheInfo || "Làm sạch dữ liệu tải lại để nhận cập nhật mới"}</span>
+                </div>
+                <Trash2 size={18} className="text-cyan-400" />
+              </button>
+            )}
+          </div>
+        )
+      case "system":
+        return (
+          <div className="space-y-4">
+            <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+              {t.systemDesc || "Khu vực khôi phục hệ thống và quản lý cấu hình sâu của dữ liệu lưu trữ."}
+            </p>
+            <div className="bg-slate-900/60 p-4 rounded-2xl border border-white/5">
+              <AnimatePresence mode="wait">
+                {!showResetConfirm && !resetComplete && (
+                  <motion.button
+                    key="reset-btn"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => { playClick(); setShowResetConfirm(true); }}
+                    className="w-full flex items-center justify-between p-3 bg-red-500/5 hover:bg-red-500/10 rounded-xl border border-red-500/20 transition-colors"
+                  >
+                    <div>
+                      <span className="text-xs font-bold text-red-400 uppercase block">{t.resetData || "Khôi phục dữ liệu gốc"}</span>
+                      <span className="text-[10px] text-red-500/80">{t.resetDataInfo || "Xóa vĩnh viễn dữ liệu điểm số, nâng cấp và cài đặt cá nhân"}</span>
+                    </div>
+                    <Trash2 size={18} className="text-red-400" />
+                  </motion.button>
+                )}
+
+                {showResetConfirm && !resetComplete && (
+                  <motion.div
+                    key="reset-confirm"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="space-y-3 text-center py-2"
+                  >
+                    <p className="text-xs text-red-400 font-bold leading-relaxed">
+                      {t.resetConfirmText || "Hành động này sẽ xóa vĩnh viễn toàn bộ tiến trình chơi game của bạn. Xác nhận?"}
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { playClick(); setShowResetConfirm(false); }}
+                        className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs uppercase"
+                      >
+                        {t.cancel || "Hủy"}
+                      </button>
+                      <button
+                        onClick={handleResetData}
+                        className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs uppercase shadow-lg shadow-red-600/30"
+                      >
+                        {t.confirm || "Xác nhận"}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {resetComplete && (
+                  <motion.div
+                    key="reset-complete"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-center py-2"
+                  >
+                    <p className="text-xs text-green-400 font-bold mb-3">
+                      {t.resetComplete || "Khôi phục dữ liệu gốc thành công!"}
+                    </p>
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="w-full py-2.5 rounded-xl bg-blue-600 text-white font-bold text-xs uppercase hover:bg-blue-500 shadow-lg shadow-blue-600/20"
+                    >
+                      {t.restartNow || "Tải lại ngay"}
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        )
+      default:
+        return null
+    }
+  }
 
   return (
-    <div className={wrapperClass}>
+    <Wrapper
+      className={wrapperClass}
+      {...(!embed ? {
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+        transition: { duration: 0.25 }
+      } : {})}
+    >
       <Container
+        className={contentClass}
         {...(!embed ? {
-          initial: { scale: 0.95, opacity: 0, y: 15 },
-          animate: { scale: 1, opacity: 1, y: 0 },
-          exit: { scale: 0.95, opacity: 0, y: 15 },
+          initial: { scale: 0.95, y: 15 },
+          animate: { scale: 1, y: 0 },
+          exit: { scale: 0.95, y: 15 },
           transition: animationLevel === "full"
             ? { type: "spring", stiffness: 350, damping: 26 }
-            : { duration: animationLevel === "min" ? 0.2 : 0 }
+            : { duration: animationLevel === "min" ? 0.2 : 0.1 }
         } : {})}
-        className={contentClass}
       >
-        {/* Tiêu đề Modal phía trên */}
+        {/* TIÊU ĐỀ PHÍA TRÊN */}
         {!embed && (
-          <div className="flex justify-between items-center p-6 pb-4 shrink-0 bg-slate-900 z-10 border-b border-white/5">
+          <div className="flex justify-between items-center p-6 pb-4 shrink-0 bg-slate-955/20 z-10 border-b border-white/5">
             <div>
-              <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">{t.settings}</h2>
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5">Global Configuration Portal</p>
+              <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter flex items-center gap-2">
+                <Settings className="text-blue-500 animate-spin-slow" size={24} />
+                {t.settings || "Cài đặt"}
+              </h2>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5">{t.settingsDesc || "Cấu hình hệ thống"}</p>
             </div>
             <button
               onClick={() => {
                 playClick()
                 onClose()
               }}
-              className="bg-slate-800 p-2.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+              className="bg-slate-900 p-2.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors border border-white/5"
             >
               <X size={20} />
             </button>
@@ -155,26 +610,84 @@ export default function SettingsModal({
 
         {embed && !hideSystem && (
           <div className="flex justify-between items-center mb-4 shrink-0 pt-1 px-1">
-            <h3 className="text-2xl font-black text-white italic tracking-tighter">{t.settings}</h3>
+            <h3 className="text-2xl font-black text-white italic tracking-tighter flex items-center gap-2">
+              <Settings className="text-blue-500 animate-spin-slow" size={20} />
+              {t.settings || "Cài đặt"}
+            </h3>
           </div>
         )}
 
-        {/* Khu vực nội dung cuộn */}
-        <div className={`flex-1 overflow-y-auto custom-scrollbar ${embed ? "p-1" : "p-6 pt-4"}`}>
+        {/* PHẦN CHÍNH: PHÂN CHIA THIẾT BỊ (RESPONSIVE) */}
+        
+        {/* 1. PHIÊN BẢN DESKTOP / PC (Bố cục chia 2 cột như trong sơ đồ thiết kế) */}
+        <div className="hidden lg:flex flex-1 overflow-hidden min-h-[480px]">
           
-          {/* LƯỚI GRID PHẢN HỒI: 
-              - Mobile: 1 cột cuộn xếp chồng dọc
-              - Tablet (md): 2 cột 
-              - PC (lg/xl): 4 cột ngang x 2 hàng ngang hoàn mỹ theo sơ đồ của bạn */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 pb-4">
+          {/* Cột trái: Tab bar */}
+          <div className="w-[280px] bg-slate-900/40 border-r border-white/5 p-4 flex flex-col gap-2 overflow-y-auto custom-scrollbar">
+            {tabsList.map((tab) => {
+              const TabIcon = tab.icon
+              const isSelected = activeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    playClick()
+                    setActiveTab(tab.id)
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border text-left transition-all ${
+                    isSelected
+                      ? "bg-slate-900 text-white font-extrabold border-blue-500/50 shadow-md shadow-blue-500/5"
+                      : "bg-transparent text-slate-400 border-transparent hover:bg-slate-900/30 hover:text-slate-200"
+                  }`}
+                >
+                  <TabIcon size={18} className={`${tab.color} ${isSelected ? "scale-110" : ""}`} />
+                  <span className="text-xs uppercase tracking-wider">{tab.label}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Cột phải: Component settings detail tương ứng */}
+          <div className="flex-1 bg-slate-950 p-6 overflow-y-auto custom-scrollbar flex flex-col justify-between">
+            <div className="w-full max-w-[640px]">
+              {/* Tiêu đề mục hiện tại bên phải */}
+              <div className="mb-6">
+                <h4 className="text-base font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
+                  {React.createElement(tabsList.find(t => t.id === activeTab)?.icon || Globe, {
+                    size: 18,
+                    className: tabsList.find(t => t.id === activeTab)?.color
+                  })}
+                  {tabsList.find(t => t.id === activeTab)?.label}
+                </h4>
+                <div className="h-[2px] bg-emerald-500/40 mt-2.5 w-full rounded-full" />
+              </div>
+
+              {/* Nội dung tương ứng */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  {renderTabContent(activeTab)}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. PHIÊN BẢN DI ĐỘNG/MOBILE (Giữ nguyên bố cục cuộn xếp dọc) */}
+        <div className={`block lg:hidden flex-1 overflow-y-auto custom-scrollbar ${embed ? "p-1" : "p-6 pt-4"}`}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pb-4">
 
             {/* BOX 1: NGÔN NGỮ */}
-            <div className="bg-slate-800/40 border border-white/5 p-5 rounded-2xl flex flex-col h-full min-h-[220px]">
+            <div className="bg-slate-900/40 border border-white/5 p-5 rounded-2xl flex flex-col h-full min-h-[220px]">
               <div className="mb-3">
                 <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                  <Globe size={15} className="text-cyan-400" /> {t.language}
+                  <Globe size={15} className="text-cyan-400" /> {t.language || "Ngôn ngữ"}
                 </h3>
-                {/* Viền Line Xanh Lục tinh tế dưới tiêu đề */}
                 <div className="h-[2px] bg-emerald-500/50 mt-2 w-full rounded-full" />
               </div>
               <div className="flex-1 flex flex-col justify-center">
@@ -182,11 +695,11 @@ export default function SettingsModal({
                   {(["en", "vi", "es", "ru"] as const).map((lang) => (
                     <button
                       key={lang}
-                      onClick={() => setLanguage(lang)}
+                      onClick={() => { playClick(); setLanguage(lang); }}
                       className={`py-2.5 rounded-xl font-bold text-xs uppercase transition-all border ${
                         language === lang
                           ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20"
-                          : "bg-slate-900/60 text-slate-400 border-transparent hover:bg-slate-800 hover:text-slate-200"
+                          : "bg-slate-955 text-slate-400 border-transparent hover:bg-slate-850"
                       }`}
                     >
                       {lang === "vi" ? "Tiếng Việt" : lang === "en" ? "English" : lang.toUpperCase()}
@@ -197,96 +710,79 @@ export default function SettingsModal({
             </div>
 
             {/* BOX 2: ĐỒ HỌA VÀ HÌNH ẢNH */}
-            <div className="bg-slate-800/40 border border-white/5 p-5 rounded-2xl flex flex-col h-full min-h-[220px]">
+            <div className="bg-slate-900/40 border border-white/5 p-5 rounded-2xl flex flex-col h-full min-h-[220px]">
               <div className="mb-3">
                 <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                  <Sparkles size={15} className="text-yellow-400" /> {t.visuals || "Visuals"}
+                  <Sparkles size={15} className="text-yellow-400" /> {t.visuals || "Hình ảnh"}
                 </h3>
                 <div className="h-[2px] bg-emerald-500/50 mt-2 w-full rounded-full" />
               </div>
               <div className="flex-1 flex flex-col justify-center space-y-2.5">
-                {/* Particles Toggle */}
-                <div className="flex justify-between items-center bg-slate-900/40 px-3 py-1.5 rounded-xl border border-white/5">
-                  <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">{t.particles}</span>
+                {/* Particles */}
+                <div className="flex justify-between items-center bg-slate-950/60 px-3 py-1.5 rounded-xl border border-white/5">
+                  <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">{t.particles || "Hạt hiệu ứng"}</span>
                   <button
-                    onClick={toggleParticles}
+                    onClick={() => { playClick(); toggleParticles(); }}
                     className={`w-10 h-5 rounded-full relative transition-colors ${particlesEnabled ? "bg-blue-600" : "bg-slate-700"}`}
                   >
-                    <motion.div
-                      layout
-                      transition={{ duration: 0.15 }}
-                      className={`absolute top-0.5 w-4 h-4 bg-white rounded-full ${particlesEnabled ? "left-5.5" : "left-0.5"}`}
-                    />
+                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${particlesEnabled ? "left-[22px]" : "left-0.5"}`} />
                   </button>
                 </div>
 
-                {/* Trails Toggle */}
-                <div className="flex justify-between items-center bg-slate-900/40 px-3 py-1.5 rounded-xl border border-white/5">
-                  <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">{t.trails}</span>
+                {/* Trails */}
+                <div className="flex justify-between items-center bg-slate-950/60 px-3 py-1.5 rounded-xl border border-white/5">
+                  <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">{t.trails || "Vệt sáng"}</span>
                   <button
-                    onClick={toggleTrails}
+                    onClick={() => { playClick(); toggleTrails(); }}
                     className={`w-10 h-5 rounded-full relative transition-colors ${trailsEnabled ? "bg-blue-600" : "bg-slate-700"}`}
                   >
-                    <motion.div
-                      layout
-                      transition={{ duration: 0.15 }}
-                      className={`absolute top-0.5 w-4 h-4 bg-white rounded-full ${trailsEnabled ? "left-5.5" : "left-0.5"}`}
-                    />
+                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${trailsEnabled ? "left-[22px]" : "left-0.5"}`} />
                   </button>
                 </div>
 
-                {/* Shockwaves Toggle */}
-                <div className="flex justify-between items-center bg-slate-900/40 px-3 py-1.5 rounded-xl border border-white/5">
-                  <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">{t.shockwaves}</span>
+                {/* Shockwaves */}
+                <div className="flex justify-between items-center bg-slate-950/60 px-3 py-1.5 rounded-xl border border-white/5">
+                  <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">{t.shockwaves || "Sóng kích"}</span>
                   <button
-                    onClick={toggleShockwaves}
+                    onClick={() => { playClick(); toggleShockwaves(); }}
                     className={`w-10 h-5 rounded-full relative transition-colors ${shockwavesEnabled ? "bg-cyan-600" : "bg-slate-700"}`}
                   >
-                    <motion.div
-                      layout
-                      transition={{ duration: 0.15 }}
-                      className={`absolute top-0.5 w-4 h-4 bg-white rounded-full ${shockwavesEnabled ? "left-5.5" : "left-0.5"}`}
-                    />
+                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${shockwavesEnabled ? "left-[22px]" : "left-0.5"}`} />
                   </button>
                 </div>
 
-                {/* Camera Shake Toggle */}
-                <div className="flex justify-between items-center bg-slate-900/40 px-3 py-1.5 rounded-xl border border-white/5">
-                  <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">{t.cameraShake}</span>
+                {/* Camera Shake */}
+                <div className="flex justify-between items-center bg-slate-950/60 px-3 py-1.5 rounded-xl border border-white/5">
+                  <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">{t.cameraShake || "Rung lắc"}</span>
                   <button
-                    onClick={toggleCameraShake}
+                    onClick={() => { playClick(); toggleCameraShake(); }}
                     className={`w-10 h-5 rounded-full relative transition-colors ${cameraShakeEnabled ? "bg-orange-600" : "bg-slate-700"}`}
                   >
-                    <motion.div
-                      layout
-                      transition={{ duration: 0.15 }}
-                      className={`absolute top-0.5 w-4 h-4 bg-white rounded-full ${cameraShakeEnabled ? "left-5.5" : "left-0.5"}`}
-                    />
+                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${cameraShakeEnabled ? "left-[22px]" : "left-0.5"}`} />
                   </button>
                 </div>
               </div>
             </div>
 
             {/* BOX 3: ÂM THANH */}
-            <div className="bg-slate-800/40 border border-white/5 p-5 rounded-2xl flex flex-col h-full min-h-[220px] lg:col-span-1">
+            <div className="bg-slate-900/40 border border-white/5 p-5 rounded-2xl flex flex-col h-full min-h-[220px]">
               <div className="mb-3">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                    <Volume2 size={15} className="text-green-400" /> {t.audio}
-                  </h3>
-                  {/* Quick Mute Indicator */}
-                  <button onClick={toggleMute} className={`p-1 rounded text-xs ${isMuted ? "text-red-400 bg-red-500/10" : "text-green-400 bg-green-500/10"}`}>
-                    {isMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}
-                  </button>
-                </div>
+                <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                  <Volume2 size={15} className="text-green-400" /> {t.audio || "Âm thanh"}
+                </h3>
                 <div className="h-[2px] bg-emerald-500/50 mt-2 w-full rounded-full" />
               </div>
               <div className="flex-1 flex flex-col justify-between space-y-2">
-                {/* Menu Music Slider */}
+                {/* Menu Music */}
                 <div className={`transition-opacity ${isMenuMusicDisabled ? "opacity-30" : "opacity-100"}`}>
-                  <div className="flex justify-between text-[10px] text-slate-400 font-bold uppercase mb-0.5">
-                    <span>{t.menuMusic}</span>
-                    <span>{Math.round(menuMusicVolume * 100)}%</span>
+                  <div className="flex justify-between items-center mb-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => { playClick(); toggleBgMenu(); }} className={`transition-colors ${bgMenuEnabled && !isMuted ? "text-purple-400" : "text-slate-600"}`}>
+                        {bgMenuEnabled && !isMuted ? <Volume2 size={12} /> : <VolumeX size={12} />}
+                      </button>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase">{t.menuMusic || "Nhạc Menu"}</span>
+                    </div>
+                    <span className="text-[11px] font-mono text-purple-400">{Math.round(menuMusicVolume * 100)}%</span>
                   </div>
                   <input
                     type="range"
@@ -300,11 +796,16 @@ export default function SettingsModal({
                   />
                 </div>
 
-                {/* Game Music Slider */}
+                {/* Game Music */}
                 <div className={`transition-opacity ${isGameMusicDisabled ? "opacity-30" : "opacity-100"}`}>
-                  <div className="flex justify-between text-[10px] text-slate-400 font-bold uppercase mb-0.5">
-                    <span>{t.gameMusic || "Game Music"}</span>
-                    <span>{Math.round(gameMusicVolume * 100)}%</span>
+                  <div className="flex justify-between items-center mb-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => { playClick(); toggleGameMusic(); }} className={`transition-colors ${gameMusicEnabled && !isMuted ? "text-indigo-400" : "text-slate-600"}`}>
+                        {gameMusicEnabled && !isMuted ? <Volume2 size={12} /> : <VolumeX size={12} />}
+                      </button>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase">{t.gameMusic || "Nhạc Game"}</span>
+                    </div>
+                    <span className="text-[11px] font-mono text-indigo-400">{Math.round(gameMusicVolume * 100)}%</span>
                   </div>
                   <input
                     type="range"
@@ -318,11 +819,16 @@ export default function SettingsModal({
                   />
                 </div>
 
-                {/* SFX Volume Slider */}
+                {/* SFX */}
                 <div className={`transition-opacity ${isSfxDisabled ? "opacity-30" : "opacity-100"}`}>
-                  <div className="flex justify-between text-[10px] text-slate-400 font-bold uppercase mb-0.5">
-                    <span>{t.sfx}</span>
-                    <span>{Math.round(sfxVolume * 100)}%</span>
+                  <div className="flex justify-between items-center mb-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => { playClick(); toggleSfx(); }} className={`transition-colors ${sfxEnabled && !isMuted ? "text-green-400" : "text-slate-600"}`}>
+                        {sfxEnabled && !isMuted ? <Volume2 size={12} /> : <VolumeX size={12} />}
+                      </button>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase">{t.sfx || "Hiệu ứng"}</span>
+                    </div>
+                    <span className="text-[11px] font-mono text-green-400">{Math.round(sfxVolume * 100)}%</span>
                   </div>
                   <input
                     type="range"
@@ -338,20 +844,20 @@ export default function SettingsModal({
               </div>
             </div>
 
-            {/* BOX 4: GAMEPLAY */}
-            <div className="bg-slate-800/40 border border-white/5 p-5 rounded-2xl flex flex-col h-full min-h-[220px]">
+            {/* BOX 4: ĐIỀU KHIỂN (GAMEPLAY) */}
+            <div className="bg-slate-900/40 border border-white/5 p-5 rounded-2xl flex flex-col h-full min-h-[220px]">
               <div className="mb-3">
                 <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                  <Activity size={15} className="text-purple-400" /> Gameplay
+                  <Activity size={15} className="text-purple-400" /> {t.controls || "Điều khiển"}
                 </h3>
                 <div className="h-[2px] bg-emerald-500/50 mt-2 w-full rounded-full" />
               </div>
               <div className="flex-1 flex flex-col justify-around">
-                {/* Sensitivity Input */}
+                {/* Sensitivity */}
                 <div>
                   <div className="flex justify-between text-[10px] text-slate-400 font-bold uppercase mb-1">
-                    <span>{t.sensitivity}</span>
-                    <span className="font-mono bg-slate-900 px-1.5 py-0.2 rounded">{sensitivity}</span>
+                    <span>{t.sensitivity || "Độ nhạy"}</span>
+                    <span className="font-mono bg-slate-950 px-1.5 py-0.2 rounded text-blue-400">{sensitivity}</span>
                   </div>
                   <input
                     type="range"
@@ -364,12 +870,12 @@ export default function SettingsModal({
                   />
                 </div>
 
-                {/* Base Game Speed Input */}
+                {/* Base Game Speed */}
                 {!openSettingsFromPause && (
                   <div className="border-t border-white/5 pt-2 mt-2">
                     <div className="flex justify-between text-[10px] text-slate-400 font-bold uppercase mb-1">
-                      <span className={gameState === "running" ? "text-slate-500" : ""}>{t.baseGameSpeed}</span>
-                      <span className="font-mono bg-slate-900 px-1.5 py-0.2 rounded">{(baseGameSpeed / 100).toFixed(2)}x</span>
+                      <span className={gameState === "running" ? "text-slate-500" : ""}>{t.baseGameSpeed || "Tốc độ gốc"}</span>
+                      <span className="font-mono bg-slate-950 px-1.5 py-0.2 rounded text-purple-400">{(baseGameSpeed / 100).toFixed(2)}x</span>
                     </div>
                     <input
                       type="range"
@@ -389,7 +895,7 @@ export default function SettingsModal({
             </div>
 
             {/* BOX 5: THÔNG SỐ */}
-            <div className="bg-slate-800/40 border border-white/5 p-5 rounded-2xl flex flex-col h-full min-h-[220px]">
+            <div className="bg-slate-900/40 border border-white/5 p-5 rounded-2xl flex flex-col h-full min-h-[220px]">
               <div className="mb-3">
                 <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
                   <Sliders size={15} className="text-emerald-400" /> {t.parameters || "Thông số"}
@@ -397,28 +903,24 @@ export default function SettingsModal({
                 <div className="h-[2px] bg-emerald-500/50 mt-2 w-full rounded-full" />
               </div>
               <div className="flex-1 flex flex-col justify-center space-y-4">
-                {/* Show FPS Toggle */}
-                <div className="flex justify-between items-center bg-slate-900/40 px-3 py-1.5 rounded-xl border border-white/5">
-                  <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">{t.showFPS}</span>
+                {/* Show FPS */}
+                <div className="flex justify-between items-center bg-slate-950/60 px-3 py-1.5 rounded-xl border border-white/5">
+                  <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">{t.showFPS || "Hiển thị FPS"}</span>
                   <button
-                    onClick={toggleFPS}
+                    onClick={() => { playClick(); toggleFPS(); }}
                     className={`w-10 h-5 rounded-full relative transition-colors ${showFPS ? "bg-emerald-600" : "bg-slate-700"}`}
                   >
-                    <motion.div
-                      layout
-                      transition={{ duration: 0.15 }}
-                      className={`absolute top-0.5 w-4 h-4 bg-white rounded-full ${showFPS ? "left-5.5" : "left-0.5"}`}
-                    />
+                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${showFPS ? "left-[22px]" : "left-0.5"}`} />
                   </button>
                 </div>
 
-                {/* Max FPS Config */}
+                {/* Max FPS */}
                 {!openSettingsFromPause && (
                   <div>
                     <div className="flex justify-between text-[10px] text-slate-400 font-bold uppercase mb-1">
-                      <span>{t.maxFPS}</span>
-                      <span className="font-mono bg-slate-900 px-1.5 py-0.2 rounded">
-                        {maxFPS === -1 ? t.unlimited : `${maxFPS} FPS`}
+                      <span>{t.maxFPS || "Khóa FPS"}</span>
+                      <span className="font-mono bg-slate-950 px-1.5 py-0.2 rounded text-cyan-400">
+                        {maxFPS === -1 ? (t.unlimited || "Không giới hạn") : `${maxFPS} FPS`}
                       </span>
                     </div>
                     <input
@@ -436,7 +938,7 @@ export default function SettingsModal({
             </div>
 
             {/* BOX 6: HOẠT HÌNH */}
-            <div className="bg-slate-800/40 border border-white/5 p-5 rounded-2xl flex flex-col h-full min-h-[220px]">
+            <div className="bg-slate-900/40 border border-white/5 p-5 rounded-2xl flex flex-col h-full min-h-[220px]">
               <div className="mb-3">
                 <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
                   <Film size={15} className="text-indigo-400" /> {t.animationLevel || "Hoạt hình"}
@@ -448,11 +950,11 @@ export default function SettingsModal({
                   {(["full", "min", "none"] as const).map((level) => (
                     <button
                       key={level}
-                      onClick={() => setAnimationLevel(level)}
+                      onClick={() => { playClick(); setAnimationLevel(level); }}
                       className={`py-2 rounded-xl font-bold text-xs uppercase transition-all border ${
                         animationLevel === level
                           ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20"
-                          : "bg-slate-900/60 text-slate-400 border-transparent hover:bg-slate-800"
+                          : "bg-slate-950 text-slate-400 border-transparent hover:bg-slate-850"
                       }`}
                     >
                       {t[`anim${level.charAt(0).toUpperCase() + level.slice(1)}`] || level}
@@ -463,32 +965,35 @@ export default function SettingsModal({
             </div>
 
             {/* BOX 7: KHÁC */}
-            <div className="bg-slate-800/40 border border-white/5 p-5 rounded-2xl flex flex-col h-full min-h-[220px]">
+            <div className="bg-slate-900/40 border border-white/5 p-5 rounded-2xl flex flex-col h-full min-h-[220px]">
               <div className="mb-3">
                 <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                  <Bug size={15} className="text-blue-400" /> Khác
+                  <Bug size={15} className="text-pink-400" /> {t.others || "Khác"}
                 </h3>
                 <div className="h-[2px] bg-emerald-500/50 mt-2 w-full rounded-full" />
               </div>
               <div className="flex-1 flex flex-col justify-center space-y-3">
                 {/* Report Bug */}
                 <button
-                  onClick={() => window.open("https://github.com/MeoNguOfficial/v0-game-hung-bong/issues", "_blank")}
-                  className="w-full flex items-center justify-between bg-slate-900/60 p-2.5 rounded-xl border border-white/5 hover:bg-slate-800 transition-colors text-left"
+                  onClick={() => {
+                    playClick()
+                    window.open("https://github.com/MeoNguOfficial/v0-game-hung-bong/issues", "_blank")
+                  }}
+                  className="w-full flex items-center justify-between bg-slate-955 p-2.5 rounded-xl border border-white/5 hover:bg-slate-850 transition-colors text-left"
                 >
-                  <span className="text-[10px] font-black text-slate-300 uppercase">{t.reportBug || "Report Bug"}</span>
+                  <span className="text-[10px] font-black text-slate-300 uppercase">{t.reportBug || "Báo lỗi"}</span>
                   <Bug size={14} className="text-orange-400" />
                 </button>
 
                 {/* Clear Cache */}
                 {clearCache && (
                   <button
-                    onClick={clearCache}
-                    className="w-full flex items-center justify-between bg-slate-900/60 p-2.5 rounded-xl border border-white/5 hover:bg-slate-800 transition-colors text-left"
+                    onClick={() => { playClick(); clearCache(); }}
+                    className="w-full flex items-center justify-between bg-slate-955 p-2.5 rounded-xl border border-white/5 hover:bg-slate-850 transition-colors text-left"
                   >
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-slate-300 uppercase">{t.clearCache || "Clear Cache"}</span>
-                      <span className="text-[8px] text-slate-500 block">Fetch latest assets</span>
+                      <span className="text-[10px] font-black text-slate-300 uppercase">{t.clearCache || "Xóa cache"}</span>
+                      <span className="text-[8px] text-slate-500 block">{t.clearCacheInfo || "Tải mới tài nguyên"}</span>
                     </div>
                     <Trash2 size={14} className="text-cyan-400" />
                   </button>
@@ -497,16 +1002,16 @@ export default function SettingsModal({
             </div>
 
             {/* BOX 8: HỆ THỐNG */}
-            <div className="bg-slate-800/40 border border-white/5 p-5 rounded-2xl flex flex-col h-full min-h-[220px]">
+            <div className="bg-slate-900/40 border border-white/5 p-5 rounded-2xl flex flex-col h-full min-h-[220px]">
               <div className="mb-3">
                 <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                  <AlertTriangle size={15} className="text-red-400" /> Hệ thống
+                  <AlertTriangle size={15} className="text-red-400" /> {t.system || "Hệ thống"}
                 </h3>
                 <div className="h-[2px] bg-emerald-500/50 mt-2 w-full rounded-full" />
               </div>
               <div className="flex-1 flex flex-col justify-center">
                 {!hideSystem && (
-                  <div className="bg-slate-900/40 p-2 rounded-xl border border-white/5">
+                  <div className="bg-slate-950/60 p-2 rounded-xl border border-white/5">
                     <AnimatePresence mode="wait">
                       {!showResetConfirm && !resetComplete && (
                         <motion.button
@@ -514,10 +1019,10 @@ export default function SettingsModal({
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
-                          onClick={() => setShowResetConfirm(true)}
+                          onClick={() => { playClick(); setShowResetConfirm(true); }}
                           className="w-full flex items-center justify-between p-2 hover:bg-red-500/5 rounded-lg transition-colors"
                         >
-                          <span className="text-[10px] font-black text-red-400 uppercase">{t.resetData || "Reset Data"}</span>
+                          <span className="text-[10px] font-black text-red-400 uppercase">{t.resetData || "Khôi phục"}</span>
                           <Trash2 size={14} className="text-red-400" />
                         </motion.button>
                       )}
@@ -531,20 +1036,20 @@ export default function SettingsModal({
                           className="space-y-2 text-center"
                         >
                           <p className="text-[9px] text-red-400 font-bold leading-tight">
-                            {t.resetConfirmText || "Delete all data?"}
+                            {t.resetConfirmText || "Khôi phục cài đặt gốc?"}
                           </p>
                           <div className="flex gap-1.5">
                             <button
-                              onClick={() => setShowResetConfirm(false)}
+                              onClick={() => { playClick(); setShowResetConfirm(false); }}
                               className="flex-1 py-1 rounded bg-slate-700 text-white font-bold text-[9px] uppercase"
                             >
-                              {t.cancel || "No"}
+                              {t.cancel || "Hủy"}
                             </button>
                             <button
                               onClick={handleResetData}
                               className="flex-1 py-1 rounded bg-red-600 text-white font-bold text-[9px] uppercase"
                             >
-                              {t.confirm || "Yes"}
+                              {t.confirm || "Xóa"}
                             </button>
                           </div>
                         </motion.div>
@@ -558,13 +1063,13 @@ export default function SettingsModal({
                           className="text-center"
                         >
                           <p className="text-[10px] text-green-400 font-bold mb-1">
-                            {t.resetComplete || "Cleared!"}
+                            {t.resetComplete || "Đã reset!"}
                           </p>
                           <button
                             onClick={() => window.location.reload()}
                             className="w-full py-1.5 rounded bg-blue-600 text-white font-bold text-[9px] uppercase hover:bg-blue-500"
                           >
-                            {t.restartNow || "Restart"}
+                            {t.restartNow || "Khởi động lại"}
                           </button>
                         </motion.div>
                       )}
@@ -576,7 +1081,8 @@ export default function SettingsModal({
 
           </div>
         </div>
+
       </Container>
-    </div>
+    </Wrapper>
   )
 }

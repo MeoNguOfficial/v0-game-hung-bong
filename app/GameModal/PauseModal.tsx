@@ -16,6 +16,7 @@ interface PauseModalProps {
   setOpenSettingsFromPause: (open: boolean) => void
   resumeGame: () => void
   handleExitRequest: () => void
+  openSettings: boolean // Add this prop
 }
 
 export default function PauseModal({
@@ -32,14 +33,17 @@ export default function PauseModal({
   setOpenSettingsFromPause,
   resumeGame,
   handleExitRequest,
+  openSettings, // Receive the prop
 }: PauseModalProps) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={animationsEnabled ? undefined : { duration: 0 }}
-      className="absolute inset-0 z-[70] bg-slate-950/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center"
+      transition={animationsEnabled ? { duration: 0.2 } : { duration: 0 }} // Add explicit transition for PauseModal's opacity
+      className={`absolute inset-0 z-[70] bg-slate-950/90 flex flex-col items-center justify-center p-8 text-center transition-all duration-200 ease-out ${
+        openSettings ? "backdrop-blur-sm" : "backdrop-blur-xl" // Reduce blur when settings is open, then transition back
+      }`}
     >
       <motion.div
         initial={{ scale: 0.9 }}

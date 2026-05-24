@@ -113,6 +113,7 @@ interface Shockwave {
   radius: number
   alpha: number
   color: string
+  borderRadius?: number // Thêm thuộc tính này để hỗ trợ bo góc cho shockwave hình chữ nhật
 }
 
 // --- Audio Utility: Web Audio API Clink Generator ---
@@ -187,6 +188,7 @@ export default function App() {
   const [gameMode, setGameMode] = useState<"normal" | "hardcode" | "sudden_death">("normal")
   const [snowLeft, setSnowLeft] = useState(0)
   const [snowActive, setSnowActive] = useState(false)
+  const [snowContactPoint, setSnowContactPoint] = useState({ x: 50, y: 50 })
   const [language, setLanguage] = useState<"en" | "vi" | "es" | "ru">("en")
   const [skin, setSkin] = useState("default")
   const [background, setBackground] = useState("default")
@@ -229,6 +231,8 @@ export default function App() {
   const [gameMusicVolume, setGameMusicVolume] = useState(0.5)
   const [sfxVolume, setSfxVolume] = useState(0.5)
   const [bgMenuEnabled, setBgMenuEnabled] = useState(true)
+  const [gameMusicEnabled, setGameMusicEnabled] = useState(true)
+  const [sfxEnabled, setSfxEnabled] = useState(true)
   const [sensitivity, setSensitivity] = useState(0)
   const [baseGameSpeed, setBaseGameSpeed] = useState(100) // 1.0x speed (50-300 = 0.5x-3.0x)
   const [maxFPS, setMaxFPS] = useState(60) // 60 default, -1 = unlimited
@@ -364,6 +368,7 @@ export default function App() {
     deathY: 0,
     skin: "default",
     background: "default",
+    bombImmunityTimeLeft: 0,
     aiDebug: {
       predictedX: 0,
       targetCenter: 0,
@@ -683,6 +688,24 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [gameState, openSettings, confirmExit, openQuickPlay, openCustom])
 
+  // Tự động tạm dừng game khi người dùng chuyển tab hoặc focus ra ngoài (PC/Unfocused)
+  useEffect(() => {
+    const handleAutoPause = () => {
+      if (gameState === "running") {
+        pauseGame()
+      }
+    }
+    const handleVisibility = () => {
+      if (document.hidden) handleAutoPause()
+    }
+    window.addEventListener("blur", handleAutoPause)
+    document.addEventListener("visibilitychange", handleVisibility)
+    return () => {
+      window.removeEventListener("blur", handleAutoPause)
+      document.removeEventListener("visibilitychange", handleVisibility)
+    }
+  }, [gameState])
+
   // --- Audio Helper: Fade In / Fade Out ---
   const fadeAudio = (audio: HTMLAudioElement, targetVol: number, duration = 800, onComplete?: () => void) => {
     if (!audio) return
@@ -734,7 +757,7 @@ export default function App() {
   }
 
   const playSound = (name: string, idx?: number) => {
-    if (!audioRefs.current || gameData.current.isMuted) return
+    if (!audioRefs.current || gameData.current.isMuted || !sfxEnabled) return
     const audio =
       name === "combo" && idx !== undefined ? audioRefs.current.combo[Math.min(idx, 5)] : audioRefs.current[name]
     if (audio) {
@@ -812,7 +835,7 @@ export default function App() {
   const resumeGame = () => {
     playClick()
     // Resume Game Music
-    if (currentBgmRef.current && !gameData.current.isMuted) {
+    if (currentBgmRef.current && !gameData.current.isMuted && gameMusicEnabled) {
       currentBgmRef.current.volume = gameMusicVolume
       currentBgmRef.current.play().catch(() => { })
     }
@@ -913,12 +936,36 @@ export default function App() {
     }
   }
 
+  useEffect(() => {
+    if (gameState === "running" && currentBgmRef.current && currentBgmRef.current !== audioRefs.current?.bg_menu) {
+      if (!gameMusicEnabled || isMuted) {
+        currentBgmRef.current.pause()
+      } else {
+        currentBgmRef.current.play().catch(() => {})
+      }
+    }
+  }, [gameMusicEnabled, isMuted, gameState])
+
   const toggleParticles = () => {
     const newState = !particlesEnabled
     playClick()
     setParticlesEnabled(newState)
     gameData.current.particlesEnabled = newState
     localStorage.setItem("game_particles", String(newState))
+  }
+
+  const toggleGameMusic = () => {
+    const newState = !gameMusicEnabled
+    playClick()
+    setGameMusicEnabled(newState)
+    localStorage.setItem("game_music_enabled", String(newState))
+  }
+
+  const toggleSfx = () => {
+    const newState = !sfxEnabled
+    if (newState) playClick()
+    setSfxEnabled(newState)
+    localStorage.setItem("game_sfx_enabled", String(newState))
   }
 
   const toggleFPS = () => {
@@ -1007,6 +1054,7 @@ export default function App() {
       deathY: 0,
       hasPlayedNewBest: false,
       hasShield: false,
+      bombImmunityTimeLeft: 0,
     }
     setIsNewBestRecord(false)
       shockwaves.current = []
@@ -1046,6 +1094,7 @@ export default function App() {
         timeScale: 1,
         hasPlayedNewBest: false,
         hasShield: false,
+        bombImmunityTimeLeft: 0,
         ball: { x: 250, y: -50, radius: 10, speed: 3.5, dx: 2, type: "normal", sinTime: 0 },
         bombs: [],
         isDying: false,
@@ -1080,15 +1129,16 @@ export default function App() {
       if (isAutoMode) bgm = audioRefs.current?.bg_game_auto
       else if (mode === "hardcode" || mode === "sudden_death") bgm = audioRefs.current?.bg_game_hardcode
       currentBgmRef.current = bgm
-      if (bgm) bgm.volume = 0
-      
-      // Register BGM for playback rate management
-      if (bgm) {
+
+      if (bgm && !gameData.current.isMuted && gameMusicEnabled) {
+        bgm.volume = 0
+        // Register BGM for playback rate management
         audioRateManager.registerAudioElement("bgm", bgm)
         audioRateManager.reset() // Reset to 1.0x at game start
+        fadeAudio(bgm, gameMusicVolume, 2000)
+      } else if (bgm) {
+        audioRateManager.registerAudioElement("bgm", bgm)
       }
-      
-      fadeAudio(bgm, gameMusicVolume, 2000)
     })
   }
 
@@ -1141,6 +1191,7 @@ export default function App() {
       deathY: 0,
       hasPlayedNewBest: false,
       hasShield: false,
+      bombImmunityTimeLeft: 0,
     }
 
     setIsHidden(customConfig.isHidden)
@@ -1230,7 +1281,6 @@ export default function App() {
     const audioSources: any = {
       catch: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/catch.mp3",
       miss: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/miss.mp3",
-      gameover: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/gameover.mp3",
       heal: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/heal.mp3",
       boost: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/boost.mp3",
       boost_end: "https://an4sdmu4yskbqrq6.public.blob.vercel-storage.com/boost_end.mp3",
@@ -1332,6 +1382,16 @@ export default function App() {
     const savedBgMenu = localStorage.getItem("game_bg_menu_enabled")
     if (savedBgMenu !== null) {
       setBgMenuEnabled(savedBgMenu === "true")
+    }
+
+    const savedGameMusicEnabled = localStorage.getItem("game_music_enabled")
+    if (savedGameMusicEnabled !== null) {
+      setGameMusicEnabled(savedGameMusicEnabled === "true")
+    }
+
+    const savedSfxEnabled = localStorage.getItem("game_sfx_enabled")
+    if (savedSfxEnabled !== null) {
+      setSfxEnabled(savedSfxEnabled === "true")
     }
 
     const savedSensitivity = localStorage.getItem("game_sensitivity")
@@ -1742,6 +1802,33 @@ export default function App() {
           ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill()
         }
       }
+      // NEW: Dynamic Aurora Glow for Menu Background
+      else if (curBg === "dynamic_aurora") {
+        const time = currentTime * 0.00005; // Very slow movement
+        const colors = [
+            "rgba(59, 130, 246, 0.08)", // blue
+            "rgba(168, 85, 247, 0.08)", // purple
+            "rgba(251, 191, 36, 0.08)", // yellow
+            "rgba(239, 68, 68, 0.08)"   // red
+        ];
+
+        for (let i = 0; i < 4; i++) {
+            const x = canvas.width / 2 + Math.sin(time * (i + 1) * 0.7) * (canvas.width * 0.3) + Math.cos(time * (i + 1) * 0.3) * (canvas.width * 0.2);
+            const y = canvas.height / 2 + Math.cos(time * (i + 1) * 0.5) * (canvas.height * 0.3) + Math.sin(time * (i + 1) * 0.2) * (canvas.height * 0.2);
+            const radius = canvas.width * (0.4 + 0.1 * Math.sin(time * (i + 1) * 0.9));
+
+            ctx.save();
+            ctx.filter = 'blur(30px)'; // Apply blur for glow effect
+            const grad = ctx.createRadialGradient(x, y, radius * 0.1, x, y, radius);
+            grad.addColorStop(0, colors[i]);
+            grad.addColorStop(1, "rgba(0,0,0,0)");
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+      }
 
       const isReverse = gameData.current.isReverse
       const gravityDirection = isReverse ? -1 : 1
@@ -1794,21 +1881,25 @@ export default function App() {
         default: paddleColor = "#3b82f6"; break
       }
 
-      const createShockwave = (x: number, y: number, color: string) => {
+      const createShockwave = (x: number, y: number, color: string, width?: number, height?: number, borderRadius?: number) => {
         if (!gameData.current.shockwavesEnabled) return
-        shockwaves.current.push({ x, y, w: gameData.current.playerWidth, h: 15, radius: 0, alpha: 0.6, color })
+        shockwaves.current.push({ x, y, w: width || gameData.current.playerWidth, h: height || 15, radius: 0, alpha: 0.6, color, borderRadius: borderRadius || 8 })
         
         // Nếu đang có combo, tạo thêm một vòng sóng thứ 2 lệch pha
-        if (gameData.current.combo > 0) {
-          shockwaves.current.push({ x, y, w: gameData.current.playerWidth, h: 15, radius: -15, alpha: 0.35, color })
+        if (gameData.current.combo > 0 && !width) { // Chỉ tạo vòng thứ 2 cho shockwave paddle
+          shockwaves.current.push({ x, y, w: gameData.current.playerWidth, h: 15, radius: -15, alpha: 0.35, color, borderRadius: borderRadius || 8 })
         }
       }
 
       // Helper for Bomb Hit
       const handleBombHit = (bx: number, by: number) => {
+        // Check for immunity first
+        if (gameData.current.bombImmunityTimeLeft > 0) return;
+
         // --- FIX: Shield Interaction ---
         if (gameData.current.hasShield) {
           gameData.current.hasShield = false
+          createShockwave(0, isReverse ? 0 : canvas.height - 12, "#94a3b8", canvas.width, 12, 8) // Sóng xung kích khi khiên vỡ
           playSound("shield_breaking")
           createParticles(bx, by, "#94a3b8", "shard", true)
           gameData.current.combo = 0
@@ -1858,6 +1949,9 @@ export default function App() {
           setTimeout(() => setIsFlashWhite(false), 150)
 
           createParticles(bx, by, "#f97316", "explode", true)
+
+          // Grant 2 seconds of immunity in Normal Mode after being hit
+          gameData.current.bombImmunityTimeLeft = 120; // 120 logic units = 2 seconds at 60fps
 
           if (gameData.current.lives <= 0) {
             // OSU death music transition
@@ -1922,6 +2016,12 @@ export default function App() {
 
       if (canvas.getAttribute("data-state") === "running" && !gameData.current.isDying) {
         const smoothFactor = 0.1
+
+        // Handle bomb immunity countdown
+        if (gameData.current.bombImmunityTimeLeft > 0) {
+          gameData.current.bombImmunityTimeLeft -= deltaTime;
+        }
+
         gameData.current.timeScale +=
           (gameData.current.targetTimeScale - gameData.current.timeScale) * smoothFactor * deltaTime
         const prevBallY = b.y;
@@ -2043,6 +2143,7 @@ export default function App() {
               gameData.current.snowTimeLeft = 10
               gameData.current.isSnowSlowed = true
               setSnowLeft(10)
+              setSnowContactPoint({ x: (b.x / 500) * 100, y: (b.y / 700) * 100 })
               setSnowActive(true)
               playSound("snow")
               createParticles(b.x, b.y, "#ffffff", "explode", true)
@@ -2169,6 +2270,7 @@ export default function App() {
           } else if (gameData.current.gameMode === "sudden_death") {
             // --- SUDDEN DEATH LOGIC ---
             // Miss ANY ball (except bomb) = Instant Death
+            // FIX: Shield Interaction
             if (isSuddenDeathMiss(b.type)) {
               gameData.current.lives = 0
               setLives(0)
@@ -2195,6 +2297,7 @@ export default function App() {
           } else if (["normal", "purple", "yellow"].includes(b.type)) {
             if (gameData.current.hasShield) {
               gameData.current.hasShield = false
+              createShockwave(0, isReverse ? 0 : canvas.height - 12, "#94a3b8", canvas.width, 12, 8) // Sóng xung kích khi khiên vỡ
               playSound("shield_breaking")
               createParticles(b.x, isReverse ? 6 : canvas.height - 6, "#94a3b8", "shard", true)
               gameData.current.combo = 0
@@ -2269,14 +2372,14 @@ export default function App() {
         const rh = sw.h + sw.radius * 2
         const rr = 8 + sw.radius
 
-        // Chỉ vẽ khi kích thước và bán kính góc không âm
+        // Chỉ vẽ khi kích thước và bán kính góc không âm, sử dụng borderRadius từ shockwave object
         if (rw > 0 && rh > 0 && rr >= 0) {
           ctx.save()
           ctx.globalAlpha = sw.alpha
           ctx.strokeStyle = sw.color
           ctx.lineWidth = 2
           ctx.beginPath()
-          ctx.roundRect(sw.x - sw.radius, sw.y - sw.radius, rw, rh, rr)
+          ctx.roundRect(sw.x - sw.radius, sw.y - sw.radius, rw, rh, sw.borderRadius || rr)
           ctx.stroke()
           ctx.restore()
         }
@@ -2320,9 +2423,19 @@ export default function App() {
         }
       }
 
+      // Immunity Visual Effect (Golden border and flashing shadow)
+      const isImmune = gameData.current.bombImmunityTimeLeft > 0;
+
       if (!gameData.current.isInvisible) {
       ctx.save()
-      if (shadowBlur > 0) {
+      
+      if (isImmune) {
+        const flash = Math.floor(currentTime / 100) % 2 === 0;
+        ctx.shadowColor = "#facc15";
+        ctx.shadowBlur = flash ? 25 : 8;
+        ctx.strokeStyle = "#facc15";
+        ctx.lineWidth = 3;
+      } else if (shadowBlur > 0) {
         ctx.shadowColor = shadowColor
         ctx.shadowBlur = shadowBlur
       }
@@ -2342,6 +2455,11 @@ export default function App() {
       ctx.beginPath()
       ctx.roundRect(gameData.current.playerX, visualPaddleY, gameData.current.playerWidth, 15, 8)
       ctx.fill()
+
+      if (isImmune) {
+        ctx.stroke();
+      }
+
       ctx.restore()
       }
 
@@ -2617,6 +2735,37 @@ export default function App() {
             style={{ aspectRatio: "500/700" }}
           />
 
+          {/* Snow Overlay - Đã chuyển vào trong boundary để căn chỉnh tọa độ chính xác */}
+          <AnimatePresence>
+            {snowActive && (
+              <motion.div
+                initial={{ 
+                  clipPath: `circle(0% at ${snowContactPoint.x}% ${snowContactPoint.y}%)`,
+                  opacity: 0 
+                }}
+                animate={{ 
+                  clipPath: `circle(150% at ${snowContactPoint.x}% ${snowContactPoint.y}%)`,
+                  opacity: 1 
+                }}
+                exit={{ opacity: 0 }}
+                transition={animationLevel !== 'none' ? { duration: 0.8, ease: "easeOut" } : { duration: 0 }}
+                className="absolute inset-0 z-[15] pointer-events-none overflow-hidden"
+              >
+                <motion.div
+                  initial={{ scale: 1 }}
+                  animate={animationLevel !== 'none' ? { scale: [1, 1.02, 1] } : { scale: 1 }}
+                  transition={animationLevel !== 'none' ? { duration: 3, repeat: Infinity } : { duration: 0 }}
+                  className="absolute inset-0"
+                  style={{
+                    backgroundColor: 'rgba(219, 234, 254, 0.2)',
+                    boxShadow: 'inset 0 0 120px rgba(255, 255, 255, 0.3)',
+                    backdropFilter: 'blur(1px)'
+                  }}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
         {(gameState === "running" || gameState === "paused") && (() => {
           const currentModeName = t[`diff${gameMode.charAt(0).toUpperCase() + gameMode.slice(1).replace(/_([a-z])/g, (m, c) => c.toUpperCase())}` as keyof typeof t] || gameMode;
           const activeEffects = [
@@ -2721,6 +2870,7 @@ export default function App() {
             setOpenSettingsFromPause={setOpenSettingsFromPause}
             resumeGame={resumeGame}
             handleExitRequest={handleExitRequest}
+            openSettings={openSettings} // Pass openSettings state
           />
         )}
 
@@ -3058,6 +3208,10 @@ export default function App() {
                     }}
                     bgMenuEnabled={bgMenuEnabled}
                     toggleBgMenu={toggleBgMenu}
+                    gameMusicEnabled={gameMusicEnabled}
+                    toggleGameMusic={toggleGameMusic}
+                    sfxEnabled={sfxEnabled}
+                    toggleSfx={toggleSfx}
                     menuMusicVolume={menuMusicVolume}
                     setMenuMusicVolume={changeMenuMusicVolume}
                     gameMusicVolume={gameMusicVolume}
@@ -3109,29 +3263,6 @@ export default function App() {
           </motion.div>
         )}
       </div>
-
-      <AnimatePresence>
-        {snowActive && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={animationLevel !== 'none' ? { duration: 0.5 } : { duration: 0 }}
-            className="absolute inset-0 z-[75] pointer-events-none"
-          >
-            <motion.div
-              initial={{ scale: 1 }}
-              animate={animationLevel !== 'none' ? { scale: [1, 1.02, 1] } : { scale: 1 }}
-              transition={animationLevel !== 'none' ? { duration: 3, repeat: Infinity } : { duration: 0 }}
-              className="absolute inset-0"
-              style={{
-                backgroundColor: 'rgba(219, 234, 254, 0.15)',
-                boxShadow: 'inset 0 0 100px rgba(255, 255, 255, 0.15)'
-              }}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <AnimatePresence>
         {openQuickPlay && (
@@ -3208,6 +3339,10 @@ export default function App() {
             }}
             bgMenuEnabled={bgMenuEnabled}
             toggleBgMenu={toggleBgMenu}
+            gameMusicEnabled={gameMusicEnabled}
+            toggleGameMusic={toggleGameMusic}
+            sfxEnabled={sfxEnabled}
+            toggleSfx={toggleSfx}
             menuMusicVolume={menuMusicVolume}
             setMenuMusicVolume={changeMenuMusicVolume}
             gameMusicVolume={gameMusicVolume}

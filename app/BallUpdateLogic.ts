@@ -18,6 +18,7 @@ export const updateBallLifecycle = (
     setGameState: (s: any) => void
     setSnowActive: (v: boolean) => void
     setSnowLeft: (v: number) => void
+    setSnowContactPoint: (p: { x: number, y: number }) => void
     playSound: (n: string, i?: number) => void
     stopSound: (n: string) => void
     createParticles: (x: number, y: number, color: string, type: string, intense: boolean) => void
@@ -95,6 +96,7 @@ export const updateBallLifecycle = (
           gameData.snowTimeLeft = 10
           gameData.isSnowSlowed = true
           callbacks.setSnowLeft(10)
+          callbacks.setSnowContactPoint({ x: (b.x / canvas.width) * 100, y: (b.y / canvas.height) * 100 })
           callbacks.setSnowActive(true)
           callbacks.playSound("snow")
           const currentScoreInt = Math.floor(gameData.score)
