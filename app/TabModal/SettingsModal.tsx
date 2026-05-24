@@ -58,6 +58,8 @@ interface SettingsModalProps {
   toggleRawInput: () => void
   maxFPS: number
   setMaxFPS: (e: React.ChangeEvent<HTMLInputElement>) => void
+  freezeEffect?: "spread" | "simple" | "none"
+  setFreezeEffect?: (effect: "spread" | "simple" | "none") => void
   clearCache?: () => Promise<void>
   gameState?: "start" | "countdown" | "running" | "paused" | "over" | "dev_paused"
   openSettingsFromPause?: boolean
@@ -76,7 +78,7 @@ interface LanguageOption {
 
 const LANGUAGES_LIST: LanguageOption[] = [
   { code: "vi", flag: "🇻🇳", label: "Tiếng Việt" },
-  { code: "en", flag: "EN", label: "English" },
+  { code: "en", flag: "UK", label: "English" },
   { code: "es", flag: "🇪🇸", label: "Español" },
   { code: "ru", flag: "🇷🇺", label: "Русский" },
   { code: "zh", flag: "🇨🇳", label: "简体中文" },
@@ -127,6 +129,8 @@ export default function SettingsModal({
   toggleRawInput,
   maxFPS,
   setMaxFPS,
+  freezeEffect = "spread",
+  setFreezeEffect = () => {},
   clearCache,
   gameState = "start",
   openSettingsFromPause = false,
@@ -261,6 +265,40 @@ export default function SettingsModal({
               >
                 <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${shockwavesEnabled ? "left-[28px]" : "left-1"}`} />
               </button>
+            </div>
+
+            {/* Freeze Effect Type */}
+            <div className="flex justify-between items-center bg-slate-900/60 p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
+              <div>
+                <span className="text-xs font-bold text-slate-200 uppercase tracking-wide block">{t.freezeEffect || "Hiệu ứng đóng băng"}</span>
+                <span className="text-[10px] text-slate-500">{t.freezeEffectInfo || "Chọn kiểu xuất hiện của lớp phủ đóng băng"}</span>
+              </div>
+              <div className="flex p-1 bg-slate-800 rounded-xl border border-white/5">
+                <button
+                  onClick={() => { playClick(); setFreezeEffect("spread"); }}
+                  className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                    freezeEffect === "spread" ? "bg-blue-600 text-white shadow-lg" : "text-slate-500 hover:text-slate-300"
+                  }`}
+                >
+                  {t.effectSpread || "Lan tỏa"}
+                </button>
+                <button
+                  onClick={() => { playClick(); setFreezeEffect("simple"); }}
+                  className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                    freezeEffect === "simple" ? "bg-blue-600 text-white shadow-lg" : "text-slate-500 hover:text-slate-300"
+                  }`}
+                >
+                  {t.effectSimple || "Đơn giản"}
+                </button>
+                <button
+                  onClick={() => { playClick(); setFreezeEffect("none"); }}
+                  className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                    freezeEffect === "none" ? "bg-red-600 text-white shadow-lg" : "text-slate-500 hover:text-slate-300"
+                  }`}
+                >
+                  {t.effectNone || "Không dùng"}
+                </button>
+              </div>
             </div>
 
             {/* Camera Shake Toggle */}

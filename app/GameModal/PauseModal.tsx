@@ -4,7 +4,7 @@ import { Settings, Play, Home, AlertCircle, Zap } from "lucide-react"
 
 interface PauseModalProps {
   t: any
-  animationsEnabled: boolean
+  animationLevel: "full" | "min" | "none"
   isMobile: boolean
   score: number
   confirmExit: boolean
@@ -21,7 +21,7 @@ interface PauseModalProps {
 
 export default function PauseModal({
   t,
-  animationsEnabled,
+  animationLevel,
   isMobile,
   score,
   confirmExit,
@@ -40,14 +40,26 @@ export default function PauseModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={animationsEnabled ? { duration: 0.2 } : { duration: 0 }} // Add explicit transition for PauseModal's opacity
+      transition={
+        animationLevel === "none" ? { duration: 0 } :
+        { duration: 0.2 }
+      }
       className={`absolute inset-0 z-[70] bg-slate-950/90 flex flex-col items-center justify-center p-8 text-center transition-all duration-200 ease-out ${
         openSettings ? "backdrop-blur-sm" : "backdrop-blur-xl" // Reduce blur when settings is open, then transition back
       }`}
     >
       <motion.div
-        initial={{ scale: 0.9 }}
-        animate={{ scale: 1 }}
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ 
+          scale: openSettings ? 0.95 : 1, 
+          opacity: openSettings ? 0 : 1 
+        }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        transition={
+          animationLevel === "full" ? { type: "spring", stiffness: 400, damping: 30 } :
+          animationLevel === "min" ? { duration: 0.2 } :
+          { duration: 0 }
+        }
         className="flex flex-col items-center w-full max-w-[280px] h-full overflow-y-auto"
       >
         <div className="relative w-full mb-8">

@@ -181,6 +181,7 @@ export default function App() {
   const [animationLevel, setAnimationLevel] = useState<"full" | "min" | "none">("full")
   const [openSettings, setOpenSettings] = useState(false)
   const [openSettingsFromPause, setOpenSettingsFromPause] = useState(false)
+  const [freezeEffect, setFreezeEffect] = useState<"spread" | "simple" | "none">("spread")
   const [openStats, setOpenStats] = useState(false)
   const [confirmExit, setConfirmExit] = useState(false)
   const [isFlashRed, setIsFlashRed] = useState(false)
@@ -1496,6 +1497,12 @@ export default function App() {
     if (savedAnimLevel === "full" || savedAnimLevel === "min" || savedAnimLevel === "none") {
       setAnimationLevel(savedAnimLevel);
     }
+    
+    const savedFreezeEffect = localStorage.getItem("game_freeze_effect")
+    if (savedFreezeEffect === "spread" || savedFreezeEffect === "simple") {
+      setFreezeEffect(savedFreezeEffect)
+    }
+
     setTrailsEnabled(savedTrails)
 
     const savedLang = localStorage.getItem("game_language")
@@ -2799,15 +2806,19 @@ export default function App() {
 
           {/* Snow Overlay - Đã chuyển vào trong boundary để căn chỉnh tọa độ chính xác */}
           <AnimatePresence>
-            {snowActive && (
+            {snowActive && freezeEffect !== "none" && (
               <motion.div
-                initial={{ 
+                initial={freezeEffect === "spread" ? { 
                   clipPath: `circle(0% at ${snowContactPoint.x}% ${snowContactPoint.y}%)`,
                   opacity: 0 
+                } : {
+                  opacity: 0
                 }}
-                animate={{ 
+                animate={freezeEffect === "spread" ? { 
                   clipPath: `circle(150% at ${snowContactPoint.x}% ${snowContactPoint.y}%)`,
                   opacity: 1 
+                } : {
+                  opacity: 1
                 }}
                 exit={{ opacity: 0 }}
                 transition={animationLevel !== 'none' ? { duration: 0.8, ease: "easeOut" } : { duration: 0 }}
@@ -2917,10 +2928,11 @@ export default function App() {
         {/* END GAME AREA BOUNDARY */}
 
         {/* MÀN HÌNH TẠM DỪNG CẢI TIẾN */}
-        {gameState === "paused" && (
+        <AnimatePresence>
+          {gameState === "paused" && (
           <PauseModal
             t={t}
-            animationsEnabled={animationLevel !== 'none'}
+              animationLevel={animationLevel}
             isMobile={isMobile}
             score={score}
             confirmExit={confirmExit}
@@ -2934,7 +2946,8 @@ export default function App() {
             handleExitRequest={handleExitRequest}
             openSettings={openSettings} // Pass openSettings state
           />
-        )}
+          )}
+        </AnimatePresence>
 
         { /* Intro Modal overlay */}
         <AnimatePresence>
@@ -3268,6 +3281,12 @@ export default function App() {
                       setDirection(-1)
                       setActiveTab("home")
                     }}
+                    freezeEffect={freezeEffect as any}
+                    setFreezeEffect={(effect: any) => {
+                      playClick();
+                      setFreezeEffect(effect);
+                      localStorage.setItem("game_freeze_effect", effect);
+                    }}
                     bgMenuEnabled={bgMenuEnabled}
                     toggleBgMenu={toggleBgMenu}
                     gameMusicEnabled={gameMusicEnabled}
@@ -3400,6 +3419,12 @@ export default function App() {
             onClose={() => {
               setOpenSettings(false)
               setOpenSettingsFromPause(false)
+            }}
+            freezeEffect={freezeEffect as any}
+            setFreezeEffect={(effect: any) => {
+              playClick();
+              setFreezeEffect(effect);
+              localStorage.setItem("game_freeze_effect", effect);
             }}
             bgMenuEnabled={bgMenuEnabled}
             toggleBgMenu={toggleBgMenu}
