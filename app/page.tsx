@@ -1171,6 +1171,8 @@ export default function App() {
     setOpenCustom(false)
     setCountdown(3)
     setGameState("countdown")
+
+    // Khởi tạo sơ bộ để HUD hiển thị đúng thông tin trong khi đếm ngược
     gameData.current = {
       ...gameData.current,
       gameMode: customConfig.difficulty,
@@ -1178,62 +1180,76 @@ export default function App() {
       isAuto: customConfig.isAuto,
       isCustom: true,
       customBallConfig: customConfig.balls,
-      allowedBalls: Object.keys(customConfig.balls).filter(
-        k => customConfig.balls[k as keyof typeof customConfig.balls].enabled
-      ),
-      isHidden: customConfig.isHidden,
-      isBlank: customConfig.isBlank,
-      isReverse: customConfig.isReverse,
-      isReverseControl: customConfig.isReverseControl,
-      isMirror: customConfig.isMirror,
-      isInvisible: customConfig.isInvisible,
       combo: 0,
-      playerX: 210,
-      targetPlayerX: 210,
-      playerWidth: 80,
-      targetWidth: 80,
       score: 0,
-      lives: 5,
-      isBoosted: false,
-      boostTimeLeft: 0,
-      snowTimeLeft: 0,
-      isSnowSlowed: false,
-      isDying: false,
-      deathX: 0,
-      deathY: 0,
-      hasPlayedNewBest: false,
-      hasShield: false,
-      bombImmunityTimeLeft: 0,
+      lives: customConfig.difficulty === "hardcode" || customConfig.difficulty === "sudden_death" ? 1 : 5,
     }
 
-    setIsHidden(customConfig.isHidden)
-    setIsBlank(customConfig.isBlank)
-    setIsReverse(customConfig.isReverse)
-    setIsReverseControl(customConfig.isReverseControl)
-    setIsMirror(customConfig.isMirror)
-    setIsInvisible(customConfig.isInvisible)
-    setScore(0)
-    setLives(lives)
-    setComboCount(0)
-    setGameState("running")
-    shockwaves.current = []
-    setShowNewBest(false)
-    particles.current = []
-    trails.current = []
-    resetBall()
+    runCountdown(customConfig.isAuto, () => {
+      // Khởi tạo toàn bộ dữ liệu khi bắt đầu chạy logic game
+      gameData.current = {
+        ...gameData.current,
+        gameMode: customConfig.difficulty,
+        baseGameSpeed: baseGameSpeed / 100,
+        isAuto: customConfig.isAuto,
+        isCustom: true,
+        customBallConfig: customConfig.balls,
+        allowedBalls: Object.keys(customConfig.balls).filter(
+          (k) => customConfig.balls[k as keyof typeof customConfig.balls].enabled,
+        ),
+        isHidden: customConfig.isHidden,
+        isBlank: customConfig.isBlank,
+        isReverse: customConfig.isReverse,
+        isReverseControl: customConfig.isReverseControl,
+        isMirror: customConfig.isMirror,
+        isInvisible: customConfig.isInvisible,
+        combo: 0,
+        playerX: 210,
+        targetPlayerX: 210,
+        playerWidth: 80,
+        targetWidth: 80,
+        score: 0,
+        lives: customConfig.difficulty === "hardcode" || customConfig.difficulty === "sudden_death" ? 1 : 5,
+        isBoosted: false,
+        boostTimeLeft: 0,
+        snowTimeLeft: 0,
+        isSnowSlowed: false,
+        isDying: false,
+        deathX: 0,
+        deathY: 0,
+        hasPlayedNewBest: false,
+        hasShield: false,
+        bombImmunityTimeLeft: 0,
+        ball: { x: 250, y: -50, radius: 10, speed: 3.5, dx: 2, type: "normal", sinTime: 0 },
+        bombs: [],
+      }
 
-    // Start Game Music (Fade In)
-    const bgm = audioRefs.current?.bg_game_custom
-    currentBgmRef.current = bgm
-    if (bgm) bgm.volume = 0
-    
-    // Register BGM for playback rate management
-    if (bgm) {
-      audioRateManager.registerAudioElement("bgm", bgm)
-      audioRateManager.reset() // Reset to 1.0x at game start
-    }
-    
-    fadeAudio(bgm, gameMusicVolume, 2000)
+      setIsHidden(customConfig.isHidden)
+      setIsBlank(customConfig.isBlank)
+      setIsReverse(customConfig.isReverse)
+      setIsReverseControl(customConfig.isReverseControl)
+      setIsMirror(customConfig.isMirror)
+      setIsInvisible(customConfig.isInvisible)
+      setScore(0)
+      setLives(customConfig.difficulty === "hardcode" || customConfig.difficulty === "sudden_death" ? 1 : 5)
+      setComboCount(0)
+      setGameState("running")
+      shockwaves.current = []
+      setShowNewBest(false)
+      particles.current = []
+      trails.current = []
+      resetBall()
+
+      // Bắt đầu nhạc game
+      const bgm = audioRefs.current?.bg_game_custom
+      currentBgmRef.current = bgm
+      if (bgm) {
+        bgm.volume = 0
+        audioRateManager.registerAudioElement("bgm", bgm)
+        audioRateManager.reset() // Reset tốc độ nhạc về 1.0x
+        fadeAudio(bgm, gameMusicVolume, 2000)
+      }
+    })
   }
 
   const startAutoGame = () => {
