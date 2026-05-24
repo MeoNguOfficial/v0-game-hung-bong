@@ -1045,6 +1045,7 @@ export default function App() {
     setGameState("countdown")
     gameData.current = {
       ...gameData.current,
+      baseGameSpeed: baseGameSpeed / 100,
       gameMode: mode,
       isAuto: isAutoMode,
       combo: 0,
@@ -1077,6 +1078,7 @@ export default function App() {
     runCountdown(isAutoMode, () => {
       gameData.current = {
         ...gameData.current,
+        baseGameSpeed: baseGameSpeed / 100,
         score: 0,
         lives: (mode === "hardcode" || mode === "sudden_death") ? 1 : 5, // 1 life for Hardcode & Sudden Death
         combo: 0,
@@ -1172,6 +1174,7 @@ export default function App() {
     gameData.current = {
       ...gameData.current,
       gameMode: customConfig.difficulty,
+      baseGameSpeed: baseGameSpeed / 100,
       isAuto: customConfig.isAuto,
       isCustom: true,
       customBallConfig: customConfig.balls,
@@ -1241,6 +1244,7 @@ export default function App() {
     setNewBestRank(null)
     gameData.current = {
       ...gameData.current,
+      baseGameSpeed: baseGameSpeed / 100,
       score: 0,
       lives: (gameMode === "hardcode" || gameMode === "sudden_death") ? 1 : 5,
       combo: 0,
