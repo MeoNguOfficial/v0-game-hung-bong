@@ -29,6 +29,7 @@ import {
   EyeOff,
   Square,
   ArrowUpCircle,
+  Zap,
 } from "lucide-react"
 import { TRANSLATIONS } from "./translations"
 import { PixiParticleSystem } from "../lib/pixiParticleSystem"
@@ -2512,7 +2513,7 @@ export default function App() {
   }
 
   return (
-    <div className="fixed inset-0 bg-[#020617] flex flex-col items-center justify-center overflow-hidden touch-none font-sans select-none md:p-4">
+    <div className="fixed inset-0 bg-[#020617] flex flex-col items-center justify-center overflow-hidden touch-none font-sans select-none">
       {animationLevel === 'none' && (
         <style>{`
           .transition-all, .transition-colors, .transition-transform, .transition-opacity, .animate-pulse, .animate-spin {
@@ -2603,149 +2604,106 @@ export default function App() {
       </AnimatePresence>
 
       {/* --- NEW HUD (Heads-Up Display) --- */}
-      <div
-        className={`relative w-full md:max-w-[500px] md:max-h-[90vh] h-[calc(100vh-80px)] md:h-auto md:aspect-[5/7] rounded-none md:rounded-[1.5rem] overflow-auto md:overflow-hidden shadow-2xl border-0 md:border-[5px] transition-all duration-300 ${isFlashRed ? "md:border-red-600" : "md:border-slate-800"} bg-slate-900 flex items-center justify-center`}
-      >
-        <canvas
-          ref={canvasRef}
-          data-state={gameState}
-          width="500"
-          height="700"
-          className="block cursor-none max-w-full max-h-full w-auto h-auto"
-          style={{
-            aspectRatio: "500/700",
-          }}
-        />
+      <div className={`relative w-full h-full transition-all duration-300 ${isFlashRed ? "bg-red-950/10" : "bg-slate-900"} flex items-center justify-center`}>
+        
+        {/* GAME AREA BOUNDARY (Logic 500x700) */}
+        <div className="relative w-full max-w-[500px] h-full flex flex-col items-center justify-center border-x border-white/5 bg-slate-900/40 shadow-[0_0_100px_rgba(0,0,0,0.5)] z-10">
+          <canvas
+            ref={canvasRef}
+            data-state={gameState}
+            width="500"
+            height="700"
+            className="block cursor-none max-w-full max-h-full w-auto h-auto"
+            style={{ aspectRatio: "500/700" }}
+          />
 
-        {(gameState === "running" || gameState === "paused") && (
-          <div className={`absolute left-0 right-0 z-20 flex items-center justify-between px-4 py-3 backdrop-blur-sm ${isReverse
-            ? "bottom-0 bg-gradient-to-t from-black/60 to-transparent"
-            : "top-0 bg-gradient-to-b from-black/60 to-transparent"
-            }`}>
-            <div className="flex items-center gap-6">
-              {/* Score */}
-              <div className="flex flex-col">
-                <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t.score}</span>
-                <span className="text-xl font-black text-yellow-400 italic tabular-nums leading-none">{score}</span>
-                {(showFPS || debugHitboxPlay) && (
-                  <div className="flex flex-col mt-0.5">
-                    {(showFPS || debugHitboxPlay) && (
-                      <span className="text-[9px] font-bold text-emerald-500 leading-none">FPS: {fpsDisplay}</span>
-                    )}
-                    {debugHitboxPlay && (
-                      <>
-                        <span className="text-[9px] font-bold text-yellow-500 leading-none mt-0.5">LOGIC: {logicDisplay.toFixed(2)}ms</span>
-                        <span className="text-[9px] font-bold text-cyan-400 leading-none mt-0.5 uppercase">Speed: {gameSpeedDisplay.toFixed(2)}x</span>
-                        <span className="text-[9px] font-bold text-purple-400 leading-none mt-0.5 uppercase">Music: {musicSpeedDisplay.toFixed(2)}x</span>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
+        {(gameState === "running" || gameState === "paused") && (() => {
+          const currentModeName = t[`diff${gameMode.charAt(0).toUpperCase() + gameMode.slice(1).replace(/_([a-z])/g, (m, c) => c.toUpperCase())}` as keyof typeof t] || gameMode;
+          const activeEffects = [
+            isHidden && t.miscHidden,
+            isBlank && t.miscBlank,
+            isReverse && t.miscReverse,
+            isAuto && t.auto,
+            snowActive && `${t.freeze}: ${snowLeft}s`,
+            gameData.current.isBoosted && t.ballBooster
+          ].filter(Boolean).join(" • ");
 
-              {/* Best Score */}
-              {!isAuto && !gameData.current.isCustom && !isReverseControl && !isMirror && !isInvisible && (
-                <div className="flex flex-col items-end">
-                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-wider">{t.best}</span>
-                  {(() => {
-                    const entries = Object.entries(bestScores)
-                    const filtered = entries.filter(([k]) => {
-                      if (!k.startsWith("best_score_")) return false
-                      const s = k.replace(/^best_score_/, "")
-                      let diff = ""
-                      let type = ""
-                      if (s.startsWith("sudden_death_")) {
-                        diff = "sudden_death"
-                        type = s.replace("sudden_death_", "").split("_")[0]
-                      } else {
-                        const parts = s.split("_")
-                        diff = parts[0]
-                        type = parts[1]
-                      }
-                      return diff === gameMode && type !== "classic"
-                    })
-                    
-                    const top5 = filtered.sort((a, b) => b[1] - a[1]).slice(0, 5)
-                    
-                    if (top5.length === 0) return <span className="text-xl font-black text-slate-400 italic tabular-nums leading-none">0</span>
-
-                    const current = top5[bestScoreIndex % top5.length]
-                    const [key, value] = current
-                    const rank = (bestScoreIndex % top5.length) + 1
-                    
-                    return (
-                      <div className="flex flex-col items-end">
-                        <span className="text-xl font-black text-slate-400 italic tabular-nums leading-none">#{rank}: {value}</span>
-                      </div>
-                    )
-                  })()}
+          return (
+            <div className={`absolute left-4 right-4 z-20 flex flex-col gap-2 ${isReverse ? "bottom-6" : "top-6"}`}>
+              {/* TOP HUD BAR (Based on update.png) */}
+              <div className="bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 flex items-stretch gap-1.5 shadow-2xl">
+                {/* SECTION: SCORE */}
+                <div className="flex-1 bg-slate-800/40 rounded-xl border border-white/5 p-2 flex flex-col items-center justify-center">
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-tight">{t.score}</span>
+                  <span className="text-xl font-black text-yellow-400 italic tabular-nums leading-none drop-shadow-[0_0_8px_rgba(250,204,21,0.3)]">{score}</span>
                 </div>
-              )}
-            </div>
 
-            {/* Lives */}
-            <div className="flex flex-col items-center gap-1">
-              <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t.lives}</span>
-              {(gameMode === "hardcode" || gameMode === "sudden_death") ? (
-                <div className="flex items-center justify-center h-2.5">
-                  <Heart size={16} className="text-red-500 fill-red-500 drop-shadow-[0_0_6px_rgba(239,68,68,0.8)]" />
-                </div>
-              ) : (
-                <div className="flex gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <div
-                      key={i}
-                      className={`w-2.5 h-2.5 rounded-full border border-white/10 transition-colors ${i < lives ? "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.6)]" : "bg-slate-700/50"}`}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Controls Section (Snow, Pause, Bot) */}
-            <div className="flex items-center gap-3">
-              {snowActive && (
-                <div className="flex flex-col items-center gap-1">
-                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{t.freeze}</span>
-                  <div className="text-xs font-black text-white bg-white/5 px-2 py-1 rounded-full flex items-center gap-2 tabular-nums">
-                    <span className="text-[12px]">❄️</span>
-                    <span>{snowLeft}s</span>
+                {/* SECTION: LIVES & MODE */}
+                <div className="flex-[1.8] bg-slate-800/40 rounded-xl border border-white/5 p-2 flex flex-col items-center justify-center gap-1">
+                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-tight">{t.life}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-black text-white/40 uppercase tracking-tighter italic">{currentModeName}</span>
+                    <div className="flex gap-1">
+                      {(gameMode === "hardcode" || gameMode === "sudden_death") ? (
+                        <Heart size={14} className="text-red-500 fill-red-500 animate-pulse" />
+                      ) : (
+                        [...Array(5)].map((_, i) => (
+                          <div key={i} className={`w-2 h-2 rounded-full border border-white/10 transition-colors ${i < lives ? "bg-red-500 shadow-[0_0_5px_rgba(239,68,68,0.5)]" : "bg-slate-700/50"}`} />
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
-              )}
 
-              <div className="flex flex-col items-end gap-2">
+                {/* SECTION: PAUSE ICON */}
                 <button
-                  onClick={() => {
-                    playClick()
-                    pauseGame()
-                  }}
-                  className="p-2.5 bg-white/10 hover:bg-white/20 rounded-xl backdrop-blur-md border border-white/20 transition-all active:scale-90"
+                  onClick={() => { playClick(); pauseGame(); }}
+                  className="w-14 bg-slate-800/60 hover:bg-slate-700/80 rounded-xl border border-white/10 flex items-center justify-center transition-all active:scale-90 group"
                 >
-                  <Pause size={16} className="text-white fill-white" />
+                  <Pause size={18} className="text-white/80 group-hover:text-white transition-colors fill-white/20 group-hover:fill-white/40" />
                 </button>
-
-                <AnimatePresence>
-                  {isAuto && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.5, x: 10 }}
-                      animate={{ opacity: 1, scale: 1, x: 0 }}
-                      exit={{ opacity: 0, scale: 0.5, x: 10 }}
-                      className="flex items-center bg-green-500/20 border border-green-500/50 p-2.5 rounded-xl backdrop-blur-md cursor-help group transition-all duration-300"
-                    >
-                      <Cpu size={16} className="text-green-500 animate-spin" />
-                      <div className="w-0 overflow-hidden group-hover:w-20 group-active:w-20 transition-all duration-300 ease-out">
-                        <span className="pl-2 text-[10px] text-green-400 font-black uppercase tracking-widest whitespace-nowrap">
-                          {t.auto}
-                        </span>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
+
+              {/* BOTTOM HUD BAR (Effects & Mode) */}
+              <div className="bg-blue-600/15 backdrop-blur-md border border-blue-500/30 rounded-xl px-4 py-1.5 flex items-center justify-center shadow-lg">
+                <span className="text-[10px] font-black text-blue-200 uppercase tracking-widest italic flex items-center gap-2">
+                  <Zap size={10} className="fill-blue-400 text-blue-400" />
+                  {activeEffects || "SYSTEM OPERATIONAL"}
+                  <Zap size={10} className="fill-blue-400 text-blue-400" />
+                </span>
+              </div>
+
+              {/* PERFORMANCE OVERLAY (Small & Floating) */}
+              {(showFPS || debugHitboxPlay) && (
+                <div className="absolute top-full mt-2 left-0 flex flex-col gap-0.5 bg-black/40 backdrop-blur-sm p-2 rounded-lg border border-white/5">
+                  <span className="text-[9px] font-bold text-emerald-500 leading-none">FPS: {fpsDisplay}</span>
+                  {debugHitboxPlay && (
+                    <>
+                      <span className="text-[9px] font-bold text-yellow-500 leading-none uppercase">Logic: {logicDisplay.toFixed(2)}ms</span>
+                      <span className="text-[9px] font-bold text-cyan-400 leading-none uppercase">G-Speed: {gameSpeedDisplay.toFixed(2)}x</span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
+
+          {gameState === "countdown" && (
+            <motion.div
+              initial={{ scale: 2, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              transition={animationLevel !== 'none' ? undefined : { duration: 0 }}
+              className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/20 backdrop-blur-sm"
+            >
+              <span className="text-white font-black text-9xl italic drop-shadow-[0_0_40px_rgba(255,255,255,0.4)]">
+                {countdown}
+              </span>
+            </motion.div>
+          )}
+        </div>
+        {/* END GAME AREA BOUNDARY */}
 
         {/* MÀN HÌNH TẠM DỪNG CẢI TIẾN */}
         {gameState === "paused" && (
@@ -2764,20 +2722,6 @@ export default function App() {
             resumeGame={resumeGame}
             handleExitRequest={handleExitRequest}
           />
-        )}
-
-        {gameState === "countdown" && (
-          <motion.div
-            initial={{ scale: 2, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            transition={animationLevel !== 'none' ? undefined : { duration: 0 }}
-            className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/20 backdrop-blur-sm"
-          >
-            <span className="text-white font-black text-9xl italic drop-shadow-[0_0_40px_rgba(255,255,255,0.4)]">
-              {countdown}
-            </span>
-          </motion.div>
         )}
 
         { /* Intro Modal overlay */}
@@ -2905,6 +2849,8 @@ export default function App() {
                 <GameOverModal
                   t={t}
                   score={score}
+                  gameMode={gameData.current.gameMode}
+                  isAuto={gameData.current.isAuto}
                   direction={direction}
                   tabVariants={tabVariants}
                   menuItemVariants={menuItemVariants}
@@ -2914,6 +2860,26 @@ export default function App() {
                   newBestRank={newBestRank}
                   playSound={playSound}
                   stopSound={stopSound}
+                  onRestart={() => {
+                    playClick();
+                    if (gameData.current.isCustom) {
+                      startCustomGame();
+                    } else {
+                      startCountdown(gameMode, isAuto);
+                    }
+                  }}
+                  onChangeMode={() => {
+                    playClick();
+                    const wasCustom = gameData.current.isCustom;
+                    setGameState("start");
+                    setActiveTab("home");
+                    setDirection(-1);
+                    setSnowActive(false);
+                    setSnowLeft(0);
+                    // Tự động mở lại Modal chọn mode tương ứng
+                    if (wasCustom) setOpenCustom(true);
+                    else setOpenQuickPlay(true);
+                  }}
                   onHome={() => {
                     setGameState("start")
                     setActiveTab("home")
@@ -2979,7 +2945,7 @@ export default function App() {
                     </div>
 
                     {skinTab === "skins" ? (
-                      <div className="grid grid-cols-2 gap-4 pb-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-4">
                         {[
                           { id: "default", name: "Default", class: "bg-blue-500" },
                           { id: "emerald", name: "Emerald", class: "bg-emerald-500" },
@@ -3025,7 +2991,7 @@ export default function App() {
                           <p className="text-[10px] text-blue-200 leading-relaxed italic">{t.perfWarning}</p>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           {[
                             { id: "default", name: t.bgSolid || "Solid Void", type: t.static, icon: "⬛" },
                             { id: "grid", name: t.bgGrid || "Blueprint", type: t.static, icon: "🌐" },

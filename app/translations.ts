@@ -176,6 +176,8 @@ export const TRANSLATIONS = {
     bgRain: "Digital Rain",
     bgBubbles: "Aura Rising",
     bgFireflies: "Night Glow",
+    restart: "RESTART",
+    changeMode: "CHANGE MODE",
   },
   vi: {
     play: "CHƠI",
@@ -354,6 +356,8 @@ export const TRANSLATIONS = {
     bgRain: "Mưa số",
     bgBubbles: "Bọt khí",
     bgFireflies: "Đom đóm",
+    restart: "CHƠI LẠI",
+    changeMode: "ĐỔI CHẾ ĐỘ",
   },
   es: {
     play: "JUGAR",

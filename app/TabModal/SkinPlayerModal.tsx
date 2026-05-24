@@ -58,7 +58,7 @@ export default function SkinPlayerModal({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto grid grid-cols-2 gap-4 content-start p-8 pt-4 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto grid grid-cols-2 md:grid-cols-4 gap-4 content-start p-8 pt-4 custom-scrollbar">
         {SKINS.map((skin) => (
           <button
             key={skin.id}

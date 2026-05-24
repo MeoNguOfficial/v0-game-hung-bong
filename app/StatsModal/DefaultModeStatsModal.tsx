@@ -1,8 +1,24 @@
 'use client'
 import React, { useState } from "react"
 import { Trash2, Trophy, Calendar, EyeOff, Square, ArrowUpCircle, ArrowRightLeft, FlipVertical, Ghost } from "lucide-react"
-import { getModifierCombinationText } from "../ScoreManager"
-import type { HistoryEntry } from "../ScoreManager"
+
+// Định nghĩa cấu trúc dữ liệu HistoryEntry cục bộ để không phụ thuộc vào file bên ngoài
+interface HistoryEntry {
+  score: number
+  timestamp: number
+  difficulty: string
+  gameType: string
+  modifiers: {
+    isHidden: boolean
+    isBlank: boolean
+    isReverse: boolean
+  }
+  funny: {
+    isReverseControl: boolean
+    isMirror: boolean
+    isInvisible: boolean
+  }
+}
 
 interface DefaultModeStatsModalProps {
   t: Record<string, string>
@@ -11,6 +27,19 @@ interface DefaultModeStatsModalProps {
   playClick: () => void
   recentScores: HistoryEntry[]
   setRecentScores: (scores: HistoryEntry[]) => void
+}
+
+// Hàm cục bộ định dạng chuỗi tổ hợp bổ trợ (Modifiers) thay thế cho ScoreManager
+const localGetModifierCombinationText = (
+  modifiers: { isHidden: boolean; isBlank: boolean; isReverse: boolean },
+  t: Record<string, string>
+) => {
+  if (!modifiers) return ""
+  const active: string[] = []
+  if (modifiers.isHidden) active.push(t.modHidden || "Hidden")
+  if (modifiers.isBlank) active.push(t.modBlank || "Blank")
+  if (modifiers.isReverse) active.push(t.modReverse || "Reverse")
+  return active.join(" + ")
 }
 
 export default function DefaultModeStatsModal({
@@ -117,32 +146,36 @@ export default function DefaultModeStatsModal({
   const subTitle = "text-blue-200"
 
   return (
-      <div className="mb-8 last:mb-0">
-        {/* Best Score */}
-        <div className={`bg-gradient-to-br ${gradient} p-6 rounded-[2rem] border ${border} mb-6 flex flex-col items-center justify-center relative overflow-hidden`}>
-          <div className={`absolute inset-0 ${blur} blur-xl`} />
-          <Trophy size={48} className={`${iconColor} mb-2 ${shadow}`} />
-          <h4 className={`text-xs font-black ${subTitle} uppercase tracking-widest mb-1`}>{t.allTimeBest || "All Time Best"}</h4>
-          <span className="text-5xl font-black text-white italic tracking-tighter drop-shadow-lg tabular-nums">
-            {best.value}
-          </span>
-          {best.detail && (
-            <div className="text-[11px] text-slate-300 mt-2 font-bold flex items-center gap-2">
-              <span className="uppercase text-[9px] text-slate-500">{t.gameModes || 'Mode'}:</span>
-              <span className="text-[11px] font-black">
-                {(() => {
-                  const { difficulty, modifiers } = best.detail
-                  const diffLabel = t[`diff${difficulty === 'sudden_death' ? 'SuddenDeath' : difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}`] || difficulty
-                  const modsLabel = getModifierCombinationText(modifiers, t)
-                  return `${diffLabel}${modsLabel ? ' • ' + modsLabel : ''}`
-                })()}
-              </span>
-            </div>
-          )}
-        </div>
+    <div className="flex flex-col md:flex-row gap-8 mb-8 last:mb-0">
+      {/* LEFT COLUMN: Best & Top 5 */}
+      <div className="flex-1 space-y-8">
+        {/* All Time Best Section */}
+        <section>
+          <div className={`bg-gradient-to-br ${gradient} p-6 rounded-[2rem] border ${border} flex flex-col items-center justify-center relative overflow-hidden`}>
+            <div className={`absolute inset-0 ${blur} blur-xl`} />
+            <Trophy size={48} className={`${iconColor} mb-2 ${shadow}`} />
+            <h4 className={`text-xs font-black ${subTitle} uppercase tracking-widest mb-1`}>{t.allTimeBest || "All Time Best"}</h4>
+            <span className="text-5xl font-black text-white italic tracking-tighter drop-shadow-lg tabular-nums">
+              {best.value}
+            </span>
+            {best.detail && (
+              <div className="text-[11px] text-slate-300 mt-2 font-bold flex items-center gap-2">
+                <span className="uppercase text-[9px] text-slate-500">{t.gameModes || 'Mode'}:</span>
+                <span className="text-[11px] font-black">
+                  {(() => {
+                    const { difficulty, modifiers } = best.detail
+                    const diffLabel = t[`diff${difficulty === 'sudden_death' ? 'SuddenDeath' : difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}`] || difficulty
+                    const modsLabel = localGetModifierCombinationText(modifiers, t)
+                    return `${diffLabel}${modsLabel ? ' • ' + modsLabel : ''}`
+                  })()}
+                </span>
+              </div>
+            )}
+          </div>
+        </section>
 
-        {/* Top 5 Scores */}
-        <div className="mb-8">
+        {/* Top 5 Scores Section */}
+        <section>
           <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest px-2 mb-4">{t.topScores || "Top 5 Best Scores"}</h4>
           <div className="space-y-3">
             {top5.length === 0 ? (
@@ -191,99 +224,84 @@ export default function DefaultModeStatsModal({
               ))
             )}
           </div>
-        </div>
-
-        {/* Recent Matches */}
-        <div className="space-y-4">
-          <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest px-2">{t.recentMatches || "Recent Matches"}</h4>
-          {recent.length === 0 ? (
-            <div className="text-center py-4 text-slate-600 italic text-xs font-bold">
-              {t.noHistory || "No matches played yet."}
-            </div>
-          ) : (
-            recent.map((entry, i) => (
-              <div key={i} className="bg-white/5 p-4 rounded-2xl border border-white/5 flex items-center justify-between gap-4">
-                {/* Left: Score */}
-                <div className="flex flex-col items-start min-w-[80px]">
-                  <span className={`text-2xl font-black italic leading-none tabular-nums text-blue-400`}>{entry.score}</span>
-                  <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1 mt-1">
-                    <Calendar size={10} /> {formatDate(entry.timestamp)}
-                  </span>
-                </div>
-
-                {/* Right: Details */}
-                <div className="flex flex-col items-end gap-1.5 flex-1">
-                  {/* Difficulty */}
-                  <div className="flex flex-wrap justify-end gap-1">
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${
-                      entry.difficulty === 'sudden_death' ? 'bg-red-600/20 text-red-400' :
-                      entry.difficulty === 'hardcode' ? 'bg-orange-600/20 text-orange-400' : 'bg-emerald-600/20 text-emerald-400'
-                    }`}>
-                      {t[`diff${entry.difficulty === 'sudden_death' ? 'SuddenDeath' : entry.difficulty.charAt(0).toUpperCase() + entry.difficulty.slice(1)}`] || entry.difficulty}
-                    </span>
-                  </div>
-
-                  {/* Modifiers */}
-                  <div className="flex flex-wrap justify-end gap-1">
-                    {entry.modifiers.isHidden && <span className="p-1 rounded bg-indigo-600/20 text-indigo-400" title="Hidden"><EyeOff size={10} /></span>}
-                    {entry.modifiers.isBlank && <span className="p-1 rounded bg-slate-600/20 text-slate-400" title="Blank"><Square size={10} /></span>}
-                    {entry.modifiers.isReverse && <span className="p-1 rounded bg-teal-600/20 text-teal-400" title="Reverse"><ArrowUpCircle size={10} /></span>}
-
-                    {entry.funny.isReverseControl && <span className="p-1 rounded bg-lime-600/20 text-lime-400" title="Rev. Ctrl"><ArrowRightLeft size={10} /></span>}
-                    {entry.funny.isMirror && <span className="p-1 rounded bg-fuchsia-600/20 text-fuchsia-400" title="Mirror"><FlipVertical size={10} /></span>}
-                    {entry.funny.isInvisible && <span className="p-1 rounded bg-stone-600/20 text-stone-400" title="Invisible"><Ghost size={10} /></span>}
-
-                    {!entry.modifiers.isHidden && !entry.modifiers.isBlank && !entry.modifiers.isReverse &&
-                      !entry.funny.isReverseControl && !entry.funny.isMirror && !entry.funny.isInvisible && (
-                        <span className="text-[9px] font-bold text-slate-600 uppercase">{t.none || "None"}</span>
-                      )}
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+        </section>
 
         {/* Clear Records Button */}
-      <div className="bg-white/5 p-4 sm:p-6 rounded-[2rem] border border-white/5 mt-4">
-        <button
-          onClick={() => {
-            playClick()
-            if (!confirmReset) {
-              setConfirmReset(true)
-              setTimeout(() => setConfirmReset(false), 3000)
-              return
-            }
+        <section className="bg-white/5 p-4 rounded-[2rem] border border-white/5">
+          <button
+            onClick={() => {
+              playClick()
+              if (!confirmReset) {
+                setConfirmReset(true)
+                setTimeout(() => setConfirmReset(false), 3000)
+                return
+              }
 
-            const nextBestScores = { ...bestScores };
-
-            Object.keys(bestScores).forEach(key => {
-              const detail = parseKeyToDetail(key);
-              if (detail) {
-                // Only delete Default records
-                if (detail.gameType !== 'classic') {
+              const nextBestScores = { ...bestScores };
+              Object.keys(bestScores).forEach(key => {
+                const detail = parseKeyToDetail(key);
+                if (detail && detail.gameType !== 'classic') {
                   localStorage.removeItem(key);
                   delete nextBestScores[key];
                 }
-              }
-            });
-            setBestScores(nextBestScores);
+              });
+              setBestScores(nextBestScores);
 
-            const nextRecentScores = recentScores.filter(r => {
-              // Keep Classic records
-              return r.gameType === 'classic';
-            });
-            setRecentScores(nextRecentScores);
-            localStorage.setItem("game_recent_history", JSON.stringify(nextRecentScores));
+              const nextRecentScores = recentScores.filter(r => r.gameType === 'classic');
+              setRecentScores(nextRecentScores);
+              localStorage.setItem("game_recent_history", JSON.stringify(nextRecentScores));
+              setConfirmReset(false)
+            }}
+            className={`w-full py-5 rounded-2xl font-black flex items-center justify-center gap-3 text-xs uppercase transition-all ${confirmReset ? "bg-red-600 text-white animate-pulse" : "bg-slate-800 text-red-400 hover:bg-slate-700"}`}
+          >
+            {confirmReset ? t.confirmDeleteAll : `${t.clearRecordsFor || "Clear records for"} ${t.modeDefault || 'Default'}`}
+            <Trash2 size={16} />
+          </button>
+        </section>
+      </div>
 
-            setConfirmReset(false)
-          }}
-          className={`w-full py-5 rounded-2xl font-black flex items-center justify-center gap-3 text-xs uppercase transition-all ${confirmReset ? "bg-red-600 text-white animate-pulse" : "bg-slate-800 text-red-400 hover:bg-slate-700"}`}
-        >
-          {confirmReset ? t.confirmDeleteAll : `${t.clearRecordsFor || "Clear records for"} ${t.modeDefault || 'Default'}`}
-          <Trash2 size={16} />
-        </button>
+      {/* RIGHT COLUMN: Recent Matches */}
+      <div className="flex-1 space-y-4">
+        <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest px-2">{t.recentMatches || "Recent Matches"}</h4>
+        {recent.length === 0 ? (
+          <div className="text-center py-4 text-slate-600 italic text-xs font-bold">
+            {t.noHistory || "No matches played yet."}
+          </div>
+        ) : (
+          recent.map((entry, i) => (
+            <div key={i} className="bg-white/5 p-4 rounded-2xl border border-white/5 flex items-center justify-between gap-4">
+              <div className="flex flex-col items-start min-w-[80px]">
+                <span className={`text-2xl font-black italic leading-none tabular-nums text-blue-400`}>{entry.score}</span>
+                <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1 mt-1">
+                  <Calendar size={10} /> {formatDate(entry.timestamp)}
+                </span>
+              </div>
+              <div className="flex flex-col items-end gap-1.5 flex-1">
+                <div className="flex flex-wrap justify-end gap-1">
+                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${
+                    entry.difficulty === 'sudden_death' ? 'bg-red-600/20 text-red-400' :
+                    entry.difficulty === 'hardcode' ? 'bg-orange-600/20 text-orange-400' : 'bg-emerald-600/20 text-emerald-400'
+                  }`}>
+                    {t[`diff${entry.difficulty === 'sudden_death' ? 'SuddenDeath' : entry.difficulty.charAt(0).toUpperCase() + entry.difficulty.slice(1)}`] || entry.difficulty}
+                  </span>
+                </div>
+                <div className="flex flex-wrap justify-end gap-1">
+                  {entry.modifiers?.isHidden && <span className="p-1 rounded bg-indigo-600/20 text-indigo-400" title="Hidden"><EyeOff size={10} /></span>}
+                  {entry.modifiers?.isBlank && <span className="p-1 rounded bg-slate-600/20 text-slate-400" title="Blank"><Square size={10} /></span>}
+                  {entry.modifiers?.isReverse && <span className="p-1 rounded bg-teal-600/20 text-teal-400" title="Reverse"><ArrowUpCircle size={10} /></span>}
+                  {entry.funny?.isReverseControl && <span className="p-1 rounded bg-lime-600/20 text-lime-400" title="Rev. Ctrl"><ArrowRightLeft size={10} /></span>}
+                  {entry.funny?.isMirror && <span className="p-1 rounded bg-fuchsia-600/20 text-fuchsia-400" title="Mirror"><FlipVertical size={10} /></span>}
+                  {entry.funny?.isInvisible && <span className="p-1 rounded bg-stone-600/20 text-stone-400" title="Invisible"><Ghost size={10} /></span>}
+                  {!entry.modifiers?.isHidden && !entry.modifiers?.isBlank && !entry.modifiers?.isReverse &&
+                    !entry.funny?.isReverseControl && !entry.funny?.isMirror && !entry.funny?.isInvisible && (
+                      <span className="text-[9px] font-bold text-slate-600 uppercase">{t.none || "None"}</span>
+                    )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
-      </div>
+    </div>
   )
 }
