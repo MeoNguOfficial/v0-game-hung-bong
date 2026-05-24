@@ -15,10 +15,13 @@ import {
   Settings,
 } from "lucide-react"
 
+// Định nghĩa 10 ngôn ngữ được hỗ trợ
+type SupportedLanguage = "en" | "vi" | "es" | "ru" | "zh" | "ko" | "ja" | "id" | "fr" | "de"
+
 interface SettingsModalProps {
   t: any
   language: string
-  setLanguage: (lang: "en" | "vi" | "es" | "ru") => void
+  setLanguage: (lang: SupportedLanguage) => void
   isMuted: boolean
   toggleMute: () => void
   showFPS: boolean
@@ -51,6 +54,8 @@ interface SettingsModalProps {
   setSensitivity: (e: React.ChangeEvent<HTMLInputElement>) => void
   baseGameSpeed: number
   setBaseGameSpeed: (e: React.ChangeEvent<HTMLInputElement>) => void
+  rawInput: boolean
+  toggleRawInput: () => void
   maxFPS: number
   setMaxFPS: (e: React.ChangeEvent<HTMLInputElement>) => void
   clearCache?: () => Promise<void>
@@ -61,6 +66,26 @@ interface SettingsModalProps {
 }
 
 type TabType = "language" | "visuals" | "audio" | "controls" | "parameters" | "animation" | "others" | "system"
+
+// Khai báo cấu trúc dữ liệu ngôn ngữ rõ ràng để tối ưu hóa render "mix"
+interface LanguageOption {
+  code: SupportedLanguage
+  flag: string
+  label: string
+}
+
+const LANGUAGES_LIST: LanguageOption[] = [
+  { code: "vi", flag: "🇻🇳", label: "Tiếng Việt" },
+  { code: "en", flag: "EN", label: "English" },
+  { code: "es", flag: "🇪🇸", label: "Español" },
+  { code: "ru", flag: "🇷🇺", label: "Русский" },
+  { code: "zh", flag: "🇨🇳", label: "简体中文" },
+  { code: "ko", flag: "🇰🇷", label: "한국어" },
+  { code: "ja", flag: "🇯🇵", label: "日本語" },
+  { code: "id", flag: "🇮🇩", label: "Indonesia" },
+  { code: "fr", flag: "🇫🇷", label: "Français" },
+  { code: "de", flag: "🇩🇪", label: "Deutsch" },
+]
 
 export default function SettingsModal({
   t,
@@ -98,6 +123,8 @@ export default function SettingsModal({
   setSensitivity,
   baseGameSpeed,
   setBaseGameSpeed,
+  rawInput,
+  toggleRawInput,
   maxFPS,
   setMaxFPS,
   clearCache,
@@ -106,17 +133,16 @@ export default function SettingsModal({
   embed = false,
   hideSystem = false,
 }: SettingsModalProps) {
-  // Định nghĩa thẻ bọc ngoài Wrapper và Container dựa vào chế độ nhúng (embed)
   const Wrapper = embed ? "div" : motion.div
   const Container = embed ? "div" : motion.div
 
   const wrapperClass = embed
-    ? "w-full h-full" // Khi được nhúng, nó sẽ chiếm toàn bộ không gian của thẻ cha
-    : "fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 md:p-6" // Lớp phủ toàn màn hình
+    ? "w-full h-full"
+    : "fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 md:p-6"
 
   const contentClass = embed
-    ? "w-full h-full flex flex-col overflow-hidden" // Nội dung lấp đầy khung bọc khi nhúng
-    : "bg-slate-950 border border-slate-800/80 w-full max-w-[96%] xl:max-w-[1100px] rounded-[2rem] shadow-2xl max-h-[90vh] flex flex-col overflow-hidden" // Hộp thoại modal căn giữa
+    ? "w-full h-full flex flex-col overflow-hidden"
+    : "bg-slate-955 border border-slate-800/80 w-full max-w-[96%] xl:max-w-[1100px] rounded-[2rem] shadow-2xl max-h-[90vh] flex flex-col overflow-hidden"
 
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetComplete, setResetComplete] = useState(false)
@@ -125,6 +151,18 @@ export default function SettingsModal({
   const handleResetData = () => {
     localStorage.clear()
     setResetComplete(true)
+  }
+
+  const getSpeedRank = (val: number) => {
+    if (val <= 100) return t.speedBeginner
+    if (val <= 150) return t.speedAmateur
+    if (val <= 200) return t.speedSemiPro
+    if (val <= 250) return t.speedProfessional
+    if (val <= 300) return t.speedMaster
+    if (val <= 350) return t.speedGrandmaster
+    if (val <= 400) return t.speedChallenger
+    if (val <= 450) return t.speedLegend
+    return t.speedInfinite
   }
 
   const isMenuMusicDisabled = isMuted || !bgMenuEnabled
@@ -142,7 +180,6 @@ export default function SettingsModal({
     ...(!hideSystem ? [{ id: "system" as TabType, label: t.system || "Hệ thống", icon: AlertTriangle, color: "text-red-400", border: "border-red-500/30" }] : [])
   ]
 
-  // Render Component Chi Tiết Tương ứng Từng Tab (cho phiên bản PC dùng Tab)
   const renderTabContent = (tab: TabType) => {
     switch (tab) {
       case "language":
@@ -152,21 +189,23 @@ export default function SettingsModal({
               <p className="text-xs text-slate-400 mb-6 leading-relaxed">
                 {t.languageDesc || "Chọn ngôn ngữ hiển thị trong trò chơi. Các thay đổi sẽ được áp dụng ngay lập tức."}
               </p>
-              <div className="grid grid-cols-2 gap-3">
-                {(["en", "vi", "es", "ru"] as const).map((lang) => (
+              {/* Lưới chọn ngôn ngữ chuẩn "Mix" trên Desktop (Cờ bên trái, Tên bên phải) */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {LANGUAGES_LIST.map((item) => (
                   <button
-                    key={lang}
+                    key={item.code}
                     onClick={() => {
                       playClick()
-                      setLanguage(lang)
+                      setLanguage(item.code)
                     }}
-                    className={`py-4 rounded-2xl font-bold text-sm uppercase transition-all border ${
-                      language === lang
+                    className={`py-3.5 px-4 rounded-2xl font-bold transition-all border flex items-center gap-3 ${
+                      language === item.code
                         ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/30 scale-[1.02]"
                         : "bg-slate-900/60 text-slate-400 border-white/5 hover:bg-slate-800/80 hover:text-slate-200"
                     }`}
                   >
-                    {lang === "vi" ? "Tiếng Việt" : lang === "en" ? "English" : lang === "es" ? "Español" : lang === "ru" ? "Русский" : lang.toUpperCase()}
+                    <span className="text-2xl leading-none filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]">{item.flag}</span>
+                    <span className="text-xs sm:text-sm tracking-wide text-left">{item.label}</span>
                   </button>
                 ))}
               </div>
@@ -351,15 +390,18 @@ export default function SettingsModal({
                     </span>
                     <span className="text-[10px] text-slate-500">{t.baseSpeedInfo || "Tốc độ di chuyển ban đầu của bóng"}</span>
                   </div>
-                  <span className="font-mono text-sm font-bold bg-slate-950 px-3 py-1 rounded text-purple-400 border border-white/5">
-                    {(baseGameSpeed / 100).toFixed(2)}x
-                  </span>
+                  <div className="flex flex-col items-end">
+                    <span className="font-mono text-sm font-bold bg-slate-950 px-3 py-1 rounded text-purple-400 border border-white/5">
+                      {(baseGameSpeed / 100).toFixed(2)}x
+                    </span>
+                    <span className="text-[9px] font-black text-purple-500 uppercase mt-1 tracking-wider">{getSpeedRank(baseGameSpeed)}</span>
+                  </div>
                 </div>
                 <input
                   type="range"
-                  min="50"
-                  max="300"
-                  step="10"
+                  min="100"
+                  max="500"
+                  step="50"
                   value={baseGameSpeed}
                   onChange={setBaseGameSpeed}
                   disabled={gameState === "running"}
@@ -372,6 +414,17 @@ export default function SettingsModal({
                 )}
               </div>
             )}
+
+            {/* Raw Input Toggle */}
+            <div className="flex justify-between items-center bg-slate-900/60 p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
+              <div>
+                <span className="text-xs font-bold text-slate-200 uppercase tracking-wide block">{t.rawInput || "Raw Input (PC)"}</span>
+                <span className="text-[10px] text-slate-500">{t.rawInputInfo || "Lấy dữ liệu chuột trực tiếp qua Pointer Lock"}</span>
+              </div>
+              <button onClick={() => { playClick(); toggleRawInput(); }} className={`w-12 h-6 rounded-full relative transition-colors ${rawInput ? "bg-blue-600" : "bg-slate-700"}`}>
+                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${rawInput ? "left-[28px]" : "left-1"}`} />
+              </button>
+            </div>
           </div>
         )
       case "parameters":
@@ -390,7 +443,7 @@ export default function SettingsModal({
                 onClick={() => { playClick(); toggleFPS(); }}
                 className={`w-12 h-6 rounded-full relative transition-colors ${showFPS ? "bg-emerald-600" : "bg-slate-700"}`}
               >
-                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${showFPS ? "left-[26px]" : "left-1"}`} />
+                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${showFPS ? "left-[28px]" : "left-1"}`} />
               </button>
             </div>
 
@@ -617,11 +670,8 @@ export default function SettingsModal({
           </div>
         )}
 
-        {/* PHẦN CHÍNH: PHÂN CHIA THIẾT BỊ (RESPONSIVE) */}
-        
-        {/* 1. PHIÊN BẢN DESKTOP / PC (Bố cục chia 2 cột như trong sơ đồ thiết kế) */}
+        {/* 1. PHIÊN BẢN DESKTOP / PC */}
         <div className="hidden lg:flex flex-1 overflow-hidden min-h-[480px]">
-          
           {/* Cột trái: Tab bar */}
           <div className="w-[280px] bg-slate-900/40 border-r border-white/5 p-4 flex flex-col gap-2 overflow-y-auto custom-scrollbar">
             {tabsList.map((tab) => {
@@ -647,10 +697,9 @@ export default function SettingsModal({
             })}
           </div>
 
-          {/* Cột phải: Component settings detail tương ứng */}
+          {/* Cột phải: Settings details */}
           <div className="flex-1 bg-slate-950 p-6 overflow-y-auto custom-scrollbar flex flex-col justify-between">
             <div className="w-full max-w-[640px]">
-              {/* Tiêu đề mục hiện tại bên phải */}
               <div className="mb-6">
                 <h4 className="text-base font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
                   {React.createElement(tabsList.find(t => t.id === activeTab)?.icon || Globe, {
@@ -662,14 +711,17 @@ export default function SettingsModal({
                 <div className="h-[2px] bg-emerald-500/40 mt-2.5 w-full rounded-full" />
               </div>
 
-              {/* Nội dung tương ứng */}
               <AnimatePresence mode="wait">
                 <motion.div
                   key={activeTab}
                   initial={{ opacity: 0, x: 10 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -10 }}
-                  transition={{ duration: 0.15 }}
+                  transition={
+                    animationLevel === "none" ? { duration: 0 } :
+                    animationLevel === "min" ? { duration: 0.15 } :
+                    { type: "spring", stiffness: 400, damping: 30 }
+                  }
                 >
                   {renderTabContent(activeTab)}
                 </motion.div>
@@ -678,10 +730,10 @@ export default function SettingsModal({
           </div>
         </div>
 
-        {/* 2. PHIÊN BẢN DI ĐỘNG/MOBILE (Giữ nguyên bố cục cuộn xếp dọc) */}
+        {/* 2. PHIÊN BẢN DI ĐỘNG/MOBILE */}
         <div className={`block lg:hidden flex-1 overflow-y-auto custom-scrollbar ${embed ? "p-1" : "p-6 pt-4"}`}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pb-4">
-
+            
             {/* BOX 1: NGÔN NGỮ */}
             <div className="bg-slate-900/40 border border-white/5 p-5 rounded-2xl flex flex-col h-full min-h-[220px]">
               <div className="mb-3">
@@ -691,18 +743,20 @@ export default function SettingsModal({
                 <div className="h-[2px] bg-emerald-500/50 mt-2 w-full rounded-full" />
               </div>
               <div className="flex-1 flex flex-col justify-center">
-                <div className="grid grid-cols-2 gap-2">
-                  {(["en", "vi", "es", "ru"] as const).map((lang) => (
+                {/* Lưới chọn ngôn ngữ chuẩn "Mix" trên Mobile (Cờ bên trái, Tên bên phải) */}
+                <div className="grid grid-cols-2 gap-2 max-h-[240px] overflow-y-auto custom-scrollbar p-1">
+                  {LANGUAGES_LIST.map((item) => (
                     <button
-                      key={lang}
-                      onClick={() => { playClick(); setLanguage(lang); }}
-                      className={`py-2.5 rounded-xl font-bold text-xs uppercase transition-all border ${
-                        language === lang
+                      key={item.code}
+                      onClick={() => { playClick(); setLanguage(item.code); }}
+                      className={`py-2.5 px-3 rounded-xl font-bold transition-all border flex items-center gap-2.5 ${
+                        language === item.code
                           ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20"
                           : "bg-slate-955 text-slate-400 border-transparent hover:bg-slate-850"
                       }`}
                     >
-                      {lang === "vi" ? "Tiếng Việt" : lang === "en" ? "English" : lang.toUpperCase()}
+                      <span className="text-xl leading-none filter drop-shadow-[0_1px_2px_rgba(0,0,0,0.3)]">{item.flag}</span>
+                      <span className="text-xs tracking-wide truncate text-left">{item.label}</span>
                     </button>
                   ))}
                 </div>
@@ -718,7 +772,6 @@ export default function SettingsModal({
                 <div className="h-[2px] bg-emerald-500/50 mt-2 w-full rounded-full" />
               </div>
               <div className="flex-1 flex flex-col justify-center space-y-2.5">
-                {/* Particles */}
                 <div className="flex justify-between items-center bg-slate-950/60 px-3 py-1.5 rounded-xl border border-white/5">
                   <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">{t.particles || "Hạt hiệu ứng"}</span>
                   <button
@@ -729,8 +782,7 @@ export default function SettingsModal({
                   </button>
                 </div>
 
-                {/* Trails */}
-                <div className="flex justify-between items-center bg-slate-950/60 px-3 py-1.5 rounded-xl border border-white/5">
+                <div className="flex justify-between items-center bg-slate-955/60 px-3 py-1.5 rounded-xl border border-white/5">
                   <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">{t.trails || "Vệt sáng"}</span>
                   <button
                     onClick={() => { playClick(); toggleTrails(); }}
@@ -740,7 +792,6 @@ export default function SettingsModal({
                   </button>
                 </div>
 
-                {/* Shockwaves */}
                 <div className="flex justify-between items-center bg-slate-950/60 px-3 py-1.5 rounded-xl border border-white/5">
                   <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">{t.shockwaves || "Sóng kích"}</span>
                   <button
@@ -751,8 +802,7 @@ export default function SettingsModal({
                   </button>
                 </div>
 
-                {/* Camera Shake */}
-                <div className="flex justify-between items-center bg-slate-950/60 px-3 py-1.5 rounded-xl border border-white/5">
+                <div className="flex justify-between items-center bg-slate-955/60 px-3 py-1.5 rounded-xl border border-white/5">
                   <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">{t.cameraShake || "Rung lắc"}</span>
                   <button
                     onClick={() => { playClick(); toggleCameraShake(); }}
@@ -773,7 +823,6 @@ export default function SettingsModal({
                 <div className="h-[2px] bg-emerald-500/50 mt-2 w-full rounded-full" />
               </div>
               <div className="flex-1 flex flex-col justify-between space-y-2">
-                {/* Menu Music */}
                 <div className={`transition-opacity ${isMenuMusicDisabled ? "opacity-30" : "opacity-100"}`}>
                   <div className="flex justify-between items-center mb-0.5">
                     <div className="flex items-center gap-1.5">
@@ -796,7 +845,6 @@ export default function SettingsModal({
                   />
                 </div>
 
-                {/* Game Music */}
                 <div className={`transition-opacity ${isGameMusicDisabled ? "opacity-30" : "opacity-100"}`}>
                   <div className="flex justify-between items-center mb-0.5">
                     <div className="flex items-center gap-1.5">
@@ -819,7 +867,6 @@ export default function SettingsModal({
                   />
                 </div>
 
-                {/* SFX */}
                 <div className={`transition-opacity ${isSfxDisabled ? "opacity-30" : "opacity-100"}`}>
                   <div className="flex justify-between items-center mb-0.5">
                     <div className="flex items-center gap-1.5">
@@ -852,7 +899,7 @@ export default function SettingsModal({
                 </h3>
                 <div className="h-[2px] bg-emerald-500/50 mt-2 w-full rounded-full" />
               </div>
-              <div className="flex-1 flex flex-col justify-around">
+              <div className="flex-1 flex flex-col justify-between gap-3">
                 {/* Sensitivity */}
                 <div>
                   <div className="flex justify-between text-[10px] text-slate-400 font-bold uppercase mb-1">
@@ -872,16 +919,19 @@ export default function SettingsModal({
 
                 {/* Base Game Speed */}
                 {!openSettingsFromPause && (
-                  <div className="border-t border-white/5 pt-2 mt-2">
+                  <div className="border-t border-white/5 pt-2">
                     <div className="flex justify-between text-[10px] text-slate-400 font-bold uppercase mb-1">
                       <span className={gameState === "running" ? "text-slate-500" : ""}>{t.baseGameSpeed || "Tốc độ gốc"}</span>
-                      <span className="font-mono bg-slate-950 px-1.5 py-0.2 rounded text-purple-400">{(baseGameSpeed / 100).toFixed(2)}x</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] text-purple-500 font-black">{getSpeedRank(baseGameSpeed)}</span>
+                        <span className="font-mono bg-slate-950 px-1.5 py-0.2 rounded text-purple-400">{(baseGameSpeed / 100).toFixed(2)}x</span>
+                      </div>
                     </div>
                     <input
                       type="range"
-                      min="50"
-                      max="300"
-                      step="10"
+                      min="100"
+                      max="500"
+                      step="50"
                       value={baseGameSpeed}
                       onChange={setBaseGameSpeed}
                       disabled={gameState === "running"}
@@ -891,6 +941,17 @@ export default function SettingsModal({
                     />
                   </div>
                 )}
+
+                {/* Raw Input Toggle */}
+                <div className="border-t border-white/5 pt-2 flex justify-between items-center">
+                  <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wide">{t.rawInput || "Raw Input (PC)"}</span>
+                  <button
+                    onClick={() => { playClick(); toggleRawInput(); }}
+                    className={`w-10 h-5 rounded-full relative transition-colors ${rawInput ? "bg-blue-600" : "bg-slate-700"}`}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${rawInput ? "left-[22px]" : "left-0.5"}`} />
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -903,8 +964,7 @@ export default function SettingsModal({
                 <div className="h-[2px] bg-emerald-500/50 mt-2 w-full rounded-full" />
               </div>
               <div className="flex-1 flex flex-col justify-center space-y-4">
-                {/* Show FPS */}
-                <div className="flex justify-between items-center bg-slate-950/60 px-3 py-1.5 rounded-xl border border-white/5">
+                <div className="flex justify-between items-center bg-slate-955/60 px-3 py-1.5 rounded-xl border border-white/5">
                   <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">{t.showFPS || "Hiển thị FPS"}</span>
                   <button
                     onClick={() => { playClick(); toggleFPS(); }}
@@ -914,7 +974,6 @@ export default function SettingsModal({
                   </button>
                 </div>
 
-                {/* Max FPS */}
                 {!openSettingsFromPause && (
                   <div>
                     <div className="flex justify-between text-[10px] text-slate-400 font-bold uppercase mb-1">
@@ -954,7 +1013,7 @@ export default function SettingsModal({
                       className={`py-2 rounded-xl font-bold text-xs uppercase transition-all border ${
                         animationLevel === level
                           ? "bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20"
-                          : "bg-slate-950 text-slate-400 border-transparent hover:bg-slate-850"
+                          : "bg-slate-955 text-slate-400 border-transparent hover:bg-slate-850"
                       }`}
                     >
                       {t[`anim${level.charAt(0).toUpperCase() + level.slice(1)}`] || level}
@@ -973,7 +1032,6 @@ export default function SettingsModal({
                 <div className="h-[2px] bg-emerald-500/50 mt-2 w-full rounded-full" />
               </div>
               <div className="flex-1 flex flex-col justify-center space-y-3">
-                {/* Report Bug */}
                 <button
                   onClick={() => {
                     playClick()
@@ -985,7 +1043,6 @@ export default function SettingsModal({
                   <Bug size={14} className="text-orange-400" />
                 </button>
 
-                {/* Clear Cache */}
                 {clearCache && (
                   <button
                     onClick={() => { playClick(); clearCache(); }}
@@ -1011,7 +1068,7 @@ export default function SettingsModal({
               </div>
               <div className="flex-1 flex flex-col justify-center">
                 {!hideSystem && (
-                  <div className="bg-slate-950/60 p-2 rounded-xl border border-white/5">
+                  <div className="bg-slate-955/60 p-2 rounded-xl border border-white/5">
                     <AnimatePresence mode="wait">
                       {!showResetConfirm && !resetComplete && (
                         <motion.button

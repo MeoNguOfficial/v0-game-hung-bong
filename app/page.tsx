@@ -234,7 +234,8 @@ export default function App() {
   const [gameMusicEnabled, setGameMusicEnabled] = useState(true)
   const [sfxEnabled, setSfxEnabled] = useState(true)
   const [sensitivity, setSensitivity] = useState(0)
-  const [baseGameSpeed, setBaseGameSpeed] = useState(100) // 1.0x speed (50-300 = 0.5x-3.0x)
+  const [baseGameSpeed, setBaseGameSpeed] = useState(100) // 1.0x speed (100-500 = 1.0x-5.0x)
+  const [rawInput, setRawInput] = useState(false)
   const [maxFPS, setMaxFPS] = useState(60) // 60 default, -1 = unlimited
   const [isConfigLoaded, setIsConfigLoaded] = useState(false)
   const [devMode, setDevMode] = useState(false)
@@ -344,6 +345,7 @@ export default function App() {
     targetPlayerX: 210,
     sensitivity: 0,
     baseGameSpeed: 1.0,
+    rawInput: false,
     maxFPS: 60,
     playerWidth: 80,
     targetWidth: 80,
@@ -630,8 +632,15 @@ export default function App() {
   const changeBaseGameSpeed = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = parseFloat(e.target.value)
     setBaseGameSpeed(v)
-    gameData.current.baseGameSpeed = v / 100 // Convert from 50-300 to 0.5-3.0
+    gameData.current.baseGameSpeed = v / 100 // Convert to multiplier (e.g., 100 -> 1.0x)
     localStorage.setItem("game_baseGameSpeed", String(v))
+  }
+
+  const toggleRawInput = () => {
+    const newState = !rawInput
+    setRawInput(newState)
+    gameData.current.rawInput = newState
+    localStorage.setItem("game_rawInput", String(newState))
   }
 
   const changeMaxFPS = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1403,9 +1412,15 @@ export default function App() {
 
     const savedBaseGameSpeed = localStorage.getItem("game_baseGameSpeed")
     if (savedBaseGameSpeed) {
-      const bgs = parseFloat(savedBaseGameSpeed)
+      const bgs = Math.max(100, parseFloat(savedBaseGameSpeed)) // Clamp to min 1.0x
       setBaseGameSpeed(bgs)
       gameData.current.baseGameSpeed = bgs / 100
+    }
+
+    const savedRawInput = localStorage.getItem("game_rawInput")
+    if (savedRawInput !== null) {
+      setRawInput(savedRawInput === "true")
+      gameData.current.rawInput = savedRawInput === "true"
     }
 
     const savedMaxFPS = localStorage.getItem("game_maxFPS")
@@ -1537,6 +1552,24 @@ export default function App() {
     }
   }, [showIntro])
 
+  // Pointer Lock for Raw Input
+  useEffect(() => {
+    const handleCanvasClick = () => {
+      if (gameData.current.rawInput && gameState === "running" && !isMobile) {
+        canvasRef.current?.requestPointerLock()
+      }
+    }
+    const canvas = canvasRef.current
+    canvas?.addEventListener("click", handleCanvasClick)
+    return () => {
+      canvas?.removeEventListener("click", handleCanvasClick)
+      // Release lock if disabled
+      if (document.pointerLockElement === canvas) {
+        document.exitPointerLock()
+      }
+    }
+  }, [gameState, rawInput, isMobile])
+
   // Separate effect to handle completion of loading
   useEffect(() => {
     if (showIntro && introLoadingProgress === 100 && introStep >= 1) {
@@ -1644,18 +1677,27 @@ export default function App() {
 
     const handleMove = (e: MouseEvent | TouchEvent) => {
       if (canvas.getAttribute("data-state") !== "running" || gameData.current.isAuto || gameData.current.isDying) return
-      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX
-      const rect = canvas.getBoundingClientRect()
-      const scaleX = canvas.width / rect.width
-      let mouseX = (clientX - rect.left) * scaleX
       
-      if (gameData.current.isReverseControl) {
-        mouseX = canvas.width - mouseX
+      if (!("touches" in e) && gameData.current.rawInput && document.pointerLockElement === canvas) {
+        // Raw Input Logic using Movement Delta
+        const movementX = (e as MouseEvent).movementX
+        // Sensitivity scale for raw input (default 1.0 + adjustment)
+        const rawSens = 1 + (gameData.current.sensitivity * 0.1)
+        gameData.current.targetPlayerX += movementX * rawSens
+      } else {
+        // Normal Mouse/Touch Logic
+        const clientX = "touches" in e ? e.touches[0].clientX : e.clientX
+        const rect = canvas.getBoundingClientRect()
+        const scaleX = canvas.width / rect.width
+        let mouseX = (clientX - rect.left) * scaleX
+        
+        if (gameData.current.isReverseControl) {
+          mouseX = canvas.width - mouseX
+        }
+        gameData.current.targetPlayerX = mouseX - gameData.current.playerWidth / 2
       }
-      const targetX = mouseX - gameData.current.playerWidth / 2
-      gameData.current.targetPlayerX = targetX
 
-      if (gameData.current.sensitivity === 0) {
+      if (gameData.current.sensitivity === 0 && !gameData.current.rawInput) {
         gameData.current.playerX = targetX
       }
     }
@@ -3222,6 +3264,8 @@ export default function App() {
                     setSensitivity={changeSensitivity}
                     baseGameSpeed={baseGameSpeed}
                     setBaseGameSpeed={changeBaseGameSpeed}
+                    rawInput={rawInput}
+                    toggleRawInput={toggleRawInput}
                     maxFPS={maxFPS}
                     setMaxFPS={changeMaxFPS}
                     clearCache={handleClearCache}
@@ -3353,6 +3397,8 @@ export default function App() {
             setSensitivity={changeSensitivity}
             baseGameSpeed={baseGameSpeed}
             setBaseGameSpeed={changeBaseGameSpeed}
+            rawInput={rawInput}
+            toggleRawInput={toggleRawInput}
             maxFPS={maxFPS}
             setMaxFPS={changeMaxFPS}
             clearCache={handleClearCache}
