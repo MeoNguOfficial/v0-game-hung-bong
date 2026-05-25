@@ -246,7 +246,7 @@ export const TRANSLATIONS = {
     guide: "HƯỚNG DẪN",
     stats: "THỐNG KÊ",
     settings: "CÀI ĐẶT",
-    gameOver: "Kết thúc",
+    gameOver: "GAME OVER",
     showFPS: "Hiển thị FPS",
     home: "TRANG CHỦ",
     newBest: "Kỷ lục mới!",

@@ -785,6 +785,22 @@ export default function SettingsModal({
                   }
                 >
                   {renderTabContent(activeTab)}
+                  {activeTab === tabsList[tabsList.length - 1].id && (
+                    <div className="mt-8 pt-6 border-t border-white/5 space-y-1.5 text-center opacity-60">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Catch Master
+                      </p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Develop by MeoTN Gaming
+                      </p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Build and deploy by V0
+                      </p>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">
+                        Music by MeoTN
+                      </p>
+                    </div>
+                  )}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -859,6 +875,16 @@ export default function SettingsModal({
                   }
                 >
                   {renderTabContent(activeTab)}
+                  {activeTab === tabsList[tabsList.length - 1].id && (
+                    <div className="mt-8 pt-6 border-t border-white/5 space-y-1.5 text-center opacity-60">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Catch Master | Develop by MeoTN Gaming | Build and deploy by V0
+                      </p>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">
+                        Music by MeoTN
+                      </p>
+                    </div>
+                  )}
                 </motion.div>
               </AnimatePresence>
           </div>
