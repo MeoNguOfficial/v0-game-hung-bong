@@ -167,7 +167,7 @@ export const updateBallLifecycle = (
       } else if (gameData.gameMode === "sudden_death") {
         if (isSuddenDeathMiss(b.type)) {
           gameData.lives = 0; callbacks.setLives(0)
-          callbacks.playSound("miss"); callbacks.setIsFlashRed(true)
+          callbacks.playSound("miss"); if (gameData.screenFlashEnabled) callbacks.setIsFlashRed(true)
           setTimeout(() => callbacks.setIsFlashRed(false), 150)
           callbacks.createParticles(b.x, isReverse ? 6 : canvas.height - 6, "#ef4444", "miss", true)
           callbacks.setGameState("over")
@@ -184,7 +184,7 @@ export const updateBallLifecycle = (
         } else {
           gameData.lives--
           callbacks.setLives(gameData.lives)
-          callbacks.playSound("miss"); callbacks.setIsFlashRed(true)
+          callbacks.playSound("miss"); if (gameData.screenFlashEnabled) callbacks.setIsFlashRed(true)
           setTimeout(() => callbacks.setIsFlashRed(false), 150)
           callbacks.createParticles(b.x, isReverse ? 6 : canvas.height - 6, "#ef4444", "miss", true)
           gameData.combo = 0; callbacks.setComboCount(0)

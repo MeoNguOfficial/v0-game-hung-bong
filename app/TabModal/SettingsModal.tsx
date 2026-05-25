@@ -34,6 +34,8 @@ interface SettingsModalProps {
   toggleShockwaves: () => void
   cameraShakeEnabled: boolean
   toggleCameraShake: () => void
+  screenFlashEnabled: boolean
+  toggleScreenFlash: () => void
   animationLevel: "full" | "min" | "none"
   setAnimationLevel: (level: "full" | "min" | "none") => void
   playClick: () => void
@@ -106,6 +108,8 @@ export default function SettingsModal({
   toggleShockwaves,
   cameraShakeEnabled,
   toggleCameraShake,
+  screenFlashEnabled,
+  toggleScreenFlash,
   animationLevel,
   setAnimationLevel,
   playClick,
@@ -147,7 +151,9 @@ export default function SettingsModal({
 
   const contentClass = embed
     ? "w-full h-full flex flex-col overflow-hidden"
-    : "bg-slate-955 border border-slate-800/80 w-full max-w-[96%] xl:max-w-[1100px] rounded-[2rem] shadow-2xl max-h-[90vh] flex flex-col overflow-hidden"
+    : `bg-slate-955 border border-slate-800/80 w-full max-w-[96%] xl:max-w-[1100px] rounded-[2rem] shadow-2xl flex flex-col overflow-hidden ${
+        openSettingsFromPause ? "lg:w-[1080px] lg:h-[720px]" : "max-h-[90vh]"
+      }`
 
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetComplete, setResetComplete] = useState(false)
@@ -265,6 +271,20 @@ export default function SettingsModal({
                 className={`w-12 h-6 rounded-full relative transition-colors ${shockwavesEnabled ? "bg-cyan-600" : "bg-slate-700"}`}
               >
                 <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${shockwavesEnabled ? "left-[28px]" : "left-1"}`} />
+              </button>
+            </div>
+
+            {/* Screen Flash Toggle */}
+            <div className="flex justify-between items-center bg-slate-900/60 p-4 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
+              <div>
+                <span className="text-xs font-bold text-slate-200 uppercase tracking-wide block">{t.screenFlash || "Nháy màn hình"}</span>
+                <span className="text-[10px] text-slate-500">{t.screenFlashInfo}</span>
+              </div>
+              <button
+                onClick={() => { playClick(); toggleScreenFlash(); }}
+                className={`w-12 h-6 rounded-full relative transition-colors ${screenFlashEnabled ? "bg-red-600" : "bg-slate-700"}`}
+              >
+                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${screenFlashEnabled ? "left-[28px]" : "left-1"}`} />
               </button>
             </div>
 
@@ -838,6 +858,16 @@ export default function SettingsModal({
                     className={`w-10 h-5 rounded-full relative transition-colors ${shockwavesEnabled ? "bg-cyan-600" : "bg-slate-700"}`}
                   >
                     <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${shockwavesEnabled ? "left-[22px]" : "left-0.5"}`} />
+                  </button>
+                </div>
+
+                <div className="flex justify-between items-center bg-slate-950/60 px-3 py-1.5 rounded-xl border border-white/5">
+                  <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">{t.screenFlash || "Nháy màn hình"}</span>
+                  <button
+                    onClick={() => { playClick(); toggleScreenFlash(); }}
+                    className={`w-10 h-5 rounded-full relative transition-colors ${screenFlashEnabled ? "bg-red-600" : "bg-slate-700"}`}
+                  >
+                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${screenFlashEnabled ? "left-[22px]" : "left-0.5"}`} />
                   </button>
                 </div>
 

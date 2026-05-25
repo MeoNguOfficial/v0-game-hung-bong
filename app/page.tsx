@@ -177,6 +177,7 @@ export default function App() {
   const [showFPS, setShowFPS] = useState(false)
   const [shockwavesEnabled, setShockwavesEnabled] = useState(true)
   const [cameraShakeEnabled, setCameraShakeEnabled] = useState(true)
+  const [screenFlashEnabled, setScreenFlashEnabled] = useState(true)
   const [trailsEnabled, setTrailsEnabled] = useState(true)
   const [animationLevel, setAnimationLevel] = useState<"full" | "min" | "none">("full")
   const [openSettings, setOpenSettings] = useState(false)
@@ -363,6 +364,7 @@ export default function App() {
     particlesEnabled: true,
     shockwavesEnabled: true,
     cameraShakeEnabled: true,
+    screenFlashEnabled: true,
     trailsEnabled: true,
     ball: { x: 250, y: -50, radius: 10, speed: 3.5, dx: 2, type: "normal" as any, sinTime: 0 },
     bombs: [] as { x: number; y: number; radius: number; speed: number }[],
@@ -1009,6 +1011,14 @@ export default function App() {
     localStorage.setItem("game_camera_shake", String(newState))
   }
 
+  const toggleScreenFlash = () => {
+    const newState = !screenFlashEnabled
+    playClick()
+    setScreenFlashEnabled(newState)
+    gameData.current.screenFlashEnabled = newState
+    localStorage.setItem("game_screen_flash", String(newState))
+  }
+
   const changeAnimationLevel = (level: "full" | "min" | "none") => {
     playClick()
     setAnimationLevel(level)
@@ -1106,6 +1116,7 @@ export default function App() {
         timeScale: 1,
         hasPlayedNewBest: false,
         hasShield: false,
+        screenFlashEnabled: screenFlashEnabled,
         bombImmunityTimeLeft: 0,
         ball: { x: 250, y: -50, radius: 10, speed: 3.5, dx: 2, type: "normal", sinTime: 0 },
         bombs: [],
@@ -1508,6 +1519,10 @@ export default function App() {
     const savedCameraShake = localStorage.getItem("game_camera_shake") !== "false"
     setCameraShakeEnabled(savedCameraShake)
     gameData.current.cameraShakeEnabled = savedCameraShake
+
+    const savedScreenFlash = localStorage.getItem("game_screen_flash") !== "false"
+    setScreenFlashEnabled(savedScreenFlash)
+    gameData.current.screenFlashEnabled = savedScreenFlash
 
     gameData.current.trailsEnabled = savedTrails
 
@@ -1966,7 +1981,6 @@ export default function App() {
         }
 
         if (gameData.current.gameMode === "hardcode" || gameData.current.gameMode === "sudden_death") {
-
           // 1. Stop falling sound immediately
           stopSound("bomb_fall");
 
@@ -1990,7 +2004,7 @@ export default function App() {
 
           // 5️⃣ Delay chỉ dành cho hình ảnh + game over
           setTimeout(() => {
-            setIsFlashWhite(true)
+            if (gameData.current.screenFlashEnabled) setIsFlashWhite(true)
             setTimeout(() => setIsFlashWhite(false), 800)
             setGameState("over")
             clearSnow()
@@ -2002,7 +2016,7 @@ export default function App() {
           gameData.current.lives = Math.max(0, gameData.current.lives - 1)
           setLives(gameData.current.lives)
 
-          setIsFlashWhite(true)
+          if (gameData.current.screenFlashEnabled) setIsFlashWhite(true)
           triggerCameraShake(10, 20)
           setTimeout(() => setIsFlashWhite(false), 150)
 
@@ -2333,7 +2347,7 @@ export default function App() {
               gameData.current.lives = 0
               setLives(0)
               playSound("miss")
-              setIsFlashRed(true)
+              if (gameData.current.screenFlashEnabled) setIsFlashRed(true)
               setTimeout(() => setIsFlashRed(false), 150)
               createParticles(b.x, isReverse ? 6 : canvas.height - 6, "#ef4444", "miss", true)
 
@@ -2365,7 +2379,7 @@ export default function App() {
               gameData.current.lives--
               setLives(gameData.current.lives)
               playSound("miss");
-              setIsFlashRed(true)
+              if (gameData.current.screenFlashEnabled) setIsFlashRed(true)
               setTimeout(() => setIsFlashRed(false), 150)
               createParticles(b.x, isReverse ? 6 : canvas.height - 6, "#ef4444", "miss", true)
               gameData.current.combo = 0
@@ -3261,6 +3275,8 @@ export default function App() {
                     toggleShockwaves={toggleShockwaves}
                     cameraShakeEnabled={cameraShakeEnabled}
                     toggleCameraShake={toggleCameraShake}
+                    screenFlashEnabled={screenFlashEnabled}
+                    toggleScreenFlash={toggleScreenFlash}
                     trailsEnabled={trailsEnabled}
                     toggleTrails={toggleTrails}
                     animationLevel={animationLevel}
@@ -3400,6 +3416,8 @@ export default function App() {
             toggleShockwaves={toggleShockwaves}
             cameraShakeEnabled={cameraShakeEnabled}
             toggleCameraShake={toggleCameraShake}
+            screenFlashEnabled={screenFlashEnabled}
+            toggleScreenFlash={toggleScreenFlash}
             trailsEnabled={trailsEnabled}
             toggleTrails={toggleTrails}
             animationLevel={animationLevel}
