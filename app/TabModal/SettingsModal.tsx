@@ -16,7 +16,7 @@ import {
 } from "lucide-react"
 
 // Định nghĩa 10 ngôn ngữ được hỗ trợ
-type SupportedLanguage = "en" | "vi" | "es" | "ru" | "zh" | "ko" | "ja" | "id" | "fr" | "de"
+type SupportedLanguage = "en" | "en-US" | "vi" | "es" | "ru" | "zh" | "ko" | "ja" | "id" | "fr" | "de"
 
 interface SettingsModalProps {
   t: any
@@ -78,7 +78,8 @@ interface LanguageOption {
 
 const LANGUAGES_LIST: LanguageOption[] = [
   { code: "vi", flag: "🇻🇳", label: "Tiếng Việt" },
-  { code: "en", flag: "UK", label: "English" },
+  { code: "en", flag: "🇬🇧", label: "English" },
+  { code: "en-US", flag: "🇺🇸", label: "English (US)" },
   { code: "es", flag: "🇪🇸", label: "Español" },
   { code: "ru", flag: "🇷🇺", label: "Русский" },
   { code: "zh", flag: "🇨🇳", label: "简体中文" },
@@ -848,6 +849,42 @@ export default function SettingsModal({
                   >
                     <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${cameraShakeEnabled ? "left-[22px]" : "left-0.5"}`} />
                   </button>
+                </div>
+
+                {/* Freeze Effect Type (Mobile) */}
+                <div className="flex flex-col gap-2 bg-slate-950/60 p-3 rounded-xl border border-white/5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide">{t.freezeEffect || "Hiệu ứng đóng băng"}</span>
+                    <span className="text-[9px] font-black text-blue-400 uppercase">
+                      {freezeEffect === "spread" ? t.effectSpread : freezeEffect === "simple" ? t.effectSimple : t.effectNone}
+                    </span>
+                  </div>
+                  <div className="flex p-0.5 bg-slate-800 rounded-lg border border-white/5">
+                    <button
+                      onClick={() => { playClick(); setFreezeEffect?.("spread"); }}
+                      className={`flex-1 py-1.5 rounded-md text-[8px] font-black uppercase transition-all ${
+                        freezeEffect === "spread" ? "bg-blue-600 text-white shadow-md" : "text-slate-500"
+                      }`}
+                    >
+                      {t.effectSpread || "Lan tỏa"}
+                    </button>
+                    <button
+                      onClick={() => { playClick(); setFreezeEffect?.("simple"); }}
+                      className={`flex-1 py-1.5 rounded-md text-[8px] font-black uppercase transition-all ${
+                        freezeEffect === "simple" ? "bg-blue-600 text-white shadow-md" : "text-slate-500"
+                      }`}
+                    >
+                      {t.effectSimple || "Đơn giản"}
+                    </button>
+                    <button
+                      onClick={() => { playClick(); setFreezeEffect?.("none"); }}
+                      className={`flex-1 py-1.5 rounded-md text-[8px] font-black uppercase transition-all ${
+                        freezeEffect === "none" ? "bg-red-600 text-white shadow-md" : "text-slate-500"
+                      }`}
+                    >
+                      {t.effectNone || "Tắt"}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

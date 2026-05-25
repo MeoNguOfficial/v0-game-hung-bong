@@ -12,24 +12,24 @@ interface SkinPlayerModalProps {
 }
 
 export const SKINS = [
-  { id: "default", name: "Default", color: "bg-blue-500" },
-  { id: "emerald", name: "Emerald Edge", color: "bg-emerald-500" },
-  { id: "neon", name: "Neon Pulse", color: "bg-fuchsia-500" },
-  { id: "ice", name: "Ice Shard", color: "bg-cyan-400" },
-  { id: "cyber", name: "Cyber Grid", color: "bg-lime-500" },
-  { id: "inferno", name: "Inferno Core", color: "bg-orange-600" },
-  { id: "void", name: "Void Rift", color: "bg-violet-900" },
-  { id: "galaxy", name: "Galaxy Sky", color: "bg-indigo-600" },
-  { id: "diamond", name: "Diamond", color: "bg-cyan-200" },
-  { id: "iron", name: "Iron", color: "bg-slate-400" },
-  { id: "gold", name: "Gold", color: "bg-yellow-400" },
-  { id: "copper", name: "Copper", color: "bg-orange-400" },
-  { id: "wooden", name: "Wooden", color: "bg-amber-800" },
-  { id: "ruby", name: "Ruby", color: "bg-red-600" },
-  { id: "sapphire", name: "Sapphire", color: "bg-blue-700" },
-  { id: "platinum", name: "Platinum", color: "bg-slate-300" },
-  { id: "leaves", name: "Leaves", color: "bg-green-600" },
-  { id: "water", name: "Water", color: "bg-sky-500" },
+  { id: "default", name: "skinDefault", color: "bg-blue-500" },
+  { id: "emerald", name: "skinEmerald", color: "bg-emerald-500" },
+  { id: "neon", name: "skinNeon", color: "bg-fuchsia-500" },
+  { id: "ice", name: "skinIce", color: "bg-cyan-400" },
+  { id: "cyber", name: "skinCyber", color: "bg-lime-500" },
+  { id: "inferno", name: "skinInferno", color: "bg-orange-600" },
+  { id: "void", name: "skinVoid", color: "bg-violet-900" },
+  { id: "galaxy", name: "skinGalaxy", color: "bg-indigo-600" },
+  { id: "diamond", name: "skinDiamond", color: "bg-cyan-200" },
+  { id: "iron", name: "skinIron", color: "bg-slate-400" },
+  { id: "gold", name: "skinGold", color: "bg-yellow-400" },
+  { id: "copper", name: "skinCopper", color: "bg-orange-400" },
+  { id: "wooden", name: "skinWooden", color: "bg-amber-800" },
+  { id: "ruby", name: "skinRuby", color: "bg-red-600" },
+  { id: "sapphire", name: "skinSapphire", color: "bg-blue-700" },
+  { id: "platinum", name: "skinPlatinum", color: "bg-slate-300" },
+  { id: "leaves", name: "skinLeaves", color: "bg-green-600" },
+  { id: "water", name: "skinWater", color: "bg-sky-500" },
 ]
 
 export default function SkinPlayerModal({
@@ -66,7 +66,9 @@ export default function SkinPlayerModal({
             className={`relative p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 ${currentSkin === skin.id ? "bg-slate-800 border-pink-500 shadow-[0_0_15px_rgba(236,72,153,0.3)]" : "bg-slate-800/50 border-transparent hover:bg-slate-800"}`}
           >
             <div className={`w-16 h-4 rounded-full ${skin.color} shadow-sm`} />
-            <span className={`text-xs font-bold uppercase ${currentSkin === skin.id ? "text-white" : "text-slate-500"}`}>{skin.name}</span>
+            <span className={`text-xs font-bold uppercase ${currentSkin === skin.id ? "text-white" : "text-slate-500"}`}>
+              {t[skin.name] || skin.id}
+            </span>
             {currentSkin === skin.id && <div className="absolute top-2 right-2 bg-pink-500 rounded-full p-1"><Check size={12} className="text-white" /></div>}
           </button>
         ))}

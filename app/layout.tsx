@@ -12,21 +12,10 @@ export const metadata: Metadata = {
   description: "Created with v0 and MeoNguOfficial",
   generator: "v0.app",
   icons: {
-    icon: [
-      {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/icon.svg",
-        type: "image/svg+xml",
-      },
-    ],
-    apple: "/apple-icon.png",
+    icon: {
+      url: "https://cdn-icons-png.magnific.com/512/12368/12368485.png",
+    },
+    apple: "https://cdn-icons-png.magnific.com/512/12368/12368485.png",
   },
 }
 

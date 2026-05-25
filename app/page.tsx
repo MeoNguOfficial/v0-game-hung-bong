@@ -190,7 +190,7 @@ export default function App() {
   const [snowLeft, setSnowLeft] = useState(0)
   const [snowActive, setSnowActive] = useState(false)
   const [snowContactPoint, setSnowContactPoint] = useState({ x: 50, y: 50 })
-  const [language, setLanguage] = useState<"en" | "vi" | "es" | "ru">("en")
+  const [language, setLanguage] = useState<string>("en")
   const [skin, setSkin] = useState("default")
   const [background, setBackground] = useState("default")
   const [skinTab, setSkinTab] = useState<"skins" | "backgrounds">("skins")
@@ -554,7 +554,7 @@ export default function App() {
 
   const t = TRANSLATIONS[language]
 
-  const changeLanguage = (lang: "en" | "vi" | "es" | "ru") => {
+  const changeLanguage = (lang: any) => {
     playClick()
     setLanguage(lang)
     localStorage.setItem("game_language", lang)
@@ -1488,8 +1488,8 @@ export default function App() {
     }
     
     const savedFreezeEffect = localStorage.getItem("game_freeze_effect")
-    if (savedFreezeEffect === "spread" || savedFreezeEffect === "simple") {
-      setFreezeEffect(savedFreezeEffect)
+    if (savedFreezeEffect === "spread" || savedFreezeEffect === "simple" || savedFreezeEffect === "none") {
+      setFreezeEffect(savedFreezeEffect as any)
     }
 
     setTrailsEnabled(savedTrails)
@@ -3161,24 +3161,24 @@ export default function App() {
                     {skinTab === "skins" ? (
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-4">
                         {[
-                          { id: "default", name: "Default", class: "bg-blue-500" },
-                          { id: "emerald", name: "Emerald", class: "bg-emerald-500" },
-                          { id: "neon", name: "Neon", class: "bg-fuchsia-500 shadow-[0_0_15px_#d946ef]" },
-                          { id: "ice", name: "Ice", class: "bg-cyan-500 shadow-[0_0_10px_#cffafe]" },
-                          { id: "cyber", name: "Cyber", class: "bg-lime-500" },
-                          { id: "inferno", name: "Inferno", class: "bg-gradient-to-b from-orange-500 to-orange-800 shadow-[0_0_15px_#f97316]" },
-                          { id: "void", name: "Void", class: "bg-violet-900 shadow-[0_0_10px_#8b5cf6]" },
-                          { id: "galaxy", name: "Galaxy", class: "bg-gradient-to-b from-indigo-700 to-indigo-950" },
-                          { id: "diamond", name: "Diamond", class: "bg-cyan-200 shadow-[0_0_10px_#22d3ee]" },
-                          { id: "iron", name: "Iron", class: "bg-slate-400" },
-                          { id: "gold", name: "Gold", class: "bg-yellow-400 shadow-[0_0_10px_#fde047]" },
-                          { id: "copper", name: "Copper", class: "bg-orange-400" },
-                          { id: "wooden", name: "Wooden", class: "bg-amber-800" },
-                          { id: "ruby", name: "Ruby", class: "bg-red-600 shadow-[0_0_10px_#ef4444]" },
-                          { id: "sapphire", name: "Sapphire", class: "bg-blue-700 shadow-[0_0_10px_#3b82f6]" },
-                          { id: "platinum", name: "Platinum", class: "bg-slate-300 shadow-[0_0_10px_#e2e8f0]" },
-                          { id: "leaves", name: "Leaves", class: "bg-green-600" },
-                          { id: "water", name: "Water", class: "bg-sky-500 shadow-[0_0_10px_#38bdf8]" },
+                          { id: "default", name: "skinDefault", class: "bg-blue-500" },
+                          { id: "emerald", name: "skinEmerald", class: "bg-emerald-500" },
+                          { id: "neon", name: "skinNeon", class: "bg-fuchsia-500 shadow-[0_0_15px_#d946ef]" },
+                          { id: "ice", name: "skinIce", class: "bg-cyan-500 shadow-[0_0_10px_#cffafe]" },
+                          { id: "cyber", name: "skinCyber", class: "bg-lime-500" },
+                          { id: "inferno", name: "skinInferno", class: "bg-gradient-to-b from-orange-500 to-orange-800 shadow-[0_0_15px_#f97316]" },
+                          { id: "void", name: "skinVoid", class: "bg-violet-900 shadow-[0_0_10px_#8b5cf6]" },
+                          { id: "galaxy", name: "skinGalaxy", class: "bg-gradient-to-b from-indigo-700 to-indigo-950" },
+                          { id: "diamond", name: "skinDiamond", class: "bg-cyan-200 shadow-[0_0_10px_#22d3ee]" },
+                          { id: "iron", name: "skinIron", class: "bg-slate-400" },
+                          { id: "gold", name: "skinGold", class: "bg-yellow-400 shadow-[0_0_10px_#fde047]" },
+                          { id: "copper", name: "skinCopper", class: "bg-orange-400" },
+                          { id: "wooden", name: "skinWooden", class: "bg-amber-800" },
+                          { id: "ruby", name: "skinRuby", class: "bg-red-600 shadow-[0_0_10px_#ef4444]" },
+                          { id: "sapphire", name: "skinSapphire", class: "bg-blue-700 shadow-[0_0_10px_#3b82f6]" },
+                          { id: "platinum", name: "skinPlatinum", class: "bg-slate-300 shadow-[0_0_10px_#e2e8f0]" },
+                          { id: "leaves", name: "skinLeaves", class: "bg-green-600" },
+                          { id: "water", name: "skinWater", class: "bg-sky-500 shadow-[0_0_10px_#38bdf8]" },
                         ].map((s) => (
                           <button
                             key={s.id}
@@ -3190,7 +3190,7 @@ export default function App() {
                           >
                             <div className={`w-16 h-4 rounded-full ${s.class}`} />
                             <span className={`text-xs font-black uppercase tracking-wider ${skin === s.id ? "text-white" : "text-slate-500 group-hover:text-slate-300"}`}>
-                              {s.name}
+                              {t[s.name] || s.id}
                             </span>
                             {skin === s.id && (
                               <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full shadow-[0_0_8px_#3b82f6]" />
