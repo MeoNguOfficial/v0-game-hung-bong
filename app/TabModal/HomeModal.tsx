@@ -38,13 +38,13 @@ export default function HomeModal({
         className="w-full flex flex-col items-center"
         key="start"
       >
-        <motion.div variants={menuItemVariants} className="flex items-center gap-5 mb-8">
+        <motion.div variants={menuItemVariants} className="flex items-center gap-5 mb-8" style={{ willChange: "transform, opacity" }}>
           <div className="w-16 h-16 bg-blue-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-blue-500/40 shrink-0">
             <Zap size={32} className="text-white fill-white" />
           </div>
-          <h2 className="text-4xl font-black text-white italic uppercase tracking-tighter text-left leading-none">
+          <h1 className="text-4xl font-black text-white italic uppercase tracking-tighter text-left leading-none">
             Catch<br />Master
-          </h2>
+          </h1>
         </motion.div>
 
         <motion.button

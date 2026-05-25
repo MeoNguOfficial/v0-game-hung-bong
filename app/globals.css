@@ -8,6 +8,11 @@
   }
 }
 
+/* Tối ưu render cho các Modal ẩn */
+.modal-container-hidden {
+  content-visibility: hidden;
+}
+
 @layer base {
   :root {
     --font-sans: var(--font-geist-sans);

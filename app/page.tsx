@@ -2890,7 +2890,7 @@ export default function App() {
               </div>
 
               {/* BOTTOM HUD BAR (Effects & Mode) */}
-              <div className="bg-blue-600/15 backdrop-blur-md border border-blue-500/30 rounded-xl px-4 py-1.5 flex items-center justify-center shadow-lg">
+              <div className="bg-blue-600/15 backdrop-blur-md border border-blue-500/30 rounded-xl px-4 py-1.5 flex items-center justify-center shadow-lg min-h-[32px]">
                 <span className="text-[10px] font-black text-blue-200 uppercase tracking-widest italic flex items-center gap-2">
                   <Zap size={10} className="fill-blue-400 text-blue-400" />
                   {activeEffects || "SYSTEM OPERATIONAL"}

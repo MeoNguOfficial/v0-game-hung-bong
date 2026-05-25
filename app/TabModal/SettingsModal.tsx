@@ -807,7 +807,7 @@ export default function SettingsModal({
               <ChevronLeft size={20} />
             </button>
             
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center min-w-[140px]">
               <div className="flex items-center gap-2">
                  {React.createElement(tabsList.find(t => t.id === activeTab)?.icon || Globe, {
                     size: 16,
@@ -842,7 +842,10 @@ export default function SettingsModal({
           </div>
 
           {/* Mobile Content Area (Sử dụng AnimatePresence để chuyển tab mượt) */}
-          <div className={`flex-1 overflow-y-auto min-h-0 touch-auto overscroll-contain custom-scrollbar ${embed ? "p-4" : "p-6 pt-4"}`}>
+          <div 
+            className={`flex-1 overflow-y-auto min-h-0 touch-auto overscroll-contain custom-scrollbar ${embed ? "p-4" : "p-6 pt-4"}`}
+            style={{ contain: 'content' }}
+          >
              <AnimatePresence mode="wait">
                 <motion.div
                   key={activeTab}
